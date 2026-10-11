@@ -1,0 +1,24 @@
+[package]
+name = "tessera-workbook"
+version = "0.1.0"
+edition = "2021"
+autobins = false
+rust-version = "1.95"
+license = "GPL-3.0-only"
+
+[dependencies]
+calamine = { version = "=0.36.1", default-features = false }
+sha2 = "0.10"
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_Security", "Win32_Security_Authorization", "Win32_Storage_FileSystem"] }
+
+[workspace]
+
+[[bin]]
+name = "tessera-workbook-worker"
+path = "src/main.rs"
+
+[[example]]
+name = "workbook-proof"
+path = "examples/supervisor.rs"

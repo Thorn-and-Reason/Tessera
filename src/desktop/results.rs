@@ -1,0 +1,413 @@
+use super::{analyses::statistic_label, button, dialogs, start, theme, DesktopState, UiAction};
+use crate::{
+    analysis::{MissingPolicy, PlotData, RowPredicate, Statistic},
+    jobs::{JobOperation, JobRunner},
+    project::AnalysisRun,
+};
+use eframe::egui::{self, Align2, Pos2, Sense};
+use std::sync::Arc;
+fn history_label(run: &AnalysisRun, revision: crate::data::RevisionId) -> String {
+    let variables = run
+        .analysis
+        .columns()
+        .iter()
+        .take(3)
+        .map(|c| theme::caption_limit(&c.name, 24))
+        .collect::<Vec<_>>()
+        .join(", ");
+    format!(
+        "Run {} · {} · {}{} · {}",
+        run.id.0,
+        crate::export::report_analyses::method(&run.analysis),
+        variables,
+        if run.analysis.columns().len() > 3 {
+            ", …"
+        } else {
+            ""
+        },
+        if run.analysis.revision() == revision {
+            "Current data"
+        } else {
+            "Data changed"
+        }
+    )
+}
+pub fn history(ui: &mut egui::Ui, state: &mut DesktopState) {
+    let project = Arc::clone(state.project());
+    let revision = project.dataset().revision();
+    let history = egui::ComboBox::from_id_salt("run-history")
+        .width(300.)
+        .selected_text(
+            state
+                .selected_run()
+                .map_or("History".into(), |r| history_label(r, revision)),
+        )
+        .show_ui(ui, |ui| {
+            let response = ui.add(
+                egui::TextEdit::singleline(&mut state.history_search)
+                    .hint_text("Search saved results")
+                    .char_limit(super::state::TEXT_LIMIT),
+            );
+            response.widget_info(|| {
+                egui::WidgetInfo::labeled(egui::WidgetType::TextEdit, true, "Search saved results")
+            });
+            super::procedure_forms::record(state, "Search saved results", &response);
+            let query = match theme::NameQuery::new(&state.history_search) {
+                Ok(query) => query,
+                Err(error) => {
+                    state.fail(error);
+                    return;
+                }
+            };
+            let matches = || {
+                project.runs().iter().rev().filter(|run| {
+                    query.matches(&history_label(run, revision))
+                        || run
+                            .analysis
+                            .columns()
+                            .iter()
+                            .any(|c| query.matches(&c.name))
+                })
+            };
+            let count = matches().count();
+            if count == 0 {
+                ui.label("No matching saved results");
+            }
+            egui::ScrollArea::vertical()
+                .max_height(280.)
+                .show_rows(ui, 28., count, |ui, range| {
+                    for run in matches().skip(range.start).take(range.len()) {
+                        let label = history_label(run, revision);
+                        if ui
+                            .selectable_label(
+                                state.selected_run().is_some_and(|r| r.id == run.id),
+                                &label,
+                            )
+                            .on_hover_text(&label)
+                            .clicked()
+                        {
+                            state.act(UiAction::SelectRun(run.id));
+                            ui.close();
+                        }
+                    }
+                });
+        });
+    history.response.widget_info(|| egui::WidgetInfo {
+        current_text_value: Some(
+            state
+                .selected_run()
+                .map_or("No saved result selected".into(), |run| {
+                    history_label(run, revision)
+                }),
+        ),
+        ..egui::WidgetInfo::labeled(egui::WidgetType::ComboBox, true, "History")
+    });
+    super::procedure_forms::record(state, "History", &history.response);
+}
+pub fn show(ui: &mut egui::Ui, state: &mut DesktopState, jobs: &mut JobRunner) {
+    ui.horizontal_wrapped(|ui| {
+        ui.heading("Results");
+        history(ui, state);
+        if ui
+            .add_enabled(
+                !state.active && !state.project().runs().is_empty(),
+                egui::Button::new("Export report…"),
+            )
+            .clicked()
+        {
+            dialogs::export_report(state, jobs);
+        }
+        if ui
+            .add_enabled(
+                !state.active && state.selected_run().is_some(),
+                egui::Button::new("Rerun"),
+            )
+            .clicked()
+        {
+            if let Some(run) = state.selected_run() {
+                match state.checked_run_request(run.id) {
+                    Ok(request) => start(
+                        state,
+                        jobs,
+                        JobOperation::Analyze {
+                            project: Arc::clone(state.project()),
+                            request,
+                        },
+                    ),
+                    Err(e) => state.fail(e),
+                }
+            }
+        }
+    });
+    if !state.project().runs().is_empty() {
+        ui.small(format!(
+            "Export includes all {} saved results, with captured settings and complete tables.",
+            state.project().runs().len()
+        ));
+    }
+    ui.separator();
+    super::figure_editor::toolbar(ui, state, jobs);
+    output(ui, state);
+}
+pub fn output(ui: &mut egui::Ui, state: &mut DesktopState) {
+    ui.scope(|ui| {
+        super::output_style::apply(ui);
+        output_contents(ui, state);
+    });
+}
+fn output_contents(ui: &mut egui::Ui, state: &mut DesktopState) {
+    let Some(run) = state.selected_run().cloned() else {
+        ui.add_space(24.);
+        ui.heading("Your results will appear here");
+        ui.label("Choose a procedure in Analyses, select your variables, and run it. Saved results retain their original data and settings.");
+        if button(ui, state, "Go to Analyses").clicked() {
+            state.act(UiAction::Navigate(super::Workspace::Analyses));
+        }
+        return;
+    };
+    let crate::analysis::CompletedAnalysis::Describe(a) = &run.analysis else {
+        super::result_tables::show(ui, state, &run);
+        return;
+    };
+    egui::ScrollArea::both().id_salt("analysis-output").show(ui,|ui|{
+        ui.heading(format!("Saved result: Descriptive statistics · run {}",run.id.0));
+        super::result_tables::revision_status(ui, a.revision.0, state.selected_run_is_stale());
+        super::experience::guidance(ui, state.analysis_mode(), run.analysis.request());
+        ui.add_space(10.0);
+        egui::Grid::new("descriptive-table").striped(true).min_col_width(84.0).show(ui,|ui|{
+            ui.strong("Variable");ui.strong("Valid N");ui.strong("Missing N");
+            if a.request.missing_policy==MissingPolicy::CompleteCase{ui.strong("Excluded N");}
+            for statistic in &a.request.statistics{ui.strong(statistic_label(*statistic));}ui.end_row();
+            for row in &a.rows{
+                ui.label(theme::caption(name(&run,row.column)));ui.monospace(row.valid_n.to_string());ui.monospace(row.missing_n.to_string());
+                if a.request.missing_policy==MissingPolicy::CompleteCase{ui.monospace(row.complete_case_excluded_n.to_string());}
+                for statistic in &a.request.statistics{
+                    if let Some(estimate)=row.estimates.get(statistic){
+                        let exact=estimate.value.map_or_else(||theme::caption(estimate.reason.as_deref().unwrap_or("Unavailable")),|value|value.to_string());
+                        let response=ui.monospace(estimate.value.map_or_else(||"Unavailable".into(),theme::compact_number));
+                        response.widget_info(||egui::WidgetInfo::labeled(egui::WidgetType::Label,true,theme::caption(format_args!("{}: {}",statistic_label(*statistic),exact))));
+                        response.on_hover_text(exact);
+                    }
+                }ui.end_row();
+            }
+        });
+        for row in &a.rows{for (statistic,estimate) in &row.estimates{if let Some(reason)=&estimate.reason{ui.label(theme::caption(format_args!("{} · {}: {}",name(&run,row.column),statistic_label(*statistic),reason)));}}}
+        ui.add_space(12.0);
+        for plot in &a.plots{
+            ui.strong(theme::caption(format_args!("{} · distribution",name(&run,plot.column))));
+            ui.small(theme::caption(&plot.label));
+            if plot.reduced{ui.small(format!("{} of {} eligible rows displayed",plot.points.len(),plot.source_rows));}
+            let mean=a.rows.iter().find(|r|r.column==plot.column).and_then(|r|r.estimates.get(&Statistic::Mean)).and_then(|e|e.value);
+            draw_plot(ui,plot,mean);
+            ui.push_id(plot.column.0,|ui|{ui.collapsing("Observation table",|ui|{
+                ui.horizontal(|ui|{ui.label("Source row");ui.label("Value");ui.label("Frequency");});
+                egui::ScrollArea::vertical().id_salt("observations").max_height(220.0).show_rows(ui,24.0,plot.points.len(),|ui,range|{
+                    for point in &plot.points[range]{ui.horizontal(|ui|{ui.monospace((point.row+1).to_string());ui.monospace(point.value.to_string());ui.monospace(point.frequency.to_string());});}
+                });
+            });});ui.add_space(12.0);
+        }
+        let provenance=ui.collapsing("Run settings and provenance",|ui|{
+            ui.label(match a.request.missing_policy{MissingPolicy::PerVariable=>"Missing values: per variable",MissingPolicy::CompleteCase=>"Missing values: complete cases"});
+            if let Some(weight)=a.request.frequency_weight{ui.label(theme::caption(format_args!("Frequency weight: {} · repeated observations",name(&run,weight))));}else{ui.label("Unweighted observations");}
+            for predicate in &a.request.filter.predicates{ui.label(match predicate{
+                RowPredicate::Number{column,comparison,value}=>theme::caption(format_args!("{} {} {}",name(&run,*column),match comparison{crate::analysis::NumericComparison::Equal=>"=",crate::analysis::NumericComparison::NotEqual=>"!=",crate::analysis::NumericComparison::Less=>"<",crate::analysis::NumericComparison::LessOrEqual=>"<=",crate::analysis::NumericComparison::Greater=>">",crate::analysis::NumericComparison::GreaterOrEqual=>">="},value)),
+                RowPredicate::Text{column,value,equal}=>theme::caption(format_args!("{} {} {:?}",name(&run,*column),if *equal{"="}else{"!="},value)),
+                RowPredicate::Missing{column,missing}=>theme::caption(format_args!("{} is {}",name(&run,*column),if *missing{"missing"}else{"present"})),
+            });}
+            let d=&a.diagnostics;
+            ui.label(format!("Excluded rows: {} filtered; {} missing weights; {} zero weights; {} incomplete cases.",d.filtered_rows,d.missing_weight_rows,d.zero_weight_rows,d.complete_case_rows));
+            for column in &a.columns{ui.label(theme::caption(format_args!("{} · {}",column.name,column.description)));
+                ui.label(theme::caption(format_args!("Missing definitions: {:?}",column.missing_rules)));
+                for label in &column.value_labels{ui.label(theme::caption(format_args!("{:?}: {}",label.value,label.label)));}
+            }
+            for source in state.project().provenance(){ui.label(theme::caption(source));}
+        });
+        state.controls.insert("Run settings and provenance".into(),provenance.header_response.rect);
+        if button(ui,state,"Use this run in Analyses").clicked(){state.load_selected_request();state.act(UiAction::Navigate(super::Workspace::Analyses));}
+    });
+}
+fn name(run: &AnalysisRun, id: crate::data::ColumnId) -> &str {
+    run.analysis
+        .columns()
+        .iter()
+        .find(|c| c.id == id)
+        .map_or("Unavailable variable", |c| c.name.as_str())
+}
+fn draw_plot(ui: &mut egui::Ui, plot: &PlotData, mean: Option<f64>) {
+    let (rect, response) = ui.allocate_exact_size(
+        egui::vec2(ui.available_width().clamp(240.0, 800.0), 176.0),
+        Sense::hover(),
+    );
+    response.widget_info(|| {
+        egui::WidgetInfo::labeled(egui::WidgetType::Other, true, theme::caption(&plot.label))
+    });
+    if plot.points.is_empty() {
+        ui.painter().text(
+            rect.center(),
+            Align2::CENTER_CENTER,
+            "No eligible observations",
+            egui::TextStyle::Body.resolve(ui.style()),
+            theme::text(ui),
+        );
+        return;
+    }
+    let min = plot
+        .points
+        .iter()
+        .map(|p| p.value)
+        .fold(f64::INFINITY, f64::min);
+    let max = plot
+        .points
+        .iter()
+        .map(|p| p.value)
+        .fold(f64::NEG_INFINITY, f64::max);
+    let scale = min.abs().max(max.abs()).max(1.0);
+    let lo = min / scale;
+    let hi = max / scale;
+    let x = |value: f64| {
+        rect.left()
+            + 30.0
+            + if hi == lo {
+                0.5
+            } else {
+                ((value / scale - lo) / (hi - lo)) as f32
+            } * (rect.width() - 60.0)
+    };
+    let painter = ui.painter();
+    painter.rect_filled(rect, 0., theme::surface(ui));
+    let base = rect.bottom() - 26.0;
+    painter.line_segment(
+        [
+            Pos2::new(rect.left() + 30.0, base),
+            Pos2::new(rect.right() - 30.0, base),
+        ],
+        egui::Stroke::new(1.0, theme::line(ui)),
+    );
+    painter.text(
+        Pos2::new(x(min), base + 10.0),
+        Align2::CENTER_CENTER,
+        min.to_string(),
+        egui::TextStyle::Small.resolve(ui.style()),
+        theme::text(ui),
+    );
+    if min != max {
+        painter.text(
+            Pos2::new(x(max), base + 10.0),
+            Align2::CENTER_CENTER,
+            max.to_string(),
+            egui::TextStyle::Small.resolve(ui.style()),
+            theme::text(ui),
+        );
+    }
+    for (index, point) in plot.points.iter().enumerate() {
+        let y = rect.top() + 30.0 + (index as f32 % 12.0) * 8.0;
+        painter.circle_filled(Pos2::new(x(point.value), y), 3.5, theme::accent(ui));
+    }
+    if let Some(mean) = mean {
+        let marker = [
+            Pos2::new(x(mean), rect.top() + 22.0),
+            Pos2::new(x(mean), base),
+        ];
+        painter.line_segment(marker, egui::Stroke::new(4.0, theme::text(ui)));
+        painter.line_segment(marker, egui::Stroke::new(2.0, theme::GOLD));
+        painter.text(
+            Pos2::new(x(mean), rect.top() + 10.0),
+            Align2::CENTER_CENTER,
+            format!("Mean {}", theme::compact_number(mean)),
+            egui::TextStyle::Small.resolve(ui.style()),
+            theme::text(ui),
+        );
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{
+        analysis::*,
+        data::{Column, ColumnId, Dataset, RevisionId},
+        operation::JobControl,
+        project::Project,
+    };
+
+    #[test]
+    fn new_family_history_uses_bounded_captured_unicode_names_and_stale_revision() {
+        let long_name = format!("Sgôr ŵ {} final-name", "Ŷ".repeat(20_000));
+        let data = Dataset::new(vec![
+            Column::numeric(ColumnId(1), &long_name, [1., 3., 4., 7.].map(Some).to_vec()).unwrap(),
+            Column::numeric(
+                ColumnId(2),
+                "Second item",
+                [2., 4., 3., 8.].map(Some).to_vec(),
+            )
+            .unwrap(),
+            Column::text(
+                ColumnId(3),
+                "Captured factor",
+                ["A", "A", "B", "B"].map(|s| Some(s.into())).to_vec(),
+            )
+            .unwrap(),
+        ])
+        .unwrap();
+        let mut project = Project::new("History", data).unwrap();
+        let requests = [
+            AnalysisRequest::Regression(RegressionRequest {
+                outcome: ColumnId(1),
+                predictors: vec![RegressionPredictor {
+                    column: ColumnId(2),
+                    role: PredictorRole::Numeric,
+                }],
+                confidence: ConfidenceLevel::P95,
+                filter: RowFilter::default(),
+                frequency_weight: None,
+            }),
+            AnalysisRequest::Anova(AnovaRequest {
+                design: AnovaDesign::OneWay {
+                    outcome: ColumnId(1),
+                    factor: ColumnId(3),
+                },
+                confidence: ConfidenceLevel::P95,
+                filter: RowFilter::default(),
+                frequency_weight: None,
+                planned_pairs: vec![],
+                all_pairs: vec![],
+            }),
+            AnalysisRequest::Reliability(ReliabilityRequest {
+                items: vec![ColumnId(1), ColumnId(2)],
+                reversals: vec![],
+                filter: RowFilter::default(),
+                frequency_weight: None,
+            }),
+        ];
+        for request in &requests {
+            let result = analyze_with_budget(
+                project.dataset(),
+                request,
+                &JobControl::default(),
+                &[],
+                1024 * 1024,
+            )
+            .unwrap();
+            project = project.with_run(result).unwrap();
+        }
+        for (run, method) in
+            project
+                .runs()
+                .iter()
+                .zip(["Linear regression", "ANOVA", "Reliability"])
+        {
+            let label = history_label(run, RevisionId(2));
+            assert!(label.contains(method), "{label}");
+            assert!(label.contains("Sgôr ŵ"), "{label}");
+            assert!(label.ends_with("Data changed"));
+            assert!(
+                label.len() < 256,
+                "history accessibility text stays bounded"
+            );
+            assert_eq!(run.analysis.columns()[0].name, long_name);
+            assert!(theme::NameQuery::new("final-name")
+                .unwrap()
+                .matches(&run.analysis.columns()[0].name));
+        }
+    }
+}

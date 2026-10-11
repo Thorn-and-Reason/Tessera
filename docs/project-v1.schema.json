@@ -1,0 +1,840 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:foreign:project:v1",
+  "title": "Reference project structure version 1",
+  "description": "Passive UTF-8 JSON. Additional semantic validation enforces identities, dimensions, ranges, references, snapshots and result consistency.",
+  "type": "object",
+  "properties": {
+    "format": {
+      "const": "foreign-project"
+    },
+    "version": {
+      "const": 1
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1
+    },
+    "dataset": {
+      "$ref": "#/$defs/dataset"
+    },
+    "runs": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/run"
+      },
+      "maxItems": 2000000
+    },
+    "next_run_id": {
+      "$ref": "#/$defs/id"
+    },
+    "provenance": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "maxItems": 2000000
+    }
+  },
+  "required": [
+    "format",
+    "version",
+    "title",
+    "dataset",
+    "runs",
+    "next_run_id",
+    "provenance"
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "id": {
+      "type": "string",
+      "pattern": "^(?:[1-9][0-9]{0,18}|1[0-7][0-9]{18}|18[0-3][0-9]{17}|184[0-3][0-9]{16}|1844[0-5][0-9]{15}|18446[0-6][0-9]{14}|184467[0-3][0-9]{13}|1844674[0-3][0-9]{12}|184467440[0-6][0-9]{10}|1844674407[0-2][0-9]{9}|18446744073[0-6][0-9]{8}|1844674407370[0-8][0-9]{6}|18446744073709[0-4][0-9]{5}|184467440737095[0-4][0-9]{4}|18446744073709550[0-9]{3}|18446744073709551[0-5][0-9]{2}|1844674407370955160[0-9]{1}|1844674407370955161[0-4]|18446744073709551615)$"
+    },
+    "number": {
+      "type": "number",
+      "minimum": -1.7976931348623157e+308,
+      "maximum": 1.7976931348623157e+308
+    },
+    "count": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 2000000
+    },
+    "frequency": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740992
+    },
+    "kind": {
+      "enum": [
+        "number",
+        "text"
+      ]
+    },
+    "statistic": {
+      "enum": [
+        "mean",
+        "sample_std_dev",
+        "variance",
+        "minimum",
+        "maximum",
+        "sum",
+        "range",
+        "std_error_mean"
+      ]
+    },
+    "number_rules": {
+      "type": "object",
+      "properties": {
+        "number": {
+          "type": "object",
+          "properties": {
+            "values": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/number"
+              },
+              "maxItems": 2000000
+            },
+            "ranges": {
+              "type": "array",
+              "items": {
+                "type": "array",
+                "prefixItems": [
+                  {
+                    "$ref": "#/$defs/number"
+                  },
+                  {
+                    "$ref": "#/$defs/number"
+                  }
+                ],
+                "items": false,
+                "minItems": 2,
+                "maxItems": 2
+              },
+              "maxItems": 2000000
+            }
+          },
+          "required": [
+            "values",
+            "ranges"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "number"
+      ],
+      "additionalProperties": false
+    },
+    "text_rules": {
+      "type": "object",
+      "properties": {
+        "text": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 2000000
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "additionalProperties": false
+    },
+    "rules": {
+      "oneOf": [
+        {
+          "const": "none"
+        },
+        {
+          "$ref": "#/$defs/number_rules"
+        },
+        {
+          "$ref": "#/$defs/text_rules"
+        }
+      ]
+    },
+    "label": {
+      "type": "object",
+      "properties": {
+        "value": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/number"
+            },
+            {
+              "type": "string"
+            }
+          ]
+        },
+        "label": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "value",
+        "label"
+      ],
+      "additionalProperties": false
+    },
+    "metadata": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "description": {
+          "type": "string"
+        },
+        "measurement": {
+          "enum": [
+            "unknown",
+            "nominal",
+            "ordinal",
+            "scale"
+          ]
+        },
+        "missing_rules": {
+          "$ref": "#/$defs/rules"
+        },
+        "value_labels": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/label"
+          },
+          "maxItems": 2000000
+        },
+        "display_decimals": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 16
+        }
+      },
+      "required": [
+        "name",
+        "description",
+        "measurement",
+        "missing_rules",
+        "value_labels",
+        "display_decimals"
+      ],
+      "additionalProperties": false
+    },
+    "column": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "kind": {
+          "$ref": "#/$defs/kind"
+        },
+        "metadata": {
+          "$ref": "#/$defs/metadata"
+        },
+        "values": {
+          "type": "array",
+          "items": {
+            "oneOf": [
+              {
+                "$ref": "#/$defs/number"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "maxItems": 2000000
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "metadata",
+        "values"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "number"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "values": {
+                "type": "array",
+                "items": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/$defs/number"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "maxItems": 2000000
+              },
+              "metadata": {
+                "properties": {
+                  "missing_rules": {
+                    "oneOf": [
+                      {
+                        "const": "none"
+                      },
+                      {
+                        "$ref": "#/$defs/number_rules"
+                      }
+                    ]
+                  },
+                  "value_labels": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "value": {
+                          "$ref": "#/$defs/number"
+                        },
+                        "label": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "value",
+                        "label"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "maxItems": 2000000
+                  }
+                }
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "values": {
+                "type": "array",
+                "items": {
+                  "oneOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "maxItems": 2000000
+              },
+              "metadata": {
+                "properties": {
+                  "missing_rules": {
+                    "oneOf": [
+                      {
+                        "const": "none"
+                      },
+                      {
+                        "$ref": "#/$defs/text_rules"
+                      }
+                    ]
+                  },
+                  "value_labels": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "value": {
+                          "type": "string"
+                        },
+                        "label": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "value",
+                        "label"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "maxItems": 2000000
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "dataset": {
+      "type": "object",
+      "properties": {
+        "revision": {
+          "$ref": "#/$defs/id"
+        },
+        "rows": {
+          "$ref": "#/$defs/count"
+        },
+        "columns": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/column"
+          },
+          "maxItems": 2000000
+        }
+      },
+      "required": [
+        "revision",
+        "rows",
+        "columns"
+      ],
+      "additionalProperties": false
+    },
+    "predicate": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "number": {
+              "type": "object",
+              "properties": {
+                "column": {
+                  "$ref": "#/$defs/id"
+                },
+                "comparison": {
+                  "enum": [
+                    "equal",
+                    "not_equal",
+                    "less",
+                    "less_or_equal",
+                    "greater",
+                    "greater_or_equal"
+                  ]
+                },
+                "value": {
+                  "$ref": "#/$defs/number"
+                }
+              },
+              "required": [
+                "column",
+                "comparison",
+                "value"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "number"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "text": {
+              "type": "object",
+              "properties": {
+                "column": {
+                  "$ref": "#/$defs/id"
+                },
+                "value": {
+                  "type": "string"
+                },
+                "equal": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "column",
+                "value",
+                "equal"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "text"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "missing": {
+              "type": "object",
+              "properties": {
+                "column": {
+                  "$ref": "#/$defs/id"
+                },
+                "missing": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "column",
+                "missing"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "missing"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "request": {
+      "type": "object",
+      "properties": {
+        "columns": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/id"
+          },
+          "maxItems": 2000000,
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "statistics": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/statistic"
+          },
+          "maxItems": 8,
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "missing_policy": {
+          "enum": [
+            "per_variable",
+            "complete_case"
+          ]
+        },
+        "filter": {
+          "type": "object",
+          "properties": {
+            "predicates": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/predicate"
+              },
+              "maxItems": 2000000
+            }
+          },
+          "required": [
+            "predicates"
+          ],
+          "additionalProperties": false
+        },
+        "frequency_weight": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "columns",
+        "statistics",
+        "missing_policy",
+        "filter",
+        "frequency_weight"
+      ],
+      "additionalProperties": false
+    },
+    "snapshot": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "kind": {
+          "$ref": "#/$defs/kind"
+        },
+        "description": {
+          "type": "string"
+        },
+        "missing_rules": {
+          "$ref": "#/$defs/rules"
+        },
+        "value_labels": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/label"
+          },
+          "maxItems": 2000000
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "kind",
+        "description",
+        "missing_rules",
+        "value_labels"
+      ],
+      "additionalProperties": false
+    },
+    "estimate": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "value": {
+              "$ref": "#/$defs/number"
+            },
+            "reason": {
+              "type": "null"
+            }
+          },
+          "required": [
+            "value",
+            "reason"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "value": {
+              "type": "null"
+            },
+            "reason": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "value",
+            "reason"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "estimates": {
+      "type": "object",
+      "properties": {
+        "mean": {
+          "$ref": "#/$defs/estimate"
+        },
+        "sample_std_dev": {
+          "$ref": "#/$defs/estimate"
+        },
+        "variance": {
+          "$ref": "#/$defs/estimate"
+        },
+        "minimum": {
+          "$ref": "#/$defs/estimate"
+        },
+        "maximum": {
+          "$ref": "#/$defs/estimate"
+        },
+        "sum": {
+          "$ref": "#/$defs/estimate"
+        },
+        "range": {
+          "$ref": "#/$defs/estimate"
+        },
+        "std_error_mean": {
+          "$ref": "#/$defs/estimate"
+        }
+      },
+      "additionalProperties": false,
+      "minProperties": 1,
+      "maxProperties": 8
+    },
+    "result": {
+      "type": "object",
+      "properties": {
+        "column": {
+          "$ref": "#/$defs/id"
+        },
+        "valid_n": {
+          "$ref": "#/$defs/frequency"
+        },
+        "missing_n": {
+          "$ref": "#/$defs/frequency"
+        },
+        "complete_case_excluded_n": {
+          "$ref": "#/$defs/frequency"
+        },
+        "estimates": {
+          "$ref": "#/$defs/estimates"
+        }
+      },
+      "required": [
+        "column",
+        "valid_n",
+        "missing_n",
+        "complete_case_excluded_n",
+        "estimates"
+      ],
+      "additionalProperties": false
+    },
+    "diagnostics": {
+      "type": "object",
+      "properties": {
+        "filtered_rows": {
+          "$ref": "#/$defs/count"
+        },
+        "missing_weight_rows": {
+          "$ref": "#/$defs/count"
+        },
+        "zero_weight_rows": {
+          "$ref": "#/$defs/count"
+        },
+        "complete_case_rows": {
+          "$ref": "#/$defs/count"
+        }
+      },
+      "required": [
+        "filtered_rows",
+        "missing_weight_rows",
+        "zero_weight_rows",
+        "complete_case_rows"
+      ],
+      "additionalProperties": false
+    },
+    "point": {
+      "type": "object",
+      "properties": {
+        "row": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1999999
+        },
+        "value": {
+          "$ref": "#/$defs/number"
+        },
+        "frequency": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740992
+        }
+      },
+      "required": [
+        "row",
+        "value",
+        "frequency"
+      ],
+      "additionalProperties": false
+    },
+    "plot": {
+      "type": "object",
+      "properties": {
+        "column": {
+          "$ref": "#/$defs/id"
+        },
+        "points": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/point"
+          },
+          "maxItems": 2000
+        },
+        "source_rows": {
+          "$ref": "#/$defs/count"
+        },
+        "reduced": {
+          "type": "boolean"
+        },
+        "label": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "column",
+        "points",
+        "source_rows",
+        "reduced",
+        "label"
+      ],
+      "additionalProperties": false
+    },
+    "analysis": {
+      "type": "object",
+      "properties": {
+        "revision": {
+          "$ref": "#/$defs/id"
+        },
+        "request": {
+          "$ref": "#/$defs/request"
+        },
+        "columns": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/snapshot"
+          },
+          "maxItems": 2000000
+        },
+        "rows": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/result"
+          },
+          "maxItems": 2000000
+        },
+        "diagnostics": {
+          "$ref": "#/$defs/diagnostics"
+        },
+        "plots": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/plot"
+          },
+          "maxItems": 2000000
+        }
+      },
+      "required": [
+        "revision",
+        "request",
+        "columns",
+        "rows",
+        "diagnostics",
+        "plots"
+      ],
+      "additionalProperties": false
+    },
+    "run": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "operation": {
+          "const": "describe"
+        },
+        "analysis": {
+          "$ref": "#/$defs/analysis"
+        }
+      },
+      "required": [
+        "id",
+        "operation",
+        "analysis"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

@@ -1,0 +1,6 @@
+Official source: https://github.com/notofonts/noto-fonts
+Downloaded 2026-10-06 from main/hinted/ttf/NotoSans/NotoSans-Regular.ttf and main/hinted/ttf/NotoSansMono/NotoSansMono-Regular.ttf; accompanying root LICENSE is SIL Open Font License1.1.
+SemiBold source: https://raw.githubusercontent.com/notofonts/noto-fonts/main/hinted/ttf/NotoSans/NotoSans-SemiBold.ttf (obtained 2026-10-06).
+SHA-256 hashes and checked glyph repertoire: glyph-check.txt.
+
+Libron Regular: existing Thorn & Reason Publisher_Website/public/fonts/libron/Libron-Regular.woff2 and accompanying supplied OFL notice, obtained locally 2026-10-10. Converted losslessly from WOFF2 to TTF using FontTools; outlines unchanged. SHA-256 TTF: 11f4ccd5316700267b2299f54cc3ba7eb2e60ca4829a52df0c616df220470b80; licence: Libron-LICENSE.txt. Noto Sans provides fallback glyphs.

@@ -1,0 +1,5315 @@
+{
+  "schema": "independent-reliability-oracle-v1",
+  "conventions": {
+    "inputs": "Finite Float64 converted by Fraction.from_float; JSON hexadecimal companions are authoritative.",
+    "reversal": "Inclusive positive-weight filtered-base bounds; exact L+U-x rounded once to Float64.",
+    "cohort": "Original complete cohort retained for all deletions; integer frequency is literal replication.",
+    "exact": "Rational means/scatter/raw alpha/correlation squared; standardized square roots use mpmath.",
+    "precision": "80/160/320/640 decimal digits; independent direct standardized energy and correlation matrix identity.",
+    "limits": "Small fixtures only; convergence is evidence, not a Rust error allowance or correct-rounding proof."
+  },
+  "cases": [
+    {
+      "input": {
+        "id": "identical_n4",
+        "k": 2,
+        "rows": [
+          {
+            "values": [
+              0,
+              0
+            ]
+          },
+          {
+            "values": [
+              1,
+              1
+            ]
+          },
+          {
+            "values": [
+              2,
+              2
+            ]
+          },
+          {
+            "values": [
+              3,
+              3
+            ]
+          }
+        ]
+      },
+      "input_float64_hex": [
+        [
+          "0x0.0p+0",
+          "0x0.0p+0"
+        ],
+        [
+          "0x1.0000000000000p+0",
+          "0x1.0000000000000p+0"
+        ],
+        [
+          "0x1.0000000000000p+1",
+          "0x1.0000000000000p+1"
+        ],
+        [
+          "0x1.8000000000000p+1",
+          "0x1.8000000000000p+1"
+        ]
+      ],
+      "scored_float64_hex": [
+        [
+          "0x0.0p+0",
+          "0x0.0p+0"
+        ],
+        [
+          "0x1.0000000000000p+0",
+          "0x1.0000000000000p+0"
+        ],
+        [
+          "0x1.0000000000000p+1",
+          "0x1.0000000000000p+1"
+        ],
+        [
+          "0x1.8000000000000p+1",
+          "0x1.8000000000000p+1"
+        ]
+      ],
+      "exact": {
+        "n": 4,
+        "physical_rows": 4,
+        "means": [
+          "3/2",
+          "3/2"
+        ],
+        "sample_variances": [
+          "5/3",
+          "5/3"
+        ],
+        "scatter": [
+          [
+            "5/1",
+            "5/1"
+          ],
+          [
+            "5/1",
+            "5/1"
+          ]
+        ],
+        "total_energy": "20/1",
+        "raw_alpha": "1/1",
+        "raw_deletion": [
+          null,
+          null
+        ],
+        "corrected": [
+          {
+            "sign": 1,
+            "squared": "1/1"
+          },
+          {
+            "sign": 1,
+            "squared": "1/1"
+          }
+        ]
+      },
+      "exact_total_energy_state": "Positive",
+      "float64_publication_controls": {
+        "means": [
+          "0x1.8000000000000p+0",
+          "0x1.8000000000000p+0"
+        ],
+        "sample_sd": [
+          "0x1.4a7e9cb8a3491p+0",
+          "0x1.4a7e9cb8a3491p+0"
+        ],
+        "raw_alpha": "0x1.0000000000000p+0",
+        "raw_deletion": [
+          null,
+          null
+        ],
+        "corrected": [
+          "0x1.0000000000000p+0",
+          "0x1.0000000000000p+0"
+        ]
+      },
+      "precision_controls": [
+        {
+          "decimal_digits": 80,
+          "standardized_alpha_and_deletions": [
+            "1.0",
+            null,
+            null
+          ],
+          "rounded_float64": [
+            "0x1.0000000000000p+0",
+            null,
+            null
+          ]
+        },
+        {
+          "decimal_digits": 160,
+          "standardized_alpha_and_deletions": [
+            "1.0",
+            null,
+            null
+          ],
+          "rounded_float64": [
+            "0x1.0000000000000p+0",
+            null,
+            null
+          ]
+        },
+        {
+          "decimal_digits": 320,
+          "standardized_alpha_and_deletions": [
+            "1.0",
+            null,
+            null
+          ],
+          "rounded_float64": [
+            "0x1.0000000000000p+0",
+            null,
+            null
+          ]
+        },
+        {
+          "decimal_digits": 640,
+          "standardized_alpha_and_deletions": [
+            "1.0",
+            null,
+            null
+          ],
+          "rounded_float64": [
+            "0x1.0000000000000p+0",
+            null,
+            null
+          ]
+        }
+      ]
+    },
+    {
+      "input": {
+        "id": "identical",
+        "k": 2,
+        "rows": [
+          {
+            "values": [
+              0,
+              0
+            ]
+          },
+          {
+            "values": [
+              1,
+              1
+            ]
+          }
+        ]
+      },
+      "input_float64_hex": [
+        [
+          "0x0.0p+0",
+          "0x0.0p+0"
+        ],
+        [
+          "0x1.0000000000000p+0",
+          "0x1.0000000000000p+0"
+        ]
+      ],
+      "scored_float64_hex": [
+        [
+          "0x0.0p+0",
+          "0x0.0p+0"
+        ],
+        [
+          "0x1.0000000000000p+0",
+          "0x1.0000000000000p+0"
+        ]
+      ],
+      "exact": {
+        "n": 2,
+        "physical_rows": 2,
+        "means": [
+          "1/2",
+          "1/2"
+        ],
+        "sample_variances": [
+          "1/2",
+          "1/2"
+        ],
+        "scatter": [
+          [
+            "1/2",
+            "1/2"
+          ],
+          [
+            "1/2",
+            "1/2"
+          ]
+        ],
+        "total_energy": "2/1",
+        "raw_alpha": "1/1",
+        "raw_deletion": [
+          null,
+          null
+        ],
+        "corrected": [
+          {
+            "sign": 1,
+            "squared": "1/1"
+          },
+          {
+            "sign": 1,
+            "squared": "1/1"
+          }
+        ]
+      },
+      "exact_total_energy_state": "Positive",
+      "float64_publication_controls": {
+        "means": [
+          "0x1.0000000000000p-1",
+          "0x1.0000000000000p-1"
+        ],
+        "sample_sd": [
+          "0x1.6a09e667f3bcdp-1",
+          "0x1.6a09e667f3bcdp-1"
+        ],
+        "raw_alpha": "0x1.0000000000000p+0",
+        "raw_deletion": [
+          null,
+          null
+        ],
+        "corrected": [
+          "0x1.0000000000000p+0",
+          "0x1.0000000000000p+0"
+        ]
+      },
+      "precision_controls": [
+        {
+          "decimal_digits": 80,
+          "standardized_alpha_and_deletions": [
+            "1.0",
+            null,
+            null
+          ],
+          "rounded_float64": [
+            "0x1.0000000000000p+0",
+            null,
+            null
+          ]
+        },
+        {
+          "decimal_digits": 160,
+          "standardized_alpha_and_deletions": [
+            "1.0",
+            null,
+            null
+          ],
+          "rounded_float64": [
+            "0x1.0000000000000p+0",
+            null,
+            null
+          ]
+        },
+        {
+          "decimal_digits": 320,
+          "standardized_alpha_and_deletions": [
+            "1.0",
+            null,
+            null
+          ],
+          "rounded_float64": [
+            "0x1.0000000000000p+0",
+            null,
+            null
+          ]
+        },
+        {
+          "decimal_digits": 640,
+          "standardized_alpha_and_deletions": [
+            "1.0",
+            null,
+            null
+          ],
+          "rounded_float64": [
+            "0x1.0000000000000p+0",
+            null,
+            null
+          ]
+        }
+      ]
+    },
+    {
+      "input": {
+        "id": "scaled",
+        "k": 2,
+        "rows": [
+          {
+            "values": [
+              0,
+              0
+            ]
+          },
+          {
+            "values": [
+              1,
+              2
+            ]
+          }
+        ]
+      },
+      "input_float64_hex": [
+        [
+          "0x0.0p+0",
+          "0x0.0p+0"
+        ],
+        [
+          "0x1.0000000000000p+0",
+          "0x1.0000000000000p+1"
+        ]
+      ],
+      "scored_float64_hex": [
+        [
+          "0x0.0p+0",
+          "0x0.0p+0"
+        ],
+        [
+          "0x1.0000000000000p+0",
+          "0x1.0000000000000p+1"
+        ]
+      ],
+      "exact": {
+        "n": 2,
+        "physical_rows": 2,
+        "means": [
+          "1/2",
+          "1/1"
+        ],
+        "sample_variances": [
+          "1/2",
+          "2/1"
+        ],
+        "scatter": [
+          [
+            "1/2",
+            "1/1"
+          ],
+          [
+            "1/1",
+            "2/1"
+          ]
+        ],
+        "total_energy": "9/2",
+        "raw_alpha": "8/9",
+        "raw_deletion": [
+          null,
+          null
+        ],
+        "corrected": [
+          {
+            "sign": 1,
+            "squared": "1/1"
+          },
+          {
+            "sign": 1,
+            "squared": "1/1"
+          }
+        ]
+      },
+      "exact_total_energy_state": "Positive",
+      "float64_publication_controls": {
+        "means": [
+          "0x1.0000000000000p-1",
+          "0x1.0000000000000p+0"
+        ],
+        "sample_sd": [
+          "0x1.6a09e667f3bcdp-1",
+          "0x1.6a09e667f3bcdp+0"
+        ],
+        "raw_alpha": "0x1.c71c71c71c71cp-1",
+        "raw_deletion": [
+          null,
+          null
+        ],
+        "corrected": [
+          "0x1.0000000000000p+0",
+          "0x1.0000000000000p+0"
+        ]
+      },
+      "precision_controls": [
+        {
+          "decimal_digits": 80,
+          "standardized_alpha_and_deletions": [
+            "1.0",
+            null,
+            null
+          ],
+          "rounded_float64": [
+            "0x1.0000000000000p+0",
+            null,
+            null
+          ]
+        },
+        {
+          "decimal_digits": 160,
+          "standardized_alpha_and_deletions": [
+            "1.0",
+            null,
+            null
+          ],
+          "rounded_float64": [
+            "0x1.0000000000000p+0",
+            null,
+            null
+          ]
+        },
+        {
+          "decimal_digits": 320,
+          "standardized_alpha_and_deletions": [
+            "1.0",
+            null,
+            null
+          ],
+          "rounded_float64": [
+            "0x1.0000000000000p+0",
+            null,
+            null
+          ]
+        },
+        {
+          "decimal_digits": 640,
+          "standardized_alpha_and_deletions": [
+            "1.0",
+            null,
+            null
+          ],
+          "rounded_float64": [
+            "0x1.0000000000000p+0",
+            null,
+            null
+          ]
+        }
+      ]
+    },
+    {
+      "input": {
+        "id": "constant",
+        "k": 2,
+        "rows": [
+          {
+            "values": [
+              0,
+              3
+            ]
+          },
+          {
+            "values": [
+              1,
+              3
+            ]
+          }
+        ]
+      },
+      "input_float64_hex": [
+        [
+          "0x0.0p+0",
+          "0x1.8000000000000p+1"
+        ],
+        [
+          "0x1.0000000000000p+0",
+          "0x1.8000000000000p+1"
+        ]
+      ],
+      "scored_float64_hex": [
+        [
+          "0x0.0p+0",
+          "0x1.8000000000000p+1"
+        ],
+        [
+          "0x1.0000000000000p+0",
+          "0x1.8000000000000p+1"
+        ]
+      ],
+      "exact": {
+        "n": 2,
+        "physical_rows": 2,
+        "means": [
+          "1/2",
+          "3/1"
+        ],
+        "sample_variances": [
+          "1/2",
+          "0/1"
+        ],
+        "scatter": [
+          [
+            "1/2",
+            "0/1"
+          ],
+          [
+            "0/1",
+            "0/1"
+          ]
+        ],
+        "total_energy": "1/2",
+        "raw_alpha": "0/1",
+        "raw_deletion": [
+          null,
+          null
+        ],
+        "corrected": [
+          null,
+          null
+        ]
+      },
+      "exact_total_energy_state": "Positive",
+      "float64_publication_controls": {
+        "means": [
+          "0x1.0000000000000p-1",
+          "0x1.8000000000000p+1"
+        ],
+        "sample_sd": [
+          "0x1.6a09e667f3bcdp-1",
+          "0x0.0p+0"
+        ],
+        "raw_alpha": "0x0.0p+0",
+        "raw_deletion": [
+          null,
+          null
+        ],
+        "corrected": [
+          null,
+          null
+        ]
+      },
+      "precision_controls": [
+        {
+          "decimal_digits": 80,
+          "standardized_alpha_and_deletions": [
+            null,
+            null,
+            null
+          ],
+          "rounded_float64": [
+            null,
+            null,
+            null
+          ]
+        },
+        {
+          "decimal_digits": 160,
+          "standardized_alpha_and_deletions": [
+            null,
+            null,
+            null
+          ],
+          "rounded_float64": [
+            null,
+            null,
+            null
+          ]
+        },
+        {
+          "decimal_digits": 320,
+          "standardized_alpha_and_deletions": [
+            null,
+            null,
+            null
+          ],
+          "rounded_float64": [
+            null,
+            null,
+            null
+          ]
+        },
+        {
+          "decimal_digits": 640,
+          "standardized_alpha_and_deletions": [
+            null,
+            null,
+            null
+          ],
+          "rounded_float64": [
+            null,
+            null,
+            null
+          ]
+        }
+      ]
+    },
+    {
+      "input": {
+        "id": "opposites",
+        "k": 2,
+        "rows": [
+          {
+            "values": [
+              0,
+              0
+            ]
+          },
+          {
+            "values": [
+              1,
+              -1
+            ]
+          }
+        ]
+      },
+      "input_float64_hex": [
+        [
+          "0x0.0p+0",
+          "0x0.0p+0"
+        ],
+        [
+          "0x1.0000000000000p+0",
+          "-0x1.0000000000000p+0"
+        ]
+      ],
+      "scored_float64_hex": [
+        [
+          "0x0.0p+0",
+          "0x0.0p+0"
+        ],
+        [
+          "0x1.0000000000000p+0",
+          "-0x1.0000000000000p+0"
+        ]
+      ],
+      "exact": {
+        "n": 2,
+        "physical_rows": 2,
+        "means": [
+          "1/2",
+          "-1/2"
+        ],
+        "sample_variances": [
+          "1/2",
+          "1/2"
+        ],
+        "scatter": [
+          [
+            "1/2",
+            "-1/2"
+          ],
+          [
+            "-1/2",
+            "1/2"
+          ]
+        ],
+        "total_energy": "0/1",
+        "raw_alpha": null,
+        "raw_deletion": [
+          null,
+          null
+        ],
+        "corrected": [
+          {
+            "sign": -1,
+            "squared": "1/1"
+          },
+          {
+            "sign": -1,
+            "squared": "1/1"
+          }
+        ]
+      },
+      "exact_total_energy_state": "ExactZero",
+      "float64_publication_controls": {
+        "means": [
+          "0x1.0000000000000p-1",
+          "-0x1.0000000000000p-1"
+        ],
+        "sample_sd": [
+          "0x1.6a09e667f3bcdp-1",
+          "0x1.6a09e667f3bcdp-1"
+        ],
+        "raw_alpha": null,
+        "raw_deletion": [
+          null,
+          null
+        ],
+        "corrected": [
+          "-0x1.0000000000000p+0",
+          "-0x1.0000000000000p+0"
+        ]
+      },
+      "precision_controls": [
+        {
+          "decimal_digits": 80,
+          "standardized_alpha_and_deletions": [
+            null,
+            null,
+            null
+          ],
+          "rounded_float64": [
+            null,
+            null,
+            null
+          ]
+        },
+        {
+          "decimal_digits": 160,
+          "standardized_alpha_and_deletions": [
+            null,
+            null,
+            null
+          ],
+          "rounded_float64": [
+            null,
+            null,
+            null
+          ]
+        },
+        {
+          "decimal_digits": 320,
+          "standardized_alpha_and_deletions": [
+            null,
+            null,
+            null
+          ],
+          "rounded_float64": [
+            null,
+            null,
+            null
+          ]
+        },
+        {
+          "decimal_digits": 640,
+          "standardized_alpha_and_deletions": [
+            null,
+            null,
+            null
+          ],
+          "rounded_float64": [
+            null,
+            null,
+            null
+          ]
+        }
+      ]
+    },
+    {
+      "input": {
+        "id": "negative_eight",
+        "k": 2,
+        "rows": [
+          {
+            "values": [
+              0,
+              0
+            ]
+          },
+          {
+            "values": [
+              1,
+              -2
+            ]
+          }
+        ]
+      },
+      "input_float64_hex": [
+        [
+          "0x0.0p+0",
+          "0x0.0p+0"
+        ],
+        [
+          "0x1.0000000000000p+0",
+          "-0x1.0000000000000p+1"
+        ]
+      ],
+      "scored_float64_hex": [
+        [
+          "0x0.0p+0",
+          "0x0.0p+0"
+        ],
+        [
+          "0x1.0000000000000p+0",
+          "-0x1.0000000000000p+1"
+        ]
+      ],
+      "exact": {
+        "n": 2,
+        "physical_rows": 2,
+        "means": [
+          "1/2",
+          "-1/1"
+        ],
+        "sample_variances": [
+          "1/2",
+          "2/1"
+        ],
+        "scatter": [
+          [
+            "1/2",
+            "-1/1"
+          ],
+          [
+            "-1/1",
+            "2/1"
+          ]
+        ],
+        "total_energy": "1/2",
+        "raw_alpha": "-8/1",
+        "raw_deletion": [
+          null,
+          null
+        ],
+        "corrected": [
+          {
+            "sign": -1,
+            "squared": "1/1"
+          },
+          {
+            "sign": -1,
+            "squared": "1/1"
+          }
+        ]
+      },
+      "exact_total_energy_state": "Positive",
+      "float64_publication_controls": {
+        "means": [
+          "0x1.0000000000000p-1",
+          "-0x1.0000000000000p+0"
+        ],
+        "sample_sd": [
+          "0x1.6a09e667f3bcdp-1",
+          "0x1.6a09e667f3bcdp+0"
+        ],
+        "raw_alpha": "-0x1.0000000000000p+3",
+        "raw_deletion": [
+          null,
+          null
+        ],
+        "corrected": [
+          "-0x1.0000000000000p+0",
+          "-0x1.0000000000000p+0"
+        ]
+      },
+      "precision_controls": [
+        {
+          "decimal_digits": 80,
+          "standardized_alpha_and_deletions": [
+            null,
+            null,
+            null
+          ],
+          "rounded_float64": [
+            null,
+            null,
+            null
+          ]
+        },
+        {
+          "decimal_digits": 160,
+          "standardized_alpha_and_deletions": [
+            null,
+            null,
+            null
+          ],
+          "rounded_float64": [
+            null,
+            null,
+            null
+          ]
+        },
+        {
+          "decimal_digits": 320,
+          "standardized_alpha_and_deletions": [
+            null,
+            null,
+            null
+          ],
+          "rounded_float64": [
+            null,
+            null,
+            null
+          ]
+        },
+        {
+          "decimal_digits": 640,
+          "standardized_alpha_and_deletions": [
+            null,
+            null,
+            null
+          ],
+          "rounded_float64": [
+            null,
+            null,
+            null
+          ]
+        }
+      ]
+    },
+    {
+      "input": {
+        "id": "empty",
+        "k": 2,
+        "rows": []
+      },
+      "input_float64_hex": [],
+      "scored_float64_hex": [],
+      "exact": {
+        "n": 0,
+        "physical_rows": 0,
+        "means": [
+          null,
+          null
+        ],
+        "sample_variances": [
+          null,
+          null
+        ],
+        "scatter": [
+          [
+            "0/1",
+            "0/1"
+          ],
+          [
+            "0/1",
+            "0/1"
+          ]
+        ],
+        "total_energy": "0/1",
+        "raw_alpha": null,
+        "raw_deletion": [
+          null,
+          null
+        ],
+        "corrected": [
+          null,
+          null
+        ]
+      },
+      "exact_total_energy_state": "ExactZero",
+      "float64_publication_controls": {
+        "means": [
+          null,
+          null
+        ],
+        "sample_sd": [
+          null,
+          null
+        ],
+        "raw_alpha": null,
+        "raw_deletion": [
+          null,
+          null
+        ],
+        "corrected": [
+          null,
+          null
+        ]
+      },
+      "precision_controls": [
+        {
+          "decimal_digits": 80,
+          "standardized_alpha_and_deletions": [
+            null,
+            null,
+            null
+          ],
+          "rounded_float64": [
+            null,
+            null,
+            null
+          ]
+        },
+        {
+          "decimal_digits": 160,
+          "standardized_alpha_and_deletions": [
+            null,
+            null,
+            null
+          ],
+          "rounded_float64": [
+            null,
+            null,
+            null
+          ]
+        },
+        {
+          "decimal_digits": 320,
+          "standardized_alpha_and_deletions": [
+            null,
+            null,
+            null
+          ],
+          "rounded_float64": [
+            null,
+            null,
+            null
+          ]
+        },
+        {
+          "decimal_digits": 640,
+          "standardized_alpha_and_deletions": [
+            null,
+            null,
+            null
+          ],
+          "rounded_float64": [
+            null,
+            null,
+            null
+          ]
+        }
+      ]
+    },
+    {
+      "input": {
+        "id": "one",
+        "k": 2,
+        "rows": [
+          {
+            "values": [
+              3,
+              4
+            ]
+          }
+        ]
+      },
+      "input_float64_hex": [
+        [
+          "0x1.8000000000000p+1",
+          "0x1.0000000000000p+2"
+        ]
+      ],
+      "scored_float64_hex": [
+        [
+          "0x1.8000000000000p+1",
+          "0x1.0000000000000p+2"
+        ]
+      ],
+      "exact": {
+        "n": 1,
+        "physical_rows": 1,
+        "means": [
+          "3/1",
+          "4/1"
+        ],
+        "sample_variances": [
+          null,
+          null
+        ],
+        "scatter": [
+          [
+            "0/1",
+            "0/1"
+          ],
+          [
+            "0/1",
+            "0/1"
+          ]
+        ],
+        "total_energy": "0/1",
+        "raw_alpha": null,
+        "raw_deletion": [
+          null,
+          null
+        ],
+        "corrected": [
+          null,
+          null
+        ]
+      },
+      "exact_total_energy_state": "ExactZero",
+      "float64_publication_controls": {
+        "means": [
+          "0x1.8000000000000p+1",
+          "0x1.0000000000000p+2"
+        ],
+        "sample_sd": [
+          null,
+          null
+        ],
+        "raw_alpha": null,
+        "raw_deletion": [
+          null,
+          null
+        ],
+        "corrected": [
+          null,
+          null
+        ]
+      },
+      "precision_controls": [
+        {
+          "decimal_digits": 80,
+          "standardized_alpha_and_deletions": [
+            null,
+            null,
+            null
+          ],
+          "rounded_float64": [
+            null,
+            null,
+            null
+          ]
+        },
+        {
+          "decimal_digits": 160,
+          "standardized_alpha_and_deletions": [
+            null,
+            null,
+            null
+          ],
+          "rounded_float64": [
+            null,
+            null,
+            null
+          ]
+        },
+        {
+          "decimal_digits": 320,
+          "standardized_alpha_and_deletions": [
+            null,
+            null,
+            null
+          ],
+          "rounded_float64": [
+            null,
+            null,
+            null
+          ]
+        },
+        {
+          "decimal_digits": 640,
+          "standardized_alpha_and_deletions": [
+            null,
+            null,
+            null
+          ],
+          "rounded_float64": [
+            null,
+            null,
+            null
+          ]
+        }
+      ]
+    },
+    {
+      "input": {
+        "id": "constant_removed",
+        "k": 3,
+        "rows": [
+          {
+            "values": [
+              0,
+              0,
+              7
+            ]
+          },
+          {
+            "values": [
+              1,
+              2,
+              7
+            ]
+          }
+        ]
+      },
+      "input_float64_hex": [
+        [
+          "0x0.0p+0",
+          "0x0.0p+0",
+          "0x1.c000000000000p+2"
+        ],
+        [
+          "0x1.0000000000000p+0",
+          "0x1.0000000000000p+1",
+          "0x1.c000000000000p+2"
+        ]
+      ],
+      "scored_float64_hex": [
+        [
+          "0x0.0p+0",
+          "0x0.0p+0",
+          "0x1.c000000000000p+2"
+        ],
+        [
+          "0x1.0000000000000p+0",
+          "0x1.0000000000000p+1",
+          "0x1.c000000000000p+2"
+        ]
+      ],
+      "exact": {
+        "n": 2,
+        "physical_rows": 2,
+        "means": [
+          "1/2",
+          "1/1",
+          "7/1"
+        ],
+        "sample_variances": [
+          "1/2",
+          "2/1",
+          "0/1"
+        ],
+        "scatter": [
+          [
+            "1/2",
+            "1/1",
+            "0/1"
+          ],
+          [
+            "1/1",
+            "2/1",
+            "0/1"
+          ],
+          [
+            "0/1",
+            "0/1",
+            "0/1"
+          ]
+        ],
+        "total_energy": "9/2",
+        "raw_alpha": "2/3",
+        "raw_deletion": [
+          "0/1",
+          "0/1",
+          "8/9"
+        ],
+        "corrected": [
+          {
+            "sign": 1,
+            "squared": "1/1"
+          },
+          {
+            "sign": 1,
+            "squared": "1/1"
+          },
+          null
+        ]
+      },
+      "exact_total_energy_state": "Positive",
+      "float64_publication_controls": {
+        "means": [
+          "0x1.0000000000000p-1",
+          "0x1.0000000000000p+0",
+          "0x1.c000000000000p+2"
+        ],
+        "sample_sd": [
+          "0x1.6a09e667f3bcdp-1",
+          "0x1.6a09e667f3bcdp+0",
+          "0x0.0p+0"
+        ],
+        "raw_alpha": "0x1.5555555555555p-1",
+        "raw_deletion": [
+          "0x0.0p+0",
+          "0x0.0p+0",
+          "0x1.c71c71c71c71cp-1"
+        ],
+        "corrected": [
+          "0x1.0000000000000p+0",
+          "0x1.0000000000000p+0",
+          null
+        ]
+      },
+      "precision_controls": [
+        {
+          "decimal_digits": 80,
+          "standardized_alpha_and_deletions": [
+            null,
+            null,
+            null,
+            "1.0"
+          ],
+          "rounded_float64": [
+            null,
+            null,
+            null,
+            "0x1.0000000000000p+0"
+          ]
+        },
+        {
+          "decimal_digits": 160,
+          "standardized_alpha_and_deletions": [
+            null,
+            null,
+            null,
+            "1.0"
+          ],
+          "rounded_float64": [
+            null,
+            null,
+            null,
+            "0x1.0000000000000p+0"
+          ]
+        },
+        {
+          "decimal_digits": 320,
+          "standardized_alpha_and_deletions": [
+            null,
+            null,
+            null,
+            "1.0"
+          ],
+          "rounded_float64": [
+            null,
+            null,
+            null,
+            "0x1.0000000000000p+0"
+          ]
+        },
+        {
+          "decimal_digits": 640,
+          "standardized_alpha_and_deletions": [
+            null,
+            null,
+            null,
+            "1.0"
+          ],
+          "rounded_float64": [
+            null,
+            null,
+            null,
+            "0x1.0000000000000p+0"
+          ]
+        }
+      ]
+    },
+    {
+      "input": {
+        "id": "zero_remaining",
+        "k": 3,
+        "rows": [
+          {
+            "values": [
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "values": [
+              1,
+              1,
+              -1
+            ]
+          }
+        ]
+      },
+      "input_float64_hex": [
+        [
+          "0x0.0p+0",
+          "0x0.0p+0",
+          "0x0.0p+0"
+        ],
+        [
+          "0x1.0000000000000p+0",
+          "0x1.0000000000000p+0",
+          "-0x1.0000000000000p+0"
+        ]
+      ],
+      "scored_float64_hex": [
+        [
+          "0x0.0p+0",
+          "0x0.0p+0",
+          "0x0.0p+0"
+        ],
+        [
+          "0x1.0000000000000p+0",
+          "0x1.0000000000000p+0",
+          "-0x1.0000000000000p+0"
+        ]
+      ],
+      "exact": {
+        "n": 2,
+        "physical_rows": 2,
+        "means": [
+          "1/2",
+          "1/2",
+          "-1/2"
+        ],
+        "sample_variances": [
+          "1/2",
+          "1/2",
+          "1/2"
+        ],
+        "scatter": [
+          [
+            "1/2",
+            "1/2",
+            "-1/2"
+          ],
+          [
+            "1/2",
+            "1/2",
+            "-1/2"
+          ],
+          [
+            "-1/2",
+            "-1/2",
+            "1/2"
+          ]
+        ],
+        "total_energy": "1/2",
+        "raw_alpha": "-3/1",
+        "raw_deletion": [
+          null,
+          null,
+          "1/1"
+        ],
+        "corrected": [
+          null,
+          null,
+          {
+            "sign": -1,
+            "squared": "1/1"
+          }
+        ]
+      },
+      "exact_total_energy_state": "Positive",
+      "float64_publication_controls": {
+        "means": [
+          "0x1.0000000000000p-1",
+          "0x1.0000000000000p-1",
+          "-0x1.0000000000000p-1"
+        ],
+        "sample_sd": [
+          "0x1.6a09e667f3bcdp-1",
+          "0x1.6a09e667f3bcdp-1",
+          "0x1.6a09e667f3bcdp-1"
+        ],
+        "raw_alpha": "-0x1.8000000000000p+1",
+        "raw_deletion": [
+          null,
+          null,
+          "0x1.0000000000000p+0"
+        ],
+        "corrected": [
+          null,
+          null,
+          "-0x1.0000000000000p+0"
+        ]
+      },
+      "precision_controls": [
+        {
+          "decimal_digits": 80,
+          "standardized_alpha_and_deletions": [
+            "-3.0",
+            null,
+            null,
+            "1.0"
+          ],
+          "rounded_float64": [
+            "-0x1.8000000000000p+1",
+            null,
+            null,
+            "0x1.0000000000000p+0"
+          ]
+        },
+        {
+          "decimal_digits": 160,
+          "standardized_alpha_and_deletions": [
+            "-3.0",
+            null,
+            null,
+            "1.0"
+          ],
+          "rounded_float64": [
+            "-0x1.8000000000000p+1",
+            null,
+            null,
+            "0x1.0000000000000p+0"
+          ]
+        },
+        {
+          "decimal_digits": 320,
+          "standardized_alpha_and_deletions": [
+            "-3.0",
+            null,
+            null,
+            "1.0"
+          ],
+          "rounded_float64": [
+            "-0x1.8000000000000p+1",
+            null,
+            null,
+            "0x1.0000000000000p+0"
+          ]
+        },
+        {
+          "decimal_digits": 640,
+          "standardized_alpha_and_deletions": [
+            "-3.0",
+            null,
+            null,
+            "1.0"
+          ],
+          "rounded_float64": [
+            "-0x1.8000000000000p+1",
+            null,
+            null,
+            "0x1.0000000000000p+0"
+          ]
+        }
+      ]
+    },
+    {
+      "input": {
+        "id": "mixed_units",
+        "k": 3,
+        "rows": [
+          {
+            "values": [
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "values": [
+              1,
+              3273390607896141870013189696827599152216642046043064789483291368096133796404674554883270092325904157150886684127560071009217256545885393053328527589376,
+              3.054936363499605e-151
+            ]
+          },
+          {
+            "values": [
+              2,
+              -3273390607896141870013189696827599152216642046043064789483291368096133796404674554883270092325904157150886684127560071009217256545885393053328527589376,
+              6.10987272699921e-151
+            ]
+          }
+        ]
+      },
+      "input_float64_hex": [
+        [
+          "0x0.0p+0",
+          "0x0.0p+0",
+          "0x0.0p+0"
+        ],
+        [
+          "0x1.0000000000000p+0",
+          "0x1.0000000000000p+500",
+          "0x1.0000000000000p-500"
+        ],
+        [
+          "0x1.0000000000000p+1",
+          "-0x1.0000000000000p+500",
+          "0x1.0000000000000p-499"
+        ]
+      ],
+      "scored_float64_hex": [
+        [
+          "0x0.0p+0",
+          "0x0.0p+0",
+          "0x0.0p+0"
+        ],
+        [
+          "0x1.0000000000000p+0",
+          "0x1.0000000000000p+500",
+          "0x1.0000000000000p-500"
+        ],
+        [
+          "0x1.0000000000000p+1",
+          "-0x1.0000000000000p+500",
+          "0x1.0000000000000p-499"
+        ]
+      ],
+      "exact": {
+        "n": 3,
+        "physical_rows": 3,
+        "means": [
+          "1/1",
+          "0/1",
+          "1/3273390607896141870013189696827599152216642046043064789483291368096133796404674554883270092325904157150886684127560071009217256545885393053328527589376"
+        ],
+        "sample_variances": [
+          "1/1",
+          "10715086071862673209484250490600018105614048117055336074437503883703510511249361224931983788156958581275946729175531468251871452856923140435984577574698574803934567774824230985421074605062371141877954182153046474983581941267398767559165543946077062914571196477686542167660429831652624386837205668069376/1",
+          "1/10715086071862673209484250490600018105614048117055336074437503883703510511249361224931983788156958581275946729175531468251871452856923140435984577574698574803934567774824230985421074605062371141877954182153046474983581941267398767559165543946077062914571196477686542167660429831652624386837205668069376"
+        ],
+        "scatter": [
+          [
+            "2/1",
+            "-3273390607896141870013189696827599152216642046043064789483291368096133796404674554883270092325904157150886684127560071009217256545885393053328527589376/1",
+            "1/1636695303948070935006594848413799576108321023021532394741645684048066898202337277441635046162952078575443342063780035504608628272942696526664263794688"
+          ],
+          [
+            "-3273390607896141870013189696827599152216642046043064789483291368096133796404674554883270092325904157150886684127560071009217256545885393053328527589376/1",
+            "21430172143725346418968500981200036211228096234110672148875007767407021022498722449863967576313917162551893458351062936503742905713846280871969155149397149607869135549648461970842149210124742283755908364306092949967163882534797535118331087892154125829142392955373084335320859663305248773674411336138752/1",
+            "-1/1"
+          ],
+          [
+            "1/1636695303948070935006594848413799576108321023021532394741645684048066898202337277441635046162952078575443342063780035504608628272942696526664263794688",
+            "-1/1",
+            "1/5357543035931336604742125245300009052807024058527668037218751941851755255624680612465991894078479290637973364587765734125935726428461570217992288787349287401967283887412115492710537302531185570938977091076523237491790970633699383779582771973038531457285598238843271083830214915826312193418602834034688"
+          ]
+        ],
+        "total_energy": "114813069527425452423283320117768198402231770208869520047764273682576626139237031385665948631650626991844596463898746277344711896086305533142593135616630243877019555106564652412728498290246520855548596161239410446756824499795825041743659945153881384709251846151366961291545335056681841689781993183052327980496278952499129408337892682096330595954398094316088864087255270372257061789710897672371952922672541546443644975791512530685042911804057073541655315306369353502621039962536438933625381637225405476751284688603089424498899602541489157715431417640196751895448254862084427022792670509024607794995658753/5357543035931336604742125245300009052807024058527668037218751941851755255624680612465991894078479290637973364587765734125935726428461570217992288787349287401967283887412115492710537302531185570938977091076523237491790970633699383779582771973038531457285598238843271083830214915826312193418602834034688",
+        "raw_alpha": "-17537331055217019373813793980140428996762007940165414412037899012395481925281661101828540443292484630826575203397718758699647274470734979877085519459007707966980909579269290757488701364844538497326868760207288066667529484388097851875157801588735959612970499640463486901880560313109026748116047143730136351168336492854371026019327090069881345566551530093124391727810086485358291322751031168714967603300222238232480240453038088928473784562207130910720000/38271023175808484141094440039256066134077256736289840015921424560858875379745677128555316210550208997281532154632915425781570632028768511047531045205543414625673185035521550804242832763415506951849532053746470148918941499931941680581219981717960461569750615383788987097181778352227280563260664394350775993498759650833043136112630894032110198651466031438696288029085090124085687263236965890790650974224180515481214991930504176895014303934685691180551771768789784500873679987512146311208460545741801825583761562867696474832966534180496385905143805880065583965149418287361475674264223503008202598331886251",
+        "raw_deletion": [
+          "-21430172143725346418968500981200036211228096234110672148875007767407021022498722449863967576313917162551893458351062936503742905713846280871969155149397149607869135549648461970842149210124742283755908364306092949967163882534797535118331087892154125829142392955373084335320859663305248773674411336138752/114813069527425452423283320117768198402231770208869520047764273682576626139237031385665948631650626991844596463898746277344711896086305533142593135616665318539129989145312280000688779148240044871428926990063486244781615463646388363947317026040466353970904996558162398808944629605623311649536164221970321966258097046311249021351888884789808444852817721164354565212822922320010758771011349307973110924735930652266220886658769908405547119019417198673966190859098157352780133552604250964555019586074752628573227379108742433587081387651872888964969198720968053978957842258655182340986312829375347645480960001",
+          "13093562431584567480052758787310396608866568184172259157933165472384535185618698219533080369303616628603546736510240284036869026183541572213314110357504/10715086071862673209484250490600018105614048117055336074437503883703510511249361224931983788156958581275946729175531468251871452856923140435984577574705121585150360058564257364814729803366804425970040311732013057719774208860208116668932084130728871228872969845941662309678864344744395172943862723248129",
+          "-6546781215792283740026379393655198304433284092086129578966582736192267592809349109766540184651808314301773368255120142018434513091770786106657055178752/10715086071862673209484250490600018105614048117055336074437503883703510511249361224931983788156958581275946729175531468251871452856923140435984577574695301413326671632954217795724247005910154499831911117363563183615485807470994093004282273853751158757420309793558982096651212575106738993783877140480001"
+        ],
+        "corrected": [
+          {
+            "sign": -1,
+            "squared": "28703267381856363105820830029442049600557942552217380011941068420644156534809257846416487157912656747961149115974686569336177974021576383285648283904166329634782497286328070000172194787060011217857231747515871561195403865911597090986829256510116588492726249139540599702236157401405827912384041055492572455249970364572905142150104271183872900677116638789032813175292952947119252671834138339152160012248025703019673573063503573511744087399527311235310523783671588412363915214911996935184958118162279691506692059920947921940819797837298848083282741883056085097381195658038050262872838739053709007119187969/114813069527425452423283320117768198402231770208869520047764273682576626139237031385665948631650626991844596463898746277344711896086305533142593135616665318539129989145312280000688779148240044871428926990063486244781615463646388363947317026040466353970904996558162398808944629605623311649536164221970321966258097046311249021351888884789808444852817721164354565212822922320010758771011349307973110924735930652266220886658769908405547119019417198673966190859098157352780133552604250964555019586074752628573227379108742433587081387651872888964969198720968053978957842258655182340986312829375347645480960001"
+          },
+          {
+            "sign": -1,
+            "squared": "1/4"
+          },
+          {
+            "sign": -1,
+            "squared": "2678771517965668302371062622650004526403512029263834018609375970925877627812340306232995947039239645318986682293882867062967863214230785108996144393671370310375745801836044556658441052113376143423445480748778327377799351520445017334908115894193361571491912435294075470905890201367270703655972889427969/10715086071862673209484250490600018105614048117055336074437503883703510511249361224931983788156958581275946729175531468251871452856923140435984577574695301413326671632954217795724247005910154499831911117363563183615485807470994093004282273853751158757420309793558982096651212575106738993783877140480001"
+          }
+        ]
+      },
+      "exact_total_energy_state": "Positive",
+      "float64_publication_controls": {
+        "means": [
+          "0x1.0000000000000p+0",
+          "0x0.0p+0",
+          "0x1.0000000000000p-500"
+        ],
+        "sample_sd": [
+          "0x1.0000000000000p+0",
+          "0x1.0000000000000p+500",
+          "0x1.0000000000000p-500"
+        ],
+        "raw_alpha": "-0x1.8000000000000p-500",
+        "raw_deletion": [
+          "-0x1.0000000000000p-999",
+          "0x1.0000000000000p-498",
+          "-0x1.0000000000000p-499"
+        ],
+        "corrected": [
+          "-0x1.0000000000000p-1",
+          "-0x1.0000000000000p-1",
+          "-0x1.0000000000000p-1"
+        ]
+      },
+      "precision_controls": [
+        {
+          "decimal_digits": 80,
+          "standardized_alpha_and_deletions": [
+            "0.0",
+            "-2.0",
+            "1.0",
+            "-2.0"
+          ],
+          "rounded_float64": [
+            "0x0.0p+0",
+            "-0x1.0000000000000p+1",
+            "0x1.0000000000000p+0",
+            "-0x1.0000000000000p+1"
+          ]
+        },
+        {
+          "decimal_digits": 160,
+          "standardized_alpha_and_deletions": [
+            "0.0",
+            "-2.0",
+            "1.0",
+            "-2.0"
+          ],
+          "rounded_float64": [
+            "0x0.0p+0",
+            "-0x1.0000000000000p+1",
+            "0x1.0000000000000p+0",
+            "-0x1.0000000000000p+1"
+          ]
+        },
+        {
+          "decimal_digits": 320,
+          "standardized_alpha_and_deletions": [
+            "0.0",
+            "-2.0",
+            "1.0",
+            "-2.0"
+          ],
+          "rounded_float64": [
+            "0x0.0p+0",
+            "-0x1.0000000000000p+1",
+            "0x1.0000000000000p+0",
+            "-0x1.0000000000000p+1"
+          ]
+        },
+        {
+          "decimal_digits": 640,
+          "standardized_alpha_and_deletions": [
+            "0.0",
+            "-2.0",
+            "1.0",
+            "-2.0"
+          ],
+          "rounded_float64": [
+            "0x0.0p+0",
+            "-0x1.0000000000000p+1",
+            "0x1.0000000000000p+0",
+            "-0x1.0000000000000p+1"
+          ]
+        }
+      ]
+    },
+    {
+      "input": {
+        "id": "large_offsets",
+        "k": 2,
+        "rows": [
+          {
+            "values": [
+              4503599627370496,
+              2251799813685248
+            ]
+          },
+          {
+            "values": [
+              4503599627370497,
+              2251799813685250
+            ]
+          },
+          {
+            "values": [
+              4503599627370498,
+              2251799813685252
+            ]
+          }
+        ]
+      },
+      "input_float64_hex": [
+        [
+          "0x1.0000000000000p+52",
+          "0x1.0000000000000p+51"
+        ],
+        [
+          "0x1.0000000000001p+52",
+          "0x1.0000000000004p+51"
+        ],
+        [
+          "0x1.0000000000002p+52",
+          "0x1.0000000000008p+51"
+        ]
+      ],
+      "scored_float64_hex": [
+        [
+          "0x1.0000000000000p+52",
+          "0x1.0000000000000p+51"
+        ],
+        [
+          "0x1.0000000000001p+52",
+          "0x1.0000000000004p+51"
+        ],
+        [
+          "0x1.0000000000002p+52",
+          "0x1.0000000000008p+51"
+        ]
+      ],
+      "exact": {
+        "n": 3,
+        "physical_rows": 3,
+        "means": [
+          "4503599627370497/1",
+          "2251799813685250/1"
+        ],
+        "sample_variances": [
+          "1/1",
+          "4/1"
+        ],
+        "scatter": [
+          [
+            "2/1",
+            "4/1"
+          ],
+          [
+            "4/1",
+            "8/1"
+          ]
+        ],
+        "total_energy": "18/1",
+        "raw_alpha": "8/9",
+        "raw_deletion": [
+          null,
+          null
+        ],
+        "corrected": [
+          {
+            "sign": 1,
+            "squared": "1/1"
+          },
+          {
+            "sign": 1,
+            "squared": "1/1"
+          }
+        ]
+      },
+      "exact_total_energy_state": "Positive",
+      "float64_publication_controls": {
+        "means": [
+          "0x1.0000000000001p+52",
+          "0x1.0000000000004p+51"
+        ],
+        "sample_sd": [
+          "0x1.0000000000000p+0",
+          "0x1.0000000000000p+1"
+        ],
+        "raw_alpha": "0x1.c71c71c71c71cp-1",
+        "raw_deletion": [
+          null,
+          null
+        ],
+        "corrected": [
+          "0x1.0000000000000p+0",
+          "0x1.0000000000000p+0"
+        ]
+      },
+      "precision_controls": [
+        {
+          "decimal_digits": 80,
+          "standardized_alpha_and_deletions": [
+            "1.0",
+            null,
+            null
+          ],
+          "rounded_float64": [
+            "0x1.0000000000000p+0",
+            null,
+            null
+          ]
+        },
+        {
+          "decimal_digits": 160,
+          "standardized_alpha_and_deletions": [
+            "1.0",
+            null,
+            null
+          ],
+          "rounded_float64": [
+            "0x1.0000000000000p+0",
+            null,
+            null
+          ]
+        },
+        {
+          "decimal_digits": 320,
+          "standardized_alpha_and_deletions": [
+            "1.0",
+            null,
+            null
+          ],
+          "rounded_float64": [
+            "0x1.0000000000000p+0",
+            null,
+            null
+          ]
+        },
+        {
+          "decimal_digits": 640,
+          "standardized_alpha_and_deletions": [
+            "1.0",
+            null,
+            null
+          ],
+          "rounded_float64": [
+            "0x1.0000000000000p+0",
+            null,
+            null
+          ]
+        }
+      ]
+    },
+    {
+      "input": {
+        "id": "subnormal",
+        "k": 2,
+        "rows": [
+          {
+            "values": [
+              0,
+              0
+            ]
+          },
+          {
+            "values": [
+              5e-324,
+              1e-323
+            ]
+          }
+        ]
+      },
+      "input_float64_hex": [
+        [
+          "0x0.0p+0",
+          "0x0.0p+0"
+        ],
+        [
+          "0x0.0000000000001p-1022",
+          "0x0.0000000000002p-1022"
+        ]
+      ],
+      "scored_float64_hex": [
+        [
+          "0x0.0p+0",
+          "0x0.0p+0"
+        ],
+        [
+          "0x0.0000000000001p-1022",
+          "0x0.0000000000002p-1022"
+        ]
+      ],
+      "exact": {
+        "n": 2,
+        "physical_rows": 2,
+        "means": [
+          "1/404804506614621236704990693437834614099113299528284236713802716054860679135990693783920767402874248990374155728633623822779617474771586953734026799881477019843034848553132722728933815484186432682479535356945490137124014966849385397236206711298319112681620113024717539104666829230461005064372655017292012526615415482186989568",
+          "1/202402253307310618352495346718917307049556649764142118356901358027430339567995346891960383701437124495187077864316811911389808737385793476867013399940738509921517424276566361364466907742093216341239767678472745068562007483424692698618103355649159556340810056512358769552333414615230502532186327508646006263307707741093494784"
+        ],
+        "sample_variances": [
+          "1/81933344287753464290352457696086182287857132851736628739601276754021558106248987428521920298140584458954000375924069414628262688558027981401114168432135406200220795253831860100035338833562316499488472344730006203527200547188804127729444650403064289208231043636921325247870287294938330169029758951631760934327964364820227611019286676329671678372081690061058588235394436588878510650436529630360080108591841800561055670606127457750571554496925409023391889648461108695697253013885223876670583998515511324227383576492107760797446643730639618957836163262863779115105499015668392716584487321674492437012392892589787514324161591945051205137174325270413312",
+          "1/20483336071938366072588114424021545571964283212934157184900319188505389526562246857130480074535146114738500093981017353657065672139506995350278542108033851550055198813457965025008834708390579124872118086182501550881800136797201031932361162600766072302057760909230331311967571823734582542257439737907940233581991091205056902754821669082417919593020422515264647058848609147219627662609132407590020027147960450140263917651531864437642888624231352255847972412115277173924313253471305969167645999628877831056845894123026940199361660932659904739459040815715944778776374753917098179146121830418623109253098223147446878581040397986262801284293581317603328"
+        ],
+        "scatter": [
+          [
+            "1/81933344287753464290352457696086182287857132851736628739601276754021558106248987428521920298140584458954000375924069414628262688558027981401114168432135406200220795253831860100035338833562316499488472344730006203527200547188804127729444650403064289208231043636921325247870287294938330169029758951631760934327964364820227611019286676329671678372081690061058588235394436588878510650436529630360080108591841800561055670606127457750571554496925409023391889648461108695697253013885223876670583998515511324227383576492107760797446643730639618957836163262863779115105499015668392716584487321674492437012392892589787514324161591945051205137174325270413312",
+            "1/40966672143876732145176228848043091143928566425868314369800638377010779053124493714260960149070292229477000187962034707314131344279013990700557084216067703100110397626915930050017669416781158249744236172365003101763600273594402063864722325201532144604115521818460662623935143647469165084514879475815880467163982182410113805509643338164835839186040845030529294117697218294439255325218264815180040054295920900280527835303063728875285777248462704511695944824230554347848626506942611938335291999257755662113691788246053880398723321865319809478918081631431889557552749507834196358292243660837246218506196446294893757162080795972525602568587162635206656"
+          ],
+          [
+            "1/40966672143876732145176228848043091143928566425868314369800638377010779053124493714260960149070292229477000187962034707314131344279013990700557084216067703100110397626915930050017669416781158249744236172365003101763600273594402063864722325201532144604115521818460662623935143647469165084514879475815880467163982182410113805509643338164835839186040845030529294117697218294439255325218264815180040054295920900280527835303063728875285777248462704511695944824230554347848626506942611938335291999257755662113691788246053880398723321865319809478918081631431889557552749507834196358292243660837246218506196446294893757162080795972525602568587162635206656",
+            "1/20483336071938366072588114424021545571964283212934157184900319188505389526562246857130480074535146114738500093981017353657065672139506995350278542108033851550055198813457965025008834708390579124872118086182501550881800136797201031932361162600766072302057760909230331311967571823734582542257439737907940233581991091205056902754821669082417919593020422515264647058848609147219627662609132407590020027147960450140263917651531864437642888624231352255847972412115277173924313253471305969167645999628877831056845894123026940199361660932659904739459040815715944778776374753917098179146121830418623109253098223147446878581040397986262801284293581317603328"
+          ]
+        ],
+        "total_energy": "9/81933344287753464290352457696086182287857132851736628739601276754021558106248987428521920298140584458954000375924069414628262688558027981401114168432135406200220795253831860100035338833562316499488472344730006203527200547188804127729444650403064289208231043636921325247870287294938330169029758951631760934327964364820227611019286676329671678372081690061058588235394436588878510650436529630360080108591841800561055670606127457750571554496925409023391889648461108695697253013885223876670583998515511324227383576492107760797446643730639618957836163262863779115105499015668392716584487321674492437012392892589787514324161591945051205137174325270413312",
+        "raw_alpha": "8/9",
+        "raw_deletion": [
+          null,
+          null
+        ],
+        "corrected": [
+          {
+            "sign": 1,
+            "squared": "1/1"
+          },
+          {
+            "sign": 1,
+            "squared": "1/1"
+          }
+        ]
+      },
+      "exact_total_energy_state": "PositiveBelowFloat64",
+      "float64_publication_controls": {
+        "means": [
+          "0x0.0p+0",
+          "0x0.0000000000001p-1022"
+        ],
+        "sample_sd": [
+          "0x0.0000000000001p-1022",
+          "0x0.0000000000001p-1022"
+        ],
+        "raw_alpha": "0x1.c71c71c71c71cp-1",
+        "raw_deletion": [
+          null,
+          null
+        ],
+        "corrected": [
+          "0x1.0000000000000p+0",
+          "0x1.0000000000000p+0"
+        ]
+      },
+      "precision_controls": [
+        {
+          "decimal_digits": 80,
+          "standardized_alpha_and_deletions": [
+            "1.0",
+            null,
+            null
+          ],
+          "rounded_float64": [
+            "0x1.0000000000000p+0",
+            null,
+            null
+          ]
+        },
+        {
+          "decimal_digits": 160,
+          "standardized_alpha_and_deletions": [
+            "1.0",
+            null,
+            null
+          ],
+          "rounded_float64": [
+            "0x1.0000000000000p+0",
+            null,
+            null
+          ]
+        },
+        {
+          "decimal_digits": 320,
+          "standardized_alpha_and_deletions": [
+            "1.0",
+            null,
+            null
+          ],
+          "rounded_float64": [
+            "0x1.0000000000000p+0",
+            null,
+            null
+          ]
+        },
+        {
+          "decimal_digits": 640,
+          "standardized_alpha_and_deletions": [
+            "1.0",
+            null,
+            null
+          ],
+          "rounded_float64": [
+            "0x1.0000000000000p+0",
+            null,
+            null
+          ]
+        }
+      ]
+    },
+    {
+      "input": {
+        "id": "huge_sd",
+        "k": 2,
+        "rows": [
+          {
+            "values": [
+              1.7976931348623157e+308,
+              1.7976931348623157e+308
+            ]
+          },
+          {
+            "values": [
+              -1.7976931348623157e+308,
+              -1.7976931348623157e+308
+            ]
+          }
+        ]
+      },
+      "input_float64_hex": [
+        [
+          "0x1.fffffffffffffp+1023",
+          "0x1.fffffffffffffp+1023"
+        ],
+        [
+          "-0x1.fffffffffffffp+1023",
+          "-0x1.fffffffffffffp+1023"
+        ]
+      ],
+      "scored_float64_hex": [
+        [
+          "0x1.fffffffffffffp+1023",
+          "0x1.fffffffffffffp+1023"
+        ],
+        [
+          "-0x1.fffffffffffffp+1023",
+          "-0x1.fffffffffffffp+1023"
+        ]
+      ],
+      "exact": {
+        "n": 2,
+        "physical_rows": 2,
+        "means": [
+          "0/1",
+          "0/1"
+        ],
+        "sample_variances": [
+          "64634012142622000249796062449159147686181423347644074841031772956585647989986277348963925012461586116504450874158755041822780872645804682629282472179992710729593383909194147706623586073091942585139290769804267231598096025389046821533646066372872156772567961237712818829454510321729882816359571346218141528510811275424487852212375655239362207531961679385585357133203488922932128322005649209363643310897786737129943975904061872075237137140805561970397531742733824588547957488001735607035689023921327541023428792983666979554392078757229180018700603686818195455733659318501260762185310387165816792187911885210072119246848/1",
+          "64634012142622000249796062449159147686181423347644074841031772956585647989986277348963925012461586116504450874158755041822780872645804682629282472179992710729593383909194147706623586073091942585139290769804267231598096025389046821533646066372872156772567961237712818829454510321729882816359571346218141528510811275424487852212375655239362207531961679385585357133203488922932128322005649209363643310897786737129943975904061872075237137140805561970397531742733824588547957488001735607035689023921327541023428792983666979554392078757229180018700603686818195455733659318501260762185310387165816792187911885210072119246848/1"
+        ],
+        "scatter": [
+          [
+            "64634012142622000249796062449159147686181423347644074841031772956585647989986277348963925012461586116504450874158755041822780872645804682629282472179992710729593383909194147706623586073091942585139290769804267231598096025389046821533646066372872156772567961237712818829454510321729882816359571346218141528510811275424487852212375655239362207531961679385585357133203488922932128322005649209363643310897786737129943975904061872075237137140805561970397531742733824588547957488001735607035689023921327541023428792983666979554392078757229180018700603686818195455733659318501260762185310387165816792187911885210072119246848/1",
+            "64634012142622000249796062449159147686181423347644074841031772956585647989986277348963925012461586116504450874158755041822780872645804682629282472179992710729593383909194147706623586073091942585139290769804267231598096025389046821533646066372872156772567961237712818829454510321729882816359571346218141528510811275424487852212375655239362207531961679385585357133203488922932128322005649209363643310897786737129943975904061872075237137140805561970397531742733824588547957488001735607035689023921327541023428792983666979554392078757229180018700603686818195455733659318501260762185310387165816792187911885210072119246848/1"
+          ],
+          [
+            "64634012142622000249796062449159147686181423347644074841031772956585647989986277348963925012461586116504450874158755041822780872645804682629282472179992710729593383909194147706623586073091942585139290769804267231598096025389046821533646066372872156772567961237712818829454510321729882816359571346218141528510811275424487852212375655239362207531961679385585357133203488922932128322005649209363643310897786737129943975904061872075237137140805561970397531742733824588547957488001735607035689023921327541023428792983666979554392078757229180018700603686818195455733659318501260762185310387165816792187911885210072119246848/1",
+            "64634012142622000249796062449159147686181423347644074841031772956585647989986277348963925012461586116504450874158755041822780872645804682629282472179992710729593383909194147706623586073091942585139290769804267231598096025389046821533646066372872156772567961237712818829454510321729882816359571346218141528510811275424487852212375655239362207531961679385585357133203488922932128322005649209363643310897786737129943975904061872075237137140805561970397531742733824588547957488001735607035689023921327541023428792983666979554392078757229180018700603686818195455733659318501260762185310387165816792187911885210072119246848/1"
+          ]
+        ],
+        "total_energy": "258536048570488000999184249796636590744725693390576299364127091826342591959945109395855700049846344466017803496635020167291123490583218730517129888719970842918373535636776590826494344292367770340557163079217068926392384101556187286134584265491488627090271844950851275317818041286919531265438285384872566114043245101697951408849502620957448830127846717542341428532813955691728513288022596837454573243591146948519775903616247488300948548563222247881590126970935298354191829952006942428142756095685310164093715171934667918217568315028916720074802414747272781822934637274005043048741241548663267168751647540840288476987392/1",
+        "raw_alpha": "1/1",
+        "raw_deletion": [
+          null,
+          null
+        ],
+        "corrected": [
+          {
+            "sign": 1,
+            "squared": "1/1"
+          },
+          {
+            "sign": 1,
+            "squared": "1/1"
+          }
+        ]
+      },
+      "exact_total_energy_state": "Positive",
+      "float64_publication_controls": {
+        "means": [
+          "0x0.0p+0",
+          "0x0.0p+0"
+        ],
+        "sample_sd": [
+          "unrepresentable",
+          "unrepresentable"
+        ],
+        "raw_alpha": "0x1.0000000000000p+0",
+        "raw_deletion": [
+          null,
+          null
+        ],
+        "corrected": [
+          "0x1.0000000000000p+0",
+          "0x1.0000000000000p+0"
+        ]
+      },
+      "precision_controls": [
+        {
+          "decimal_digits": 80,
+          "standardized_alpha_and_deletions": [
+            "1.0",
+            null,
+            null
+          ],
+          "rounded_float64": [
+            "0x1.0000000000000p+0",
+            null,
+            null
+          ]
+        },
+        {
+          "decimal_digits": 160,
+          "standardized_alpha_and_deletions": [
+            "1.0",
+            null,
+            null
+          ],
+          "rounded_float64": [
+            "0x1.0000000000000p+0",
+            null,
+            null
+          ]
+        },
+        {
+          "decimal_digits": 320,
+          "standardized_alpha_and_deletions": [
+            "1.0",
+            null,
+            null
+          ],
+          "rounded_float64": [
+            "0x1.0000000000000p+0",
+            null,
+            null
+          ]
+        },
+        {
+          "decimal_digits": 640,
+          "standardized_alpha_and_deletions": [
+            "1.0",
+            null,
+            null
+          ],
+          "rounded_float64": [
+            "0x1.0000000000000p+0",
+            null,
+            null
+          ]
+        }
+      ]
+    },
+    {
+      "input": {
+        "id": "signed_cancellation",
+        "k": 3,
+        "rows": [
+          {
+            "values": [
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "values": [
+              3273390607896141870013189696827599152216642046043064789483291368096133796404674554883270092325904157150886684127560071009217256545885393053328527589376,
+              -3273390607896141870013189696827599152216642046043064789483291368096133796404674554883270092325904157150886684127560071009217256545885393053328527589376,
+              3.054936363499605e-151
+            ]
+          },
+          {
+            "values": [
+              6546781215792283740026379393655198304433284092086129578966582736192267592809349109766540184651808314301773368255120142018434513091770786106657055178752,
+              -6546781215792283740026379393655198304433284092086129578966582736192267592809349109766540184651808314301773368255120142018434513091770786106657055178752,
+              6.10987272699921e-151
+            ]
+          }
+        ]
+      },
+      "input_float64_hex": [
+        [
+          "0x0.0p+0",
+          "0x0.0p+0",
+          "0x0.0p+0"
+        ],
+        [
+          "0x1.0000000000000p+500",
+          "-0x1.0000000000000p+500",
+          "0x1.0000000000000p-500"
+        ],
+        [
+          "0x1.0000000000000p+501",
+          "-0x1.0000000000000p+501",
+          "0x1.0000000000000p-499"
+        ]
+      ],
+      "scored_float64_hex": [
+        [
+          "0x0.0p+0",
+          "0x0.0p+0",
+          "0x0.0p+0"
+        ],
+        [
+          "0x1.0000000000000p+500",
+          "-0x1.0000000000000p+500",
+          "0x1.0000000000000p-500"
+        ],
+        [
+          "0x1.0000000000000p+501",
+          "-0x1.0000000000000p+501",
+          "0x1.0000000000000p-499"
+        ]
+      ],
+      "exact": {
+        "n": 3,
+        "physical_rows": 3,
+        "means": [
+          "3273390607896141870013189696827599152216642046043064789483291368096133796404674554883270092325904157150886684127560071009217256545885393053328527589376/1",
+          "-3273390607896141870013189696827599152216642046043064789483291368096133796404674554883270092325904157150886684127560071009217256545885393053328527589376/1",
+          "1/3273390607896141870013189696827599152216642046043064789483291368096133796404674554883270092325904157150886684127560071009217256545885393053328527589376"
+        ],
+        "sample_variances": [
+          "10715086071862673209484250490600018105614048117055336074437503883703510511249361224931983788156958581275946729175531468251871452856923140435984577574698574803934567774824230985421074605062371141877954182153046474983581941267398767559165543946077062914571196477686542167660429831652624386837205668069376/1",
+          "10715086071862673209484250490600018105614048117055336074437503883703510511249361224931983788156958581275946729175531468251871452856923140435984577574698574803934567774824230985421074605062371141877954182153046474983581941267398767559165543946077062914571196477686542167660429831652624386837205668069376/1",
+          "1/10715086071862673209484250490600018105614048117055336074437503883703510511249361224931983788156958581275946729175531468251871452856923140435984577574698574803934567774824230985421074605062371141877954182153046474983581941267398767559165543946077062914571196477686542167660429831652624386837205668069376"
+        ],
+        "scatter": [
+          [
+            "21430172143725346418968500981200036211228096234110672148875007767407021022498722449863967576313917162551893458351062936503742905713846280871969155149397149607869135549648461970842149210124742283755908364306092949967163882534797535118331087892154125829142392955373084335320859663305248773674411336138752/1",
+            "-21430172143725346418968500981200036211228096234110672148875007767407021022498722449863967576313917162551893458351062936503742905713846280871969155149397149607869135549648461970842149210124742283755908364306092949967163882534797535118331087892154125829142392955373084335320859663305248773674411336138752/1",
+            "2/1"
+          ],
+          [
+            "-21430172143725346418968500981200036211228096234110672148875007767407021022498722449863967576313917162551893458351062936503742905713846280871969155149397149607869135549648461970842149210124742283755908364306092949967163882534797535118331087892154125829142392955373084335320859663305248773674411336138752/1",
+            "21430172143725346418968500981200036211228096234110672148875007767407021022498722449863967576313917162551893458351062936503742905713846280871969155149397149607869135549648461970842149210124742283755908364306092949967163882534797535118331087892154125829142392955373084335320859663305248773674411336138752/1",
+            "-2/1"
+          ],
+          [
+            "2/1",
+            "-2/1",
+            "1/5357543035931336604742125245300009052807024058527668037218751941851755255624680612465991894078479290637973364587765734125935726428461570217992288787349287401967283887412115492710537302531185570938977091076523237491790970633699383779582771973038531457285598238843271083830214915826312193418602834034688"
+          ]
+        ],
+        "total_energy": "1/5357543035931336604742125245300009052807024058527668037218751941851755255624680612465991894078479290637973364587765734125935726428461570217992288787349287401967283887412115492710537302531185570938977091076523237491790970633699383779582771973038531457285598238843271083830214915826312193418602834034688",
+        "raw_alpha": "-344439208582276357269849960353304595206695310626608560143292821047729878417711094156997845894951880975533789391696238832034135688258916599427779406849995955617389967435936840002066337444720134614286780970190458734344846390939165091841951078121399061912714989674487196426833888816869934948608492665910998044032506726953375516807138454423742176702804329501287008150119877491566024396708843875283803649951619796986189254381065339575212126479559549754622668301706275761664873350769016117480245871649891748266141276751178046585046359258296163526745827351647875526306586402468528312453896361286554553447088128/1",
+        "raw_deletion": [
+          "-42860344287450692837937001962400072422456192468221344297750015534814042044997444899727935152627834325103786916702125873007485811427692561743938310298794299215738271099296923941684298420249484567511816728612185899934327765069595070236662175784308251658284785910746168670641719326610497547348822672277504/114813069527425452423283320117768198402231770208869520047764273682576626139237031385665948631650626991844596463898746277344711896086305533142593135616665318539129989145312280000688779148240044871428926990063486244781615463646388363947317026040466353970904996558162398808944629605623311649536164221970311251172025183638039537101398284771702830804700665828280127708939218809499509409786417324184953966154654705537045355190518036952690195878981214096391492284294222785005309321618829889949957214932874674391074332633758851645813988884313723421023121658053482782480155716487521911154660204988510439812890625",
+          "42860344287450692837937001962400072422456192468221344297750015534814042044997444899727935152627834325103786916702125873007485811427692561743938310298794299215738271099296923941684298420249484567511816728612185899934327765069595070236662175784308251658284785910746168670641719326610497547348822672277504/114813069527425452423283320117768198402231770208869520047764273682576626139237031385665948631650626991844596463898746277344711896086305533142593135616665318539129989145312280000688779148240044871428926990063486244781615463646388363947317026040466353970904996558162398808944629605623311649536164221970354111516312634330877474103360684844125286997168887172577877724474032851544506854686145259337581800479758492453747481063525522764117888440725152406690286583509961056104606245560514188370206699500386491119686518533693179410883583954550385596807429909711767568390901885158163630481270702535859262485168129",
+          null
+        ],
+        "corrected": [
+          {
+            "sign": -1,
+            "squared": "1/1"
+          },
+          {
+            "sign": -1,
+            "squared": "1/1"
+          },
+          null
+        ]
+      },
+      "exact_total_energy_state": "Positive",
+      "float64_publication_controls": {
+        "means": [
+          "0x1.0000000000000p+500",
+          "-0x1.0000000000000p+500",
+          "0x1.0000000000000p-500"
+        ],
+        "sample_sd": [
+          "0x1.0000000000000p+500",
+          "0x1.0000000000000p+500",
+          "0x1.0000000000000p-500"
+        ],
+        "raw_alpha": "unrepresentable",
+        "raw_deletion": [
+          "-0x1.0000000000000p-998",
+          "0x1.0000000000000p-998",
+          null
+        ],
+        "corrected": [
+          "-0x1.0000000000000p+0",
+          "-0x1.0000000000000p+0",
+          null
+        ]
+      },
+      "precision_controls": [
+        {
+          "decimal_digits": 80,
+          "standardized_alpha_and_deletions": [
+            "-3.0",
+            null,
+            "1.0",
+            null
+          ],
+          "rounded_float64": [
+            "-0x1.8000000000000p+1",
+            null,
+            "0x1.0000000000000p+0",
+            null
+          ]
+        },
+        {
+          "decimal_digits": 160,
+          "standardized_alpha_and_deletions": [
+            "-3.0",
+            null,
+            "1.0",
+            null
+          ],
+          "rounded_float64": [
+            "-0x1.8000000000000p+1",
+            null,
+            "0x1.0000000000000p+0",
+            null
+          ]
+        },
+        {
+          "decimal_digits": 320,
+          "standardized_alpha_and_deletions": [
+            "-3.0",
+            null,
+            "1.0",
+            null
+          ],
+          "rounded_float64": [
+            "-0x1.8000000000000p+1",
+            null,
+            "0x1.0000000000000p+0",
+            null
+          ]
+        },
+        {
+          "decimal_digits": 640,
+          "standardized_alpha_and_deletions": [
+            "-3.0",
+            null,
+            "1.0",
+            null
+          ],
+          "rounded_float64": [
+            "-0x1.8000000000000p+1",
+            null,
+            "0x1.0000000000000p+0",
+            null
+          ]
+        }
+      ]
+    },
+    {
+      "input": {
+        "id": "near_zero_alpha",
+        "k": 2,
+        "rows": [
+          {
+            "values": [
+              0,
+              0
+            ]
+          },
+          {
+            "values": [
+              1,
+              1
+            ]
+          },
+          {
+            "values": [
+              1,
+              -1
+            ]
+          },
+          {
+            "values": [
+              0,
+              9.094947017729282e-13
+            ]
+          }
+        ]
+      },
+      "input_float64_hex": [
+        [
+          "0x0.0p+0",
+          "0x0.0p+0"
+        ],
+        [
+          "0x1.0000000000000p+0",
+          "0x1.0000000000000p+0"
+        ],
+        [
+          "0x1.0000000000000p+0",
+          "-0x1.0000000000000p+0"
+        ],
+        [
+          "0x0.0p+0",
+          "0x1.0000000000000p-40"
+        ]
+      ],
+      "scored_float64_hex": [
+        [
+          "0x0.0p+0",
+          "0x0.0p+0"
+        ],
+        [
+          "0x1.0000000000000p+0",
+          "0x1.0000000000000p+0"
+        ],
+        [
+          "0x1.0000000000000p+0",
+          "-0x1.0000000000000p+0"
+        ],
+        [
+          "0x0.0p+0",
+          "0x1.0000000000000p-40"
+        ]
+      ],
+      "exact": {
+        "n": 4,
+        "physical_rows": 4,
+        "means": [
+          "1/2",
+          "1/4398046511104"
+        ],
+        "sample_variances": [
+          "1/3",
+          "9671406556917033397649411/14507109835375550096474112"
+        ],
+        "scatter": [
+          [
+            "1/1",
+            "-1/2199023255552"
+          ],
+          [
+            "-1/2199023255552",
+            "9671406556917033397649411/4835703278458516698824704"
+          ]
+        ],
+        "total_energy": "14507109835371152049963011/4835703278458516698824704",
+        "raw_alpha": "-8796093022208/14507109835371152049963011",
+        "raw_deletion": [
+          null,
+          null
+        ],
+        "corrected": [
+          {
+            "sign": -1,
+            "squared": "1/9671406556917033397649411"
+          },
+          {
+            "sign": -1,
+            "squared": "1/9671406556917033397649411"
+          }
+        ]
+      },
+      "exact_total_energy_state": "Positive",
+      "float64_publication_controls": {
+        "means": [
+          "0x1.0000000000000p-1",
+          "0x1.0000000000000p-42"
+        ],
+        "sample_sd": [
+          "0x1.279a74590331cp-1",
+          "0x1.a20bd700c2c3ep-1"
+        ],
+        "raw_alpha": "-0x1.5555555555c72p-41",
+        "raw_deletion": [
+          null,
+          null
+        ],
+        "corrected": [
+          "-0x1.6a09e667f3bcdp-42",
+          "-0x1.6a09e667f3bcdp-42"
+        ]
+      },
+      "precision_controls": [
+        {
+          "decimal_digits": 80,
+          "standardized_alpha_and_deletions": [
+            "-0.00000000000064310987107708105948066764322699238970056809035393142953616952478036473730295387",
+            null,
+            null
+          ],
+          "rounded_float64": [
+            "-0x1.6a09e667f43cdp-41",
+            null,
+            null
+          ]
+        },
+        {
+          "decimal_digits": 160,
+          "standardized_alpha_and_deletions": [
+            "-0.000000000000643109871077081059480667643226992389700568090353931429536169524780370401261956686406405246",
+            null,
+            null
+          ],
+          "rounded_float64": [
+            "-0x1.6a09e667f43cdp-41",
+            null,
+            null
+          ]
+        },
+        {
+          "decimal_digits": 320,
+          "standardized_alpha_and_deletions": [
+            "-0.000000000000643109871077081059480667643226992389700568090353931429536169524780370401261956686406405246",
+            null,
+            null
+          ],
+          "rounded_float64": [
+            "-0x1.6a09e667f43cdp-41",
+            null,
+            null
+          ]
+        },
+        {
+          "decimal_digits": 640,
+          "standardized_alpha_and_deletions": [
+            "-0.000000000000643109871077081059480667643226992389700568090353931429536169524780370401261956686406405246",
+            null,
+            null
+          ],
+          "rounded_float64": [
+            "-0x1.6a09e667f43cdp-41",
+            null,
+            null
+          ]
+        }
+      ]
+    },
+    {
+      "input": {
+        "id": "missing_deleted",
+        "k": 3,
+        "rows": [
+          {
+            "values": [
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "values": [
+              1,
+              2,
+              3
+            ]
+          },
+          {
+            "values": [
+              null,
+              9,
+              9
+            ]
+          }
+        ]
+      },
+      "input_float64_hex": [
+        [
+          "0x0.0p+0",
+          "0x0.0p+0",
+          "0x0.0p+0"
+        ],
+        [
+          "0x1.0000000000000p+0",
+          "0x1.0000000000000p+1",
+          "0x1.8000000000000p+1"
+        ],
+        [
+          null,
+          "0x1.2000000000000p+3",
+          "0x1.2000000000000p+3"
+        ]
+      ],
+      "scored_float64_hex": [
+        [
+          "0x0.0p+0",
+          "0x0.0p+0",
+          "0x0.0p+0"
+        ],
+        [
+          "0x1.0000000000000p+0",
+          "0x1.0000000000000p+1",
+          "0x1.8000000000000p+1"
+        ]
+      ],
+      "exact": {
+        "n": 2,
+        "physical_rows": 2,
+        "means": [
+          "1/2",
+          "1/1",
+          "3/2"
+        ],
+        "sample_variances": [
+          "1/2",
+          "2/1",
+          "9/2"
+        ],
+        "scatter": [
+          [
+            "1/2",
+            "1/1",
+            "3/2"
+          ],
+          [
+            "1/1",
+            "2/1",
+            "3/1"
+          ],
+          [
+            "3/2",
+            "3/1",
+            "9/2"
+          ]
+        ],
+        "total_energy": "18/1",
+        "raw_alpha": "11/12",
+        "raw_deletion": [
+          "24/25",
+          "3/4",
+          "8/9"
+        ],
+        "corrected": [
+          {
+            "sign": 1,
+            "squared": "1/1"
+          },
+          {
+            "sign": 1,
+            "squared": "1/1"
+          },
+          {
+            "sign": 1,
+            "squared": "1/1"
+          }
+        ]
+      },
+      "exact_total_energy_state": "Positive",
+      "float64_publication_controls": {
+        "means": [
+          "0x1.0000000000000p-1",
+          "0x1.0000000000000p+0",
+          "0x1.8000000000000p+0"
+        ],
+        "sample_sd": [
+          "0x1.6a09e667f3bcdp-1",
+          "0x1.6a09e667f3bcdp+0",
+          "0x1.0f876ccdf6cd9p+1"
+        ],
+        "raw_alpha": "0x1.d555555555555p-1",
+        "raw_deletion": [
+          "0x1.eb851eb851eb8p-1",
+          "0x1.8000000000000p-1",
+          "0x1.c71c71c71c71cp-1"
+        ],
+        "corrected": [
+          "0x1.0000000000000p+0",
+          "0x1.0000000000000p+0",
+          "0x1.0000000000000p+0"
+        ]
+      },
+      "precision_controls": [
+        {
+          "decimal_digits": 80,
+          "standardized_alpha_and_deletions": [
+            "1.0",
+            "1.0",
+            "1.0",
+            "1.0"
+          ],
+          "rounded_float64": [
+            "0x1.0000000000000p+0",
+            "0x1.0000000000000p+0",
+            "0x1.0000000000000p+0",
+            "0x1.0000000000000p+0"
+          ]
+        },
+        {
+          "decimal_digits": 160,
+          "standardized_alpha_and_deletions": [
+            "1.0",
+            "1.0",
+            "1.0",
+            "1.0"
+          ],
+          "rounded_float64": [
+            "0x1.0000000000000p+0",
+            "0x1.0000000000000p+0",
+            "0x1.0000000000000p+0",
+            "0x1.0000000000000p+0"
+          ]
+        },
+        {
+          "decimal_digits": 320,
+          "standardized_alpha_and_deletions": [
+            "1.0",
+            "1.0",
+            "1.0",
+            "1.0"
+          ],
+          "rounded_float64": [
+            "0x1.0000000000000p+0",
+            "0x1.0000000000000p+0",
+            "0x1.0000000000000p+0",
+            "0x1.0000000000000p+0"
+          ]
+        },
+        {
+          "decimal_digits": 640,
+          "standardized_alpha_and_deletions": [
+            "1.0",
+            "1.0",
+            "1.0",
+            "1.0"
+          ],
+          "rounded_float64": [
+            "0x1.0000000000000p+0",
+            "0x1.0000000000000p+0",
+            "0x1.0000000000000p+0",
+            "0x1.0000000000000p+0"
+          ]
+        }
+      ]
+    },
+    {
+      "input": {
+        "id": "weighted",
+        "k": 2,
+        "rows": [
+          {
+            "values": [
+              0,
+              0
+            ],
+            "weight": 2
+          },
+          {
+            "values": [
+              1,
+              2
+            ],
+            "weight": 3
+          },
+          {
+            "values": [
+              3,
+              -1
+            ],
+            "weight": 1
+          }
+        ]
+      },
+      "input_float64_hex": [
+        [
+          "0x0.0p+0",
+          "0x0.0p+0"
+        ],
+        [
+          "0x1.0000000000000p+0",
+          "0x1.0000000000000p+1"
+        ],
+        [
+          "0x1.8000000000000p+1",
+          "-0x1.0000000000000p+0"
+        ]
+      ],
+      "scored_float64_hex": [
+        [
+          "0x0.0p+0",
+          "0x0.0p+0"
+        ],
+        [
+          "0x1.0000000000000p+0",
+          "0x1.0000000000000p+1"
+        ],
+        [
+          "0x1.8000000000000p+1",
+          "-0x1.0000000000000p+0"
+        ]
+      ],
+      "exact": {
+        "n": 6,
+        "physical_rows": 3,
+        "means": [
+          "1/1",
+          "5/6"
+        ],
+        "sample_variances": [
+          "6/5",
+          "53/30"
+        ],
+        "scatter": [
+          [
+            "6/1",
+            "-2/1"
+          ],
+          [
+            "-2/1",
+            "53/6"
+          ]
+        ],
+        "total_energy": "65/6",
+        "raw_alpha": "-48/65",
+        "raw_deletion": [
+          null,
+          null
+        ],
+        "corrected": [
+          {
+            "sign": -1,
+            "squared": "4/53"
+          },
+          {
+            "sign": -1,
+            "squared": "4/53"
+          }
+        ]
+      },
+      "exact_total_energy_state": "Positive",
+      "float64_publication_controls": {
+        "means": [
+          "0x1.0000000000000p+0",
+          "0x1.aaaaaaaaaaaabp-1"
+        ],
+        "sample_sd": [
+          "0x1.186f174f88472p+0",
+          "0x1.5443d6b2840dap+0"
+        ],
+        "raw_alpha": "-0x1.7a17a17a17a18p-1",
+        "raw_deletion": [
+          null,
+          null
+        ],
+        "corrected": [
+          "-0x1.19507ecf5b9e9p-2",
+          "-0x1.19507ecf5b9e9p-2"
+        ]
+      },
+      "precision_controls": [
+        {
+          "decimal_digits": 80,
+          "standardized_alpha_and_deletions": [
+            "-0.75755999096167496090590224420628839132878936184297775007168830949258087662244123",
+            null,
+            null
+          ],
+          "rounded_float64": [
+            "-0x1.83dee733e07c7p-1",
+            null,
+            null
+          ]
+        },
+        {
+          "decimal_digits": 160,
+          "standardized_alpha_and_deletions": [
+            "-0.75755999096167496090590224420628839132878936184297775007168830949258087662244123945547587",
+            null,
+            null
+          ],
+          "rounded_float64": [
+            "-0x1.83dee733e07c7p-1",
+            null,
+            null
+          ]
+        },
+        {
+          "decimal_digits": 320,
+          "standardized_alpha_and_deletions": [
+            "-0.75755999096167496090590224420628839132878936184297775007168830949258087662244123945547587",
+            null,
+            null
+          ],
+          "rounded_float64": [
+            "-0x1.83dee733e07c7p-1",
+            null,
+            null
+          ]
+        },
+        {
+          "decimal_digits": 640,
+          "standardized_alpha_and_deletions": [
+            "-0.75755999096167496090590224420628839132878936184297775007168830949258087662244123945547587",
+            null,
+            null
+          ],
+          "rounded_float64": [
+            "-0x1.83dee733e07c7p-1",
+            null,
+            null
+          ]
+        }
+      ]
+    },
+    {
+      "input": {
+        "id": "weighted_single",
+        "k": 2,
+        "rows": [
+          {
+            "values": [
+              4,
+              9
+            ],
+            "weight": 2
+          }
+        ]
+      },
+      "input_float64_hex": [
+        [
+          "0x1.0000000000000p+2",
+          "0x1.2000000000000p+3"
+        ]
+      ],
+      "scored_float64_hex": [
+        [
+          "0x1.0000000000000p+2",
+          "0x1.2000000000000p+3"
+        ]
+      ],
+      "exact": {
+        "n": 2,
+        "physical_rows": 1,
+        "means": [
+          "4/1",
+          "9/1"
+        ],
+        "sample_variances": [
+          "0/1",
+          "0/1"
+        ],
+        "scatter": [
+          [
+            "0/1",
+            "0/1"
+          ],
+          [
+            "0/1",
+            "0/1"
+          ]
+        ],
+        "total_energy": "0/1",
+        "raw_alpha": null,
+        "raw_deletion": [
+          null,
+          null
+        ],
+        "corrected": [
+          null,
+          null
+        ]
+      },
+      "exact_total_energy_state": "ExactZero",
+      "float64_publication_controls": {
+        "means": [
+          "0x1.0000000000000p+2",
+          "0x1.2000000000000p+3"
+        ],
+        "sample_sd": [
+          "0x0.0p+0",
+          "0x0.0p+0"
+        ],
+        "raw_alpha": null,
+        "raw_deletion": [
+          null,
+          null
+        ],
+        "corrected": [
+          null,
+          null
+        ]
+      },
+      "precision_controls": [
+        {
+          "decimal_digits": 80,
+          "standardized_alpha_and_deletions": [
+            null,
+            null,
+            null
+          ],
+          "rounded_float64": [
+            null,
+            null,
+            null
+          ]
+        },
+        {
+          "decimal_digits": 160,
+          "standardized_alpha_and_deletions": [
+            null,
+            null,
+            null
+          ],
+          "rounded_float64": [
+            null,
+            null,
+            null
+          ]
+        },
+        {
+          "decimal_digits": 320,
+          "standardized_alpha_and_deletions": [
+            null,
+            null,
+            null
+          ],
+          "rounded_float64": [
+            null,
+            null,
+            null
+          ]
+        },
+        {
+          "decimal_digits": 640,
+          "standardized_alpha_and_deletions": [
+            null,
+            null,
+            null
+          ],
+          "rounded_float64": [
+            null,
+            null,
+            null
+          ]
+        }
+      ]
+    },
+    {
+      "input": {
+        "id": "reverse_endpoints",
+        "k": 2,
+        "rows": [
+          {
+            "values": [
+              0,
+              0
+            ]
+          },
+          {
+            "values": [
+              1,
+              2
+            ]
+          }
+        ],
+        "reversals": {
+          "0": [
+            0,
+            1
+          ]
+        }
+      },
+      "input_float64_hex": [
+        [
+          "0x0.0p+0",
+          "0x0.0p+0"
+        ],
+        [
+          "0x1.0000000000000p+0",
+          "0x1.0000000000000p+1"
+        ]
+      ],
+      "scored_float64_hex": [
+        [
+          "0x1.0000000000000p+0",
+          "0x0.0p+0"
+        ],
+        [
+          "0x0.0p+0",
+          "0x1.0000000000000p+1"
+        ]
+      ],
+      "exact": {
+        "n": 2,
+        "physical_rows": 2,
+        "means": [
+          "1/2",
+          "1/1"
+        ],
+        "sample_variances": [
+          "1/2",
+          "2/1"
+        ],
+        "scatter": [
+          [
+            "1/2",
+            "-1/1"
+          ],
+          [
+            "-1/1",
+            "2/1"
+          ]
+        ],
+        "total_energy": "1/2",
+        "raw_alpha": "-8/1",
+        "raw_deletion": [
+          null,
+          null
+        ],
+        "corrected": [
+          {
+            "sign": -1,
+            "squared": "1/1"
+          },
+          {
+            "sign": -1,
+            "squared": "1/1"
+          }
+        ]
+      },
+      "exact_total_energy_state": "Positive",
+      "float64_publication_controls": {
+        "means": [
+          "0x1.0000000000000p-1",
+          "0x1.0000000000000p+0"
+        ],
+        "sample_sd": [
+          "0x1.6a09e667f3bcdp-1",
+          "0x1.6a09e667f3bcdp+0"
+        ],
+        "raw_alpha": "-0x1.0000000000000p+3",
+        "raw_deletion": [
+          null,
+          null
+        ],
+        "corrected": [
+          "-0x1.0000000000000p+0",
+          "-0x1.0000000000000p+0"
+        ]
+      },
+      "precision_controls": [
+        {
+          "decimal_digits": 80,
+          "standardized_alpha_and_deletions": [
+            null,
+            null,
+            null
+          ],
+          "rounded_float64": [
+            null,
+            null,
+            null
+          ]
+        },
+        {
+          "decimal_digits": 160,
+          "standardized_alpha_and_deletions": [
+            null,
+            null,
+            null
+          ],
+          "rounded_float64": [
+            null,
+            null,
+            null
+          ]
+        },
+        {
+          "decimal_digits": 320,
+          "standardized_alpha_and_deletions": [
+            null,
+            null,
+            null
+          ],
+          "rounded_float64": [
+            null,
+            null,
+            null
+          ]
+        },
+        {
+          "decimal_digits": 640,
+          "standardized_alpha_and_deletions": [
+            null,
+            null,
+            null
+          ],
+          "rounded_float64": [
+            null,
+            null,
+            null
+          ]
+        }
+      ]
+    },
+    {
+      "input": {
+        "id": "reverse_overflow",
+        "k": 2,
+        "rows": [
+          {
+            "values": [
+              1.7976931348623157e+308,
+              1
+            ]
+          },
+          {
+            "values": [
+              1.7976931348623155e+308,
+              2
+            ]
+          }
+        ],
+        "reversals": {
+          "0": [
+            8.988465674311579e+307,
+            1.7976931348623157e+308
+          ]
+        }
+      },
+      "input_float64_hex": [
+        [
+          "0x1.fffffffffffffp+1023",
+          "0x1.0000000000000p+0"
+        ],
+        [
+          "0x1.ffffffffffffep+1023",
+          "0x1.0000000000000p+1"
+        ]
+      ],
+      "scored_float64_hex": [
+        [
+          "0x1.fffffffffffffp+1022",
+          "0x1.0000000000000p+0"
+        ],
+        [
+          "0x1.0000000000000p+1023",
+          "0x1.0000000000000p+1"
+        ]
+      ],
+      "exact": {
+        "n": 2,
+        "physical_rows": 2,
+        "means": [
+          "89884656743115790396864485702651707539967066355018913468086889490222484146382375473324508988793603548165143208346443955473277773925970201315328744335752910340954451000354191838136927422908855765882237865135034927785683479811421457409930417468237646359537084222182755352171355779849754046521440088952087248896/1",
+          "3/2"
+        ],
+        "sample_variances": [
+          "49792231764545577369190983897388139146480174044117790486849627792649835662119290208311463068733855506719283005823637205486707029598828609810807148239608521727403602785563940108813978774084127474244181993927093404081827877057786995903444175245519309225144826447953180264809342969397183546020962007458045221641802480308019011879727118433759868463470307309837269633915919037123364783886444872689486537043794620297028880962906119697285544055334771349078559693610573529361818394772493823526756678330136642195236616740986440383399940995502060184280145985845800703678002905118641316207525888/1",
+          "1/2"
+        ],
+        "scatter": [
+          [
+            "49792231764545577369190983897388139146480174044117790486849627792649835662119290208311463068733855506719283005823637205486707029598828609810807148239608521727403602785563940108813978774084127474244181993927093404081827877057786995903444175245519309225144826447953180264809342969397183546020962007458045221641802480308019011879727118433759868463470307309837269633915919037123364783886444872689486537043794620297028880962906119697285544055334771349078559693610573529361818394772493823526756678330136642195236616740986440383399940995502060184280145985845800703678002905118641316207525888/1",
+            "4989600773836799529140931782592096415168628151088643853756368106093029729672410164462394913731589252723356117110481238109931094970983984151847929495712078550800014182377714191293844303610907467956633391861359809983327026137802175972222138171120110393767802267189390104105896238075860024819712/1"
+          ],
+          [
+            "4989600773836799529140931782592096415168628151088643853756368106093029729672410164462394913731589252723356117110481238109931094970983984151847929495712078550800014182377714191293844303610907467956633391861359809983327026137802175972222138171120110393767802267189390104105896238075860024819712/1",
+            "1/2"
+          ]
+        ],
+        "total_energy": "99584463529091154738381967794776278292960348088235580973699255585299671324238580416622926137467711013438566011647274410973414059197657219621614296479217043454807205571127880217627957548168254948488363987854186808163655754115573991806888350491038618450289652895906360529618685938794367092041943973319185790481721524343168392145114911380124091502355640092098911386750527714904579147427816102389866498556031165546497486305696175331178479828652391012360319443950657915488812166759431276925339890227718723630406541586524089470688770543688600810135363180760358967772429395189586072514330625/2",
+        "raw_alpha": "39916806190694396233127454260736771321349025208709150830050944848744237837379281315699159309852714021786848936883849904879448759767871873214783435965696628406400113459021713530350754428887259743653067134890878479866616209102417407777777105368960883150142418137515120832847169904606880198557696/99584463529091154738381967794776278292960348088235580973699255585299671324238580416622926137467711013438566011647274410973414059197657219621614296479217043454807205571127880217627957548168254948488363987854186808163655754115573991806888350491038618450289652895906360529618685938794367092041943973319185790481721524343168392145114911380124091502355640092098911386750527714904579147427816102389866498556031165546497486305696175331178479828652391012360319443950657915488812166759431276925339890227718723630406541586524089470688770543688600810135363180760358967772429395189586072514330625",
+        "raw_deletion": [
+          null,
+          null
+        ],
+        "corrected": [
+          {
+            "sign": 1,
+            "squared": "1/1"
+          },
+          {
+            "sign": 1,
+            "squared": "1/1"
+          }
+        ]
+      },
+      "exact_total_energy_state": "Positive",
+      "float64_publication_controls": {
+        "means": [
+          "0x1.0000000000000p+1023",
+          "0x1.8000000000000p+0"
+        ],
+        "sample_sd": [
+          "0x1.6a09e667f3bcdp+969",
+          "0x1.6a09e667f3bcdp-1"
+        ],
+        "raw_alpha": "0x1.0000000000000p-968",
+        "raw_deletion": [
+          null,
+          null
+        ],
+        "corrected": [
+          "0x1.0000000000000p+0",
+          "0x1.0000000000000p+0"
+        ]
+      },
+      "precision_controls": [
+        {
+          "decimal_digits": 80,
+          "standardized_alpha_and_deletions": [
+            "1.0",
+            null,
+            null
+          ],
+          "rounded_float64": [
+            "0x1.0000000000000p+0",
+            null,
+            null
+          ]
+        },
+        {
+          "decimal_digits": 160,
+          "standardized_alpha_and_deletions": [
+            "1.0",
+            null,
+            null
+          ],
+          "rounded_float64": [
+            "0x1.0000000000000p+0",
+            null,
+            null
+          ]
+        },
+        {
+          "decimal_digits": 320,
+          "standardized_alpha_and_deletions": [
+            "1.0",
+            null,
+            null
+          ],
+          "rounded_float64": [
+            "0x1.0000000000000p+0",
+            null,
+            null
+          ]
+        },
+        {
+          "decimal_digits": 640,
+          "standardized_alpha_and_deletions": [
+            "1.0",
+            null,
+            null
+          ],
+          "rounded_float64": [
+            "0x1.0000000000000p+0",
+            null,
+            null
+          ]
+        }
+      ]
+    },
+    {
+      "input": {
+        "id": "bounds_incomplete",
+        "k": 2,
+        "rows": [
+          {
+            "values": [
+              2,
+              null
+            ]
+          },
+          {
+            "values": [
+              0,
+              1
+            ]
+          }
+        ],
+        "reversals": {
+          "0": [
+            0,
+            1
+          ]
+        },
+        "error": "reverse bounds"
+      },
+      "input_float64_hex": [
+        [
+          "0x1.0000000000000p+1",
+          null
+        ],
+        [
+          "0x0.0p+0",
+          "0x1.0000000000000p+0"
+        ]
+      ],
+      "expected_error": "reverse bounds"
+    },
+    {
+      "input": {
+        "id": "invalid_weight_incomplete",
+        "k": 2,
+        "rows": [
+          {
+            "values": [
+              null,
+              1
+            ],
+            "weight": -1
+          }
+        ],
+        "error": "invalid frequency"
+      },
+      "input_float64_hex": [
+        [
+          null,
+          "0x1.0000000000000p+0"
+        ]
+      ],
+      "expected_error": "invalid frequency"
+    },
+    {
+      "input": {
+        "id": "base_ceiling_incomplete",
+        "k": 2,
+        "rows": [
+          {
+            "values": [
+              null,
+              1
+            ],
+            "weight": 9007199254740993
+          }
+        ],
+        "error": "base frequency ceiling"
+      },
+      "input_float64_hex": [
+        [
+          null,
+          "0x1.0000000000000p+0"
+        ]
+      ],
+      "expected_error": "base frequency ceiling"
+    },
+    {
+      "input": {
+        "id": "excluded_bounds",
+        "k": 2,
+        "rows": [
+          {
+            "values": [
+              2,
+              null
+            ],
+            "include": false
+          },
+          {
+            "values": [
+              2,
+              null
+            ],
+            "weight": 0
+          },
+          {
+            "values": [
+              2,
+              null
+            ],
+            "weight": null
+          },
+          {
+            "values": [
+              0,
+              1
+            ]
+          },
+          {
+            "values": [
+              1,
+              2
+            ]
+          }
+        ],
+        "reversals": {
+          "0": [
+            0,
+            1
+          ]
+        }
+      },
+      "input_float64_hex": [
+        [
+          "0x1.0000000000000p+1",
+          null
+        ],
+        [
+          "0x1.0000000000000p+1",
+          null
+        ],
+        [
+          "0x1.0000000000000p+1",
+          null
+        ],
+        [
+          "0x0.0p+0",
+          "0x1.0000000000000p+0"
+        ],
+        [
+          "0x1.0000000000000p+0",
+          "0x1.0000000000000p+1"
+        ]
+      ],
+      "scored_float64_hex": [
+        [
+          "0x1.0000000000000p+0",
+          "0x1.0000000000000p+0"
+        ],
+        [
+          "0x0.0p+0",
+          "0x1.0000000000000p+1"
+        ]
+      ],
+      "exact": {
+        "n": 2,
+        "physical_rows": 2,
+        "means": [
+          "1/2",
+          "3/2"
+        ],
+        "sample_variances": [
+          "1/2",
+          "1/2"
+        ],
+        "scatter": [
+          [
+            "1/2",
+            "-1/2"
+          ],
+          [
+            "-1/2",
+            "1/2"
+          ]
+        ],
+        "total_energy": "0/1",
+        "raw_alpha": null,
+        "raw_deletion": [
+          null,
+          null
+        ],
+        "corrected": [
+          {
+            "sign": -1,
+            "squared": "1/1"
+          },
+          {
+            "sign": -1,
+            "squared": "1/1"
+          }
+        ]
+      },
+      "exact_total_energy_state": "ExactZero",
+      "float64_publication_controls": {
+        "means": [
+          "0x1.0000000000000p-1",
+          "0x1.8000000000000p+0"
+        ],
+        "sample_sd": [
+          "0x1.6a09e667f3bcdp-1",
+          "0x1.6a09e667f3bcdp-1"
+        ],
+        "raw_alpha": null,
+        "raw_deletion": [
+          null,
+          null
+        ],
+        "corrected": [
+          "-0x1.0000000000000p+0",
+          "-0x1.0000000000000p+0"
+        ]
+      },
+      "precision_controls": [
+        {
+          "decimal_digits": 80,
+          "standardized_alpha_and_deletions": [
+            null,
+            null,
+            null
+          ],
+          "rounded_float64": [
+            null,
+            null,
+            null
+          ]
+        },
+        {
+          "decimal_digits": 160,
+          "standardized_alpha_and_deletions": [
+            null,
+            null,
+            null
+          ],
+          "rounded_float64": [
+            null,
+            null,
+            null
+          ]
+        },
+        {
+          "decimal_digits": 320,
+          "standardized_alpha_and_deletions": [
+            null,
+            null,
+            null
+          ],
+          "rounded_float64": [
+            null,
+            null,
+            null
+          ]
+        },
+        {
+          "decimal_digits": 640,
+          "standardized_alpha_and_deletions": [
+            null,
+            null,
+            null
+          ],
+          "rounded_float64": [
+            null,
+            null,
+            null
+          ]
+        }
+      ]
+    },
+    {
+      "input": {
+        "id": "filtered_invalid_weight",
+        "k": 2,
+        "rows": [
+          {
+            "values": [
+              null,
+              1
+            ],
+            "include": false,
+            "weight": -1
+          },
+          {
+            "values": [
+              0,
+              0
+            ]
+          },
+          {
+            "values": [
+              1,
+              2
+            ]
+          }
+        ]
+      },
+      "input_float64_hex": [
+        [
+          null,
+          "0x1.0000000000000p+0"
+        ],
+        [
+          "0x0.0p+0",
+          "0x0.0p+0"
+        ],
+        [
+          "0x1.0000000000000p+0",
+          "0x1.0000000000000p+1"
+        ]
+      ],
+      "scored_float64_hex": [
+        [
+          "0x0.0p+0",
+          "0x0.0p+0"
+        ],
+        [
+          "0x1.0000000000000p+0",
+          "0x1.0000000000000p+1"
+        ]
+      ],
+      "exact": {
+        "n": 2,
+        "physical_rows": 2,
+        "means": [
+          "1/2",
+          "1/1"
+        ],
+        "sample_variances": [
+          "1/2",
+          "2/1"
+        ],
+        "scatter": [
+          [
+            "1/2",
+            "1/1"
+          ],
+          [
+            "1/1",
+            "2/1"
+          ]
+        ],
+        "total_energy": "9/2",
+        "raw_alpha": "8/9",
+        "raw_deletion": [
+          null,
+          null
+        ],
+        "corrected": [
+          {
+            "sign": 1,
+            "squared": "1/1"
+          },
+          {
+            "sign": 1,
+            "squared": "1/1"
+          }
+        ]
+      },
+      "exact_total_energy_state": "Positive",
+      "float64_publication_controls": {
+        "means": [
+          "0x1.0000000000000p-1",
+          "0x1.0000000000000p+0"
+        ],
+        "sample_sd": [
+          "0x1.6a09e667f3bcdp-1",
+          "0x1.6a09e667f3bcdp+0"
+        ],
+        "raw_alpha": "0x1.c71c71c71c71cp-1",
+        "raw_deletion": [
+          null,
+          null
+        ],
+        "corrected": [
+          "0x1.0000000000000p+0",
+          "0x1.0000000000000p+0"
+        ]
+      },
+      "precision_controls": [
+        {
+          "decimal_digits": 80,
+          "standardized_alpha_and_deletions": [
+            "1.0",
+            null,
+            null
+          ],
+          "rounded_float64": [
+            "0x1.0000000000000p+0",
+            null,
+            null
+          ]
+        },
+        {
+          "decimal_digits": 160,
+          "standardized_alpha_and_deletions": [
+            "1.0",
+            null,
+            null
+          ],
+          "rounded_float64": [
+            "0x1.0000000000000p+0",
+            null,
+            null
+          ]
+        },
+        {
+          "decimal_digits": 320,
+          "standardized_alpha_and_deletions": [
+            "1.0",
+            null,
+            null
+          ],
+          "rounded_float64": [
+            "0x1.0000000000000p+0",
+            null,
+            null
+          ]
+        },
+        {
+          "decimal_digits": 640,
+          "standardized_alpha_and_deletions": [
+            "1.0",
+            null,
+            null
+          ],
+          "rounded_float64": [
+            "0x1.0000000000000p+0",
+            null,
+            null
+          ]
+        }
+      ]
+    },
+    {
+      "input": {
+        "id": "invariance_base",
+        "k": 3,
+        "rows": [
+          {
+            "values": [
+              0,
+              1,
+              3
+            ]
+          },
+          {
+            "values": [
+              1,
+              3,
+              -2
+            ]
+          },
+          {
+            "values": [
+              2,
+              -1,
+              4
+            ]
+          },
+          {
+            "values": [
+              4,
+              2,
+              1
+            ]
+          }
+        ]
+      },
+      "input_float64_hex": [
+        [
+          "0x0.0p+0",
+          "0x1.0000000000000p+0",
+          "0x1.8000000000000p+1"
+        ],
+        [
+          "0x1.0000000000000p+0",
+          "0x1.8000000000000p+1",
+          "-0x1.0000000000000p+1"
+        ],
+        [
+          "0x1.0000000000000p+1",
+          "-0x1.0000000000000p+0",
+          "0x1.0000000000000p+2"
+        ],
+        [
+          "0x1.0000000000000p+2",
+          "0x1.0000000000000p+1",
+          "0x1.0000000000000p+0"
+        ]
+      ],
+      "scored_float64_hex": [
+        [
+          "0x0.0p+0",
+          "0x1.0000000000000p+0",
+          "0x1.8000000000000p+1"
+        ],
+        [
+          "0x1.0000000000000p+0",
+          "0x1.8000000000000p+1",
+          "-0x1.0000000000000p+1"
+        ],
+        [
+          "0x1.0000000000000p+1",
+          "-0x1.0000000000000p+0",
+          "0x1.0000000000000p+2"
+        ],
+        [
+          "0x1.0000000000000p+2",
+          "0x1.0000000000000p+1",
+          "0x1.0000000000000p+0"
+        ]
+      ],
+      "exact": {
+        "n": 4,
+        "physical_rows": 4,
+        "means": [
+          "7/4",
+          "5/4",
+          "3/2"
+        ],
+        "sample_variances": [
+          "35/12",
+          "35/12",
+          "7/1"
+        ],
+        "scatter": [
+          [
+            "35/4",
+            "1/4",
+            "-1/2"
+          ],
+          [
+            "1/4",
+            "35/4",
+            "-25/2"
+          ],
+          [
+            "-1/2",
+            "-25/2",
+            "21/1"
+          ]
+        ],
+        "total_energy": "13/1",
+        "raw_alpha": "-153/52",
+        "raw_deletion": [
+          "-200/19",
+          "-8/115",
+          "1/18"
+        ],
+        "corrected": [
+          {
+            "sign": -1,
+            "squared": "1/665"
+          },
+          {
+            "sign": -1,
+            "squared": "343/575"
+          },
+          {
+            "sign": -1,
+            "squared": "169/378"
+          }
+        ]
+      },
+      "exact_total_energy_state": "Positive",
+      "float64_publication_controls": {
+        "means": [
+          "0x1.c000000000000p+0",
+          "0x1.4000000000000p+0",
+          "0x1.8000000000000p+0"
+        ],
+        "sample_sd": [
+          "0x1.b534070e9620cp+0",
+          "0x1.b534070e9620cp+0",
+          "0x1.52a7fa9d2f8eap+1"
+        ],
+        "raw_alpha": "-0x1.789d89d89d89ep+1",
+        "raw_deletion": [
+          "-0x1.50d79435e50d8p+3",
+          "-0x1.1cf06ada2811dp-4",
+          "0x1.c71c71c71c71cp-5"
+        ],
+        "corrected": [
+          "-0x1.3dac10ffb2707p-5",
+          "-0x1.8b7139180d11fp-1",
+          "-0x1.565902cf2b9d8p-1"
+        ]
+      },
+      "precision_controls": [
+        {
+          "decimal_digits": 80,
+          "standardized_alpha_and_deletions": [
+            "-2.450508167543993099804013233985588553931033214881554178218285357683268186631001",
+            "-23.686765192478144634661298999307635125377478153200516266415007437633809837981297",
+            "-0.076596412597961629962547296453615251432780522989212904049354268018513301481086796",
+            "0.055555555555555555555555555555555555555555555555555555555555555555555555555555556"
+          ],
+          "rounded_float64": [
+            "-0x1.39aa406b1756ep+1",
+            "-0x1.7afcfd7f9b98bp+4",
+            "-0x1.39bd28f19630cp-4",
+            "0x1.c71c71c71c71cp-5"
+          ]
+        },
+        {
+          "decimal_digits": 160,
+          "standardized_alpha_and_deletions": [
+            "-2.45050816754399309980401323398558855393103321488155417821828535768326818663100102196778046",
+            "-23.6867651924781446346612989993076351253774781532005162664150074376338098379812969248340962",
+            "-0.0765964125979616299625472964536152514327805229892129040493542680185133014810867935548637919",
+            "0.0555555555555555555555555555555555555555555555555555555555555555555555555555555555555555556"
+          ],
+          "rounded_float64": [
+            "-0x1.39aa406b1756ep+1",
+            "-0x1.7afcfd7f9b98bp+4",
+            "-0x1.39bd28f19630cp-4",
+            "0x1.c71c71c71c71cp-5"
+          ]
+        },
+        {
+          "decimal_digits": 320,
+          "standardized_alpha_and_deletions": [
+            "-2.45050816754399309980401323398558855393103321488155417821828535768326818663100102196778046",
+            "-23.6867651924781446346612989993076351253774781532005162664150074376338098379812969248340962",
+            "-0.0765964125979616299625472964536152514327805229892129040493542680185133014810867935548637919",
+            "0.0555555555555555555555555555555555555555555555555555555555555555555555555555555555555555556"
+          ],
+          "rounded_float64": [
+            "-0x1.39aa406b1756ep+1",
+            "-0x1.7afcfd7f9b98bp+4",
+            "-0x1.39bd28f19630cp-4",
+            "0x1.c71c71c71c71cp-5"
+          ]
+        },
+        {
+          "decimal_digits": 640,
+          "standardized_alpha_and_deletions": [
+            "-2.45050816754399309980401323398558855393103321488155417821828535768326818663100102196778046",
+            "-23.6867651924781446346612989993076351253774781532005162664150074376338098379812969248340962",
+            "-0.0765964125979616299625472964536152514327805229892129040493542680185133014810867935548637919",
+            "0.0555555555555555555555555555555555555555555555555555555555555555555555555555555555555555556"
+          ],
+          "rounded_float64": [
+            "-0x1.39aa406b1756ep+1",
+            "-0x1.7afcfd7f9b98bp+4",
+            "-0x1.39bd28f19630cp-4",
+            "0x1.c71c71c71c71cp-5"
+          ]
+        }
+      ]
+    },
+    {
+      "input": {
+        "id": "invariance_permuted",
+        "k": 3,
+        "rows": [
+          {
+            "values": [
+              3,
+              0,
+              1
+            ]
+          },
+          {
+            "values": [
+              -2,
+              1,
+              3
+            ]
+          },
+          {
+            "values": [
+              4,
+              2,
+              -1
+            ]
+          },
+          {
+            "values": [
+              1,
+              4,
+              2
+            ]
+          }
+        ]
+      },
+      "input_float64_hex": [
+        [
+          "0x1.8000000000000p+1",
+          "0x0.0p+0",
+          "0x1.0000000000000p+0"
+        ],
+        [
+          "-0x1.0000000000000p+1",
+          "0x1.0000000000000p+0",
+          "0x1.8000000000000p+1"
+        ],
+        [
+          "0x1.0000000000000p+2",
+          "0x1.0000000000000p+1",
+          "-0x1.0000000000000p+0"
+        ],
+        [
+          "0x1.0000000000000p+0",
+          "0x1.0000000000000p+2",
+          "0x1.0000000000000p+1"
+        ]
+      ],
+      "scored_float64_hex": [
+        [
+          "0x1.8000000000000p+1",
+          "0x0.0p+0",
+          "0x1.0000000000000p+0"
+        ],
+        [
+          "-0x1.0000000000000p+1",
+          "0x1.0000000000000p+0",
+          "0x1.8000000000000p+1"
+        ],
+        [
+          "0x1.0000000000000p+2",
+          "0x1.0000000000000p+1",
+          "-0x1.0000000000000p+0"
+        ],
+        [
+          "0x1.0000000000000p+0",
+          "0x1.0000000000000p+2",
+          "0x1.0000000000000p+1"
+        ]
+      ],
+      "exact": {
+        "n": 4,
+        "physical_rows": 4,
+        "means": [
+          "3/2",
+          "7/4",
+          "5/4"
+        ],
+        "sample_variances": [
+          "7/1",
+          "35/12",
+          "35/12"
+        ],
+        "scatter": [
+          [
+            "21/1",
+            "-1/2",
+            "-25/2"
+          ],
+          [
+            "-1/2",
+            "35/4",
+            "1/4"
+          ],
+          [
+            "-25/2",
+            "1/4",
+            "35/4"
+          ]
+        ],
+        "total_energy": "13/1",
+        "raw_alpha": "-153/52",
+        "raw_deletion": [
+          "1/18",
+          "-200/19",
+          "-8/115"
+        ],
+        "corrected": [
+          {
+            "sign": -1,
+            "squared": "169/378"
+          },
+          {
+            "sign": -1,
+            "squared": "1/665"
+          },
+          {
+            "sign": -1,
+            "squared": "343/575"
+          }
+        ]
+      },
+      "exact_total_energy_state": "Positive",
+      "float64_publication_controls": {
+        "means": [
+          "0x1.8000000000000p+0",
+          "0x1.c000000000000p+0",
+          "0x1.4000000000000p+0"
+        ],
+        "sample_sd": [
+          "0x1.52a7fa9d2f8eap+1",
+          "0x1.b534070e9620cp+0",
+          "0x1.b534070e9620cp+0"
+        ],
+        "raw_alpha": "-0x1.789d89d89d89ep+1",
+        "raw_deletion": [
+          "0x1.c71c71c71c71cp-5",
+          "-0x1.50d79435e50d8p+3",
+          "-0x1.1cf06ada2811dp-4"
+        ],
+        "corrected": [
+          "-0x1.565902cf2b9d8p-1",
+          "-0x1.3dac10ffb2707p-5",
+          "-0x1.8b7139180d11fp-1"
+        ]
+      },
+      "precision_controls": [
+        {
+          "decimal_digits": 80,
+          "standardized_alpha_and_deletions": [
+            "-2.450508167543993099804013233985588553931033214881554178218285357683268186631001",
+            "0.055555555555555555555555555555555555555555555555555555555555555555555555555555556",
+            "-23.686765192478144634661298999307635125377478153200516266415007437633809837981297",
+            "-0.076596412597961629962547296453615251432780522989212904049354268018513301481086796"
+          ],
+          "rounded_float64": [
+            "-0x1.39aa406b1756ep+1",
+            "0x1.c71c71c71c71cp-5",
+            "-0x1.7afcfd7f9b98bp+4",
+            "-0x1.39bd28f19630cp-4"
+          ]
+        },
+        {
+          "decimal_digits": 160,
+          "standardized_alpha_and_deletions": [
+            "-2.45050816754399309980401323398558855393103321488155417821828535768326818663100102196778046",
+            "0.0555555555555555555555555555555555555555555555555555555555555555555555555555555555555555556",
+            "-23.6867651924781446346612989993076351253774781532005162664150074376338098379812969248340962",
+            "-0.0765964125979616299625472964536152514327805229892129040493542680185133014810867935548637919"
+          ],
+          "rounded_float64": [
+            "-0x1.39aa406b1756ep+1",
+            "0x1.c71c71c71c71cp-5",
+            "-0x1.7afcfd7f9b98bp+4",
+            "-0x1.39bd28f19630cp-4"
+          ]
+        },
+        {
+          "decimal_digits": 320,
+          "standardized_alpha_and_deletions": [
+            "-2.45050816754399309980401323398558855393103321488155417821828535768326818663100102196778046",
+            "0.0555555555555555555555555555555555555555555555555555555555555555555555555555555555555555556",
+            "-23.6867651924781446346612989993076351253774781532005162664150074376338098379812969248340962",
+            "-0.0765964125979616299625472964536152514327805229892129040493542680185133014810867935548637919"
+          ],
+          "rounded_float64": [
+            "-0x1.39aa406b1756ep+1",
+            "0x1.c71c71c71c71cp-5",
+            "-0x1.7afcfd7f9b98bp+4",
+            "-0x1.39bd28f19630cp-4"
+          ]
+        },
+        {
+          "decimal_digits": 640,
+          "standardized_alpha_and_deletions": [
+            "-2.45050816754399309980401323398558855393103321488155417821828535768326818663100102196778046",
+            "0.0555555555555555555555555555555555555555555555555555555555555555555555555555555555555555556",
+            "-23.6867651924781446346612989993076351253774781532005162664150074376338098379812969248340962",
+            "-0.0765964125979616299625472964536152514327805229892129040493542680185133014810867935548637919"
+          ],
+          "rounded_float64": [
+            "-0x1.39aa406b1756ep+1",
+            "0x1.c71c71c71c71cp-5",
+            "-0x1.7afcfd7f9b98bp+4",
+            "-0x1.39bd28f19630cp-4"
+          ]
+        }
+      ]
+    },
+    {
+      "input": {
+        "id": "invariance_negative_common",
+        "k": 3,
+        "rows": [
+          {
+            "values": [
+              0,
+              -8,
+              -24
+            ]
+          },
+          {
+            "values": [
+              -8,
+              -24,
+              16
+            ]
+          },
+          {
+            "values": [
+              -16,
+              8,
+              -32
+            ]
+          },
+          {
+            "values": [
+              -32,
+              -16,
+              -8
+            ]
+          }
+        ]
+      },
+      "input_float64_hex": [
+        [
+          "0x0.0p+0",
+          "-0x1.0000000000000p+3",
+          "-0x1.8000000000000p+4"
+        ],
+        [
+          "-0x1.0000000000000p+3",
+          "-0x1.8000000000000p+4",
+          "0x1.0000000000000p+4"
+        ],
+        [
+          "-0x1.0000000000000p+4",
+          "0x1.0000000000000p+3",
+          "-0x1.0000000000000p+5"
+        ],
+        [
+          "-0x1.0000000000000p+5",
+          "-0x1.0000000000000p+4",
+          "-0x1.0000000000000p+3"
+        ]
+      ],
+      "scored_float64_hex": [
+        [
+          "0x0.0p+0",
+          "-0x1.0000000000000p+3",
+          "-0x1.8000000000000p+4"
+        ],
+        [
+          "-0x1.0000000000000p+3",
+          "-0x1.8000000000000p+4",
+          "0x1.0000000000000p+4"
+        ],
+        [
+          "-0x1.0000000000000p+4",
+          "0x1.0000000000000p+3",
+          "-0x1.0000000000000p+5"
+        ],
+        [
+          "-0x1.0000000000000p+5",
+          "-0x1.0000000000000p+4",
+          "-0x1.0000000000000p+3"
+        ]
+      ],
+      "exact": {
+        "n": 4,
+        "physical_rows": 4,
+        "means": [
+          "-14/1",
+          "-10/1",
+          "-12/1"
+        ],
+        "sample_variances": [
+          "560/3",
+          "560/3",
+          "448/1"
+        ],
+        "scatter": [
+          [
+            "560/1",
+            "16/1",
+            "-32/1"
+          ],
+          [
+            "16/1",
+            "560/1",
+            "-800/1"
+          ],
+          [
+            "-32/1",
+            "-800/1",
+            "1344/1"
+          ]
+        ],
+        "total_energy": "832/1",
+        "raw_alpha": "-153/52",
+        "raw_deletion": [
+          "-200/19",
+          "-8/115",
+          "1/18"
+        ],
+        "corrected": [
+          {
+            "sign": -1,
+            "squared": "1/665"
+          },
+          {
+            "sign": -1,
+            "squared": "343/575"
+          },
+          {
+            "sign": -1,
+            "squared": "169/378"
+          }
+        ]
+      },
+      "exact_total_energy_state": "Positive",
+      "float64_publication_controls": {
+        "means": [
+          "-0x1.c000000000000p+3",
+          "-0x1.4000000000000p+3",
+          "-0x1.8000000000000p+3"
+        ],
+        "sample_sd": [
+          "0x1.b534070e9620cp+3",
+          "0x1.b534070e9620cp+3",
+          "0x1.52a7fa9d2f8eap+4"
+        ],
+        "raw_alpha": "-0x1.789d89d89d89ep+1",
+        "raw_deletion": [
+          "-0x1.50d79435e50d8p+3",
+          "-0x1.1cf06ada2811dp-4",
+          "0x1.c71c71c71c71cp-5"
+        ],
+        "corrected": [
+          "-0x1.3dac10ffb2707p-5",
+          "-0x1.8b7139180d11fp-1",
+          "-0x1.565902cf2b9d8p-1"
+        ]
+      },
+      "precision_controls": [
+        {
+          "decimal_digits": 80,
+          "standardized_alpha_and_deletions": [
+            "-2.450508167543993099804013233985588553931033214881554178218285357683268186631001",
+            "-23.686765192478144634661298999307635125377478153200516266415007437633809837981297",
+            "-0.076596412597961629962547296453615251432780522989212904049354268018513301481086796",
+            "0.055555555555555555555555555555555555555555555555555555555555555555555555555555556"
+          ],
+          "rounded_float64": [
+            "-0x1.39aa406b1756ep+1",
+            "-0x1.7afcfd7f9b98bp+4",
+            "-0x1.39bd28f19630cp-4",
+            "0x1.c71c71c71c71cp-5"
+          ]
+        },
+        {
+          "decimal_digits": 160,
+          "standardized_alpha_and_deletions": [
+            "-2.45050816754399309980401323398558855393103321488155417821828535768326818663100102196778046",
+            "-23.6867651924781446346612989993076351253774781532005162664150074376338098379812969248340962",
+            "-0.0765964125979616299625472964536152514327805229892129040493542680185133014810867935548637919",
+            "0.0555555555555555555555555555555555555555555555555555555555555555555555555555555555555555556"
+          ],
+          "rounded_float64": [
+            "-0x1.39aa406b1756ep+1",
+            "-0x1.7afcfd7f9b98bp+4",
+            "-0x1.39bd28f19630cp-4",
+            "0x1.c71c71c71c71cp-5"
+          ]
+        },
+        {
+          "decimal_digits": 320,
+          "standardized_alpha_and_deletions": [
+            "-2.45050816754399309980401323398558855393103321488155417821828535768326818663100102196778046",
+            "-23.6867651924781446346612989993076351253774781532005162664150074376338098379812969248340962",
+            "-0.0765964125979616299625472964536152514327805229892129040493542680185133014810867935548637919",
+            "0.0555555555555555555555555555555555555555555555555555555555555555555555555555555555555555556"
+          ],
+          "rounded_float64": [
+            "-0x1.39aa406b1756ep+1",
+            "-0x1.7afcfd7f9b98bp+4",
+            "-0x1.39bd28f19630cp-4",
+            "0x1.c71c71c71c71cp-5"
+          ]
+        },
+        {
+          "decimal_digits": 640,
+          "standardized_alpha_and_deletions": [
+            "-2.45050816754399309980401323398558855393103321488155417821828535768326818663100102196778046",
+            "-23.6867651924781446346612989993076351253774781532005162664150074376338098379812969248340962",
+            "-0.0765964125979616299625472964536152514327805229892129040493542680185133014810867935548637919",
+            "0.0555555555555555555555555555555555555555555555555555555555555555555555555555555555555555556"
+          ],
+          "rounded_float64": [
+            "-0x1.39aa406b1756ep+1",
+            "-0x1.7afcfd7f9b98bp+4",
+            "-0x1.39bd28f19630cp-4",
+            "0x1.c71c71c71c71cp-5"
+          ]
+        }
+      ]
+    },
+    {
+      "input": {
+        "id": "invariance_positive_common",
+        "k": 3,
+        "rows": [
+          {
+            "values": [
+              0,
+              8,
+              24
+            ]
+          },
+          {
+            "values": [
+              8,
+              24,
+              -16
+            ]
+          },
+          {
+            "values": [
+              16,
+              -8,
+              32
+            ]
+          },
+          {
+            "values": [
+              32,
+              16,
+              8
+            ]
+          }
+        ]
+      },
+      "input_float64_hex": [
+        [
+          "0x0.0p+0",
+          "0x1.0000000000000p+3",
+          "0x1.8000000000000p+4"
+        ],
+        [
+          "0x1.0000000000000p+3",
+          "0x1.8000000000000p+4",
+          "-0x1.0000000000000p+4"
+        ],
+        [
+          "0x1.0000000000000p+4",
+          "-0x1.0000000000000p+3",
+          "0x1.0000000000000p+5"
+        ],
+        [
+          "0x1.0000000000000p+5",
+          "0x1.0000000000000p+4",
+          "0x1.0000000000000p+3"
+        ]
+      ],
+      "scored_float64_hex": [
+        [
+          "0x0.0p+0",
+          "0x1.0000000000000p+3",
+          "0x1.8000000000000p+4"
+        ],
+        [
+          "0x1.0000000000000p+3",
+          "0x1.8000000000000p+4",
+          "-0x1.0000000000000p+4"
+        ],
+        [
+          "0x1.0000000000000p+4",
+          "-0x1.0000000000000p+3",
+          "0x1.0000000000000p+5"
+        ],
+        [
+          "0x1.0000000000000p+5",
+          "0x1.0000000000000p+4",
+          "0x1.0000000000000p+3"
+        ]
+      ],
+      "exact": {
+        "n": 4,
+        "physical_rows": 4,
+        "means": [
+          "14/1",
+          "10/1",
+          "12/1"
+        ],
+        "sample_variances": [
+          "560/3",
+          "560/3",
+          "448/1"
+        ],
+        "scatter": [
+          [
+            "560/1",
+            "16/1",
+            "-32/1"
+          ],
+          [
+            "16/1",
+            "560/1",
+            "-800/1"
+          ],
+          [
+            "-32/1",
+            "-800/1",
+            "1344/1"
+          ]
+        ],
+        "total_energy": "832/1",
+        "raw_alpha": "-153/52",
+        "raw_deletion": [
+          "-200/19",
+          "-8/115",
+          "1/18"
+        ],
+        "corrected": [
+          {
+            "sign": -1,
+            "squared": "1/665"
+          },
+          {
+            "sign": -1,
+            "squared": "343/575"
+          },
+          {
+            "sign": -1,
+            "squared": "169/378"
+          }
+        ]
+      },
+      "exact_total_energy_state": "Positive",
+      "float64_publication_controls": {
+        "means": [
+          "0x1.c000000000000p+3",
+          "0x1.4000000000000p+3",
+          "0x1.8000000000000p+3"
+        ],
+        "sample_sd": [
+          "0x1.b534070e9620cp+3",
+          "0x1.b534070e9620cp+3",
+          "0x1.52a7fa9d2f8eap+4"
+        ],
+        "raw_alpha": "-0x1.789d89d89d89ep+1",
+        "raw_deletion": [
+          "-0x1.50d79435e50d8p+3",
+          "-0x1.1cf06ada2811dp-4",
+          "0x1.c71c71c71c71cp-5"
+        ],
+        "corrected": [
+          "-0x1.3dac10ffb2707p-5",
+          "-0x1.8b7139180d11fp-1",
+          "-0x1.565902cf2b9d8p-1"
+        ]
+      },
+      "precision_controls": [
+        {
+          "decimal_digits": 80,
+          "standardized_alpha_and_deletions": [
+            "-2.450508167543993099804013233985588553931033214881554178218285357683268186631001",
+            "-23.686765192478144634661298999307635125377478153200516266415007437633809837981297",
+            "-0.076596412597961629962547296453615251432780522989212904049354268018513301481086796",
+            "0.055555555555555555555555555555555555555555555555555555555555555555555555555555556"
+          ],
+          "rounded_float64": [
+            "-0x1.39aa406b1756ep+1",
+            "-0x1.7afcfd7f9b98bp+4",
+            "-0x1.39bd28f19630cp-4",
+            "0x1.c71c71c71c71cp-5"
+          ]
+        },
+        {
+          "decimal_digits": 160,
+          "standardized_alpha_and_deletions": [
+            "-2.45050816754399309980401323398558855393103321488155417821828535768326818663100102196778046",
+            "-23.6867651924781446346612989993076351253774781532005162664150074376338098379812969248340962",
+            "-0.0765964125979616299625472964536152514327805229892129040493542680185133014810867935548637919",
+            "0.0555555555555555555555555555555555555555555555555555555555555555555555555555555555555555556"
+          ],
+          "rounded_float64": [
+            "-0x1.39aa406b1756ep+1",
+            "-0x1.7afcfd7f9b98bp+4",
+            "-0x1.39bd28f19630cp-4",
+            "0x1.c71c71c71c71cp-5"
+          ]
+        },
+        {
+          "decimal_digits": 320,
+          "standardized_alpha_and_deletions": [
+            "-2.45050816754399309980401323398558855393103321488155417821828535768326818663100102196778046",
+            "-23.6867651924781446346612989993076351253774781532005162664150074376338098379812969248340962",
+            "-0.0765964125979616299625472964536152514327805229892129040493542680185133014810867935548637919",
+            "0.0555555555555555555555555555555555555555555555555555555555555555555555555555555555555555556"
+          ],
+          "rounded_float64": [
+            "-0x1.39aa406b1756ep+1",
+            "-0x1.7afcfd7f9b98bp+4",
+            "-0x1.39bd28f19630cp-4",
+            "0x1.c71c71c71c71cp-5"
+          ]
+        },
+        {
+          "decimal_digits": 640,
+          "standardized_alpha_and_deletions": [
+            "-2.45050816754399309980401323398558855393103321488155417821828535768326818663100102196778046",
+            "-23.6867651924781446346612989993076351253774781532005162664150074376338098379812969248340962",
+            "-0.0765964125979616299625472964536152514327805229892129040493542680185133014810867935548637919",
+            "0.0555555555555555555555555555555555555555555555555555555555555555555555555555555555555555556"
+          ],
+          "rounded_float64": [
+            "-0x1.39aa406b1756ep+1",
+            "-0x1.7afcfd7f9b98bp+4",
+            "-0x1.39bd28f19630cp-4",
+            "0x1.c71c71c71c71cp-5"
+          ]
+        }
+      ]
+    },
+    {
+      "input": {
+        "id": "invariance_offsets",
+        "k": 3,
+        "rows": [
+          {
+            "values": [
+              16,
+              33,
+              51
+            ]
+          },
+          {
+            "values": [
+              17,
+              35,
+              46
+            ]
+          },
+          {
+            "values": [
+              18,
+              31,
+              52
+            ]
+          },
+          {
+            "values": [
+              20,
+              34,
+              49
+            ]
+          }
+        ]
+      },
+      "input_float64_hex": [
+        [
+          "0x1.0000000000000p+4",
+          "0x1.0800000000000p+5",
+          "0x1.9800000000000p+5"
+        ],
+        [
+          "0x1.1000000000000p+4",
+          "0x1.1800000000000p+5",
+          "0x1.7000000000000p+5"
+        ],
+        [
+          "0x1.2000000000000p+4",
+          "0x1.f000000000000p+4",
+          "0x1.a000000000000p+5"
+        ],
+        [
+          "0x1.4000000000000p+4",
+          "0x1.1000000000000p+5",
+          "0x1.8800000000000p+5"
+        ]
+      ],
+      "scored_float64_hex": [
+        [
+          "0x1.0000000000000p+4",
+          "0x1.0800000000000p+5",
+          "0x1.9800000000000p+5"
+        ],
+        [
+          "0x1.1000000000000p+4",
+          "0x1.1800000000000p+5",
+          "0x1.7000000000000p+5"
+        ],
+        [
+          "0x1.2000000000000p+4",
+          "0x1.f000000000000p+4",
+          "0x1.a000000000000p+5"
+        ],
+        [
+          "0x1.4000000000000p+4",
+          "0x1.1000000000000p+5",
+          "0x1.8800000000000p+5"
+        ]
+      ],
+      "exact": {
+        "n": 4,
+        "physical_rows": 4,
+        "means": [
+          "71/4",
+          "133/4",
+          "99/2"
+        ],
+        "sample_variances": [
+          "35/12",
+          "35/12",
+          "7/1"
+        ],
+        "scatter": [
+          [
+            "35/4",
+            "1/4",
+            "-1/2"
+          ],
+          [
+            "1/4",
+            "35/4",
+            "-25/2"
+          ],
+          [
+            "-1/2",
+            "-25/2",
+            "21/1"
+          ]
+        ],
+        "total_energy": "13/1",
+        "raw_alpha": "-153/52",
+        "raw_deletion": [
+          "-200/19",
+          "-8/115",
+          "1/18"
+        ],
+        "corrected": [
+          {
+            "sign": -1,
+            "squared": "1/665"
+          },
+          {
+            "sign": -1,
+            "squared": "343/575"
+          },
+          {
+            "sign": -1,
+            "squared": "169/378"
+          }
+        ]
+      },
+      "exact_total_energy_state": "Positive",
+      "float64_publication_controls": {
+        "means": [
+          "0x1.1c00000000000p+4",
+          "0x1.0a00000000000p+5",
+          "0x1.8c00000000000p+5"
+        ],
+        "sample_sd": [
+          "0x1.b534070e9620cp+0",
+          "0x1.b534070e9620cp+0",
+          "0x1.52a7fa9d2f8eap+1"
+        ],
+        "raw_alpha": "-0x1.789d89d89d89ep+1",
+        "raw_deletion": [
+          "-0x1.50d79435e50d8p+3",
+          "-0x1.1cf06ada2811dp-4",
+          "0x1.c71c71c71c71cp-5"
+        ],
+        "corrected": [
+          "-0x1.3dac10ffb2707p-5",
+          "-0x1.8b7139180d11fp-1",
+          "-0x1.565902cf2b9d8p-1"
+        ]
+      },
+      "precision_controls": [
+        {
+          "decimal_digits": 80,
+          "standardized_alpha_and_deletions": [
+            "-2.450508167543993099804013233985588553931033214881554178218285357683268186631001",
+            "-23.686765192478144634661298999307635125377478153200516266415007437633809837981297",
+            "-0.076596412597961629962547296453615251432780522989212904049354268018513301481086796",
+            "0.055555555555555555555555555555555555555555555555555555555555555555555555555555556"
+          ],
+          "rounded_float64": [
+            "-0x1.39aa406b1756ep+1",
+            "-0x1.7afcfd7f9b98bp+4",
+            "-0x1.39bd28f19630cp-4",
+            "0x1.c71c71c71c71cp-5"
+          ]
+        },
+        {
+          "decimal_digits": 160,
+          "standardized_alpha_and_deletions": [
+            "-2.45050816754399309980401323398558855393103321488155417821828535768326818663100102196778046",
+            "-23.6867651924781446346612989993076351253774781532005162664150074376338098379812969248340962",
+            "-0.0765964125979616299625472964536152514327805229892129040493542680185133014810867935548637919",
+            "0.0555555555555555555555555555555555555555555555555555555555555555555555555555555555555555556"
+          ],
+          "rounded_float64": [
+            "-0x1.39aa406b1756ep+1",
+            "-0x1.7afcfd7f9b98bp+4",
+            "-0x1.39bd28f19630cp-4",
+            "0x1.c71c71c71c71cp-5"
+          ]
+        },
+        {
+          "decimal_digits": 320,
+          "standardized_alpha_and_deletions": [
+            "-2.45050816754399309980401323398558855393103321488155417821828535768326818663100102196778046",
+            "-23.6867651924781446346612989993076351253774781532005162664150074376338098379812969248340962",
+            "-0.0765964125979616299625472964536152514327805229892129040493542680185133014810867935548637919",
+            "0.0555555555555555555555555555555555555555555555555555555555555555555555555555555555555555556"
+          ],
+          "rounded_float64": [
+            "-0x1.39aa406b1756ep+1",
+            "-0x1.7afcfd7f9b98bp+4",
+            "-0x1.39bd28f19630cp-4",
+            "0x1.c71c71c71c71cp-5"
+          ]
+        },
+        {
+          "decimal_digits": 640,
+          "standardized_alpha_and_deletions": [
+            "-2.45050816754399309980401323398558855393103321488155417821828535768326818663100102196778046",
+            "-23.6867651924781446346612989993076351253774781532005162664150074376338098379812969248340962",
+            "-0.0765964125979616299625472964536152514327805229892129040493542680185133014810867935548637919",
+            "0.0555555555555555555555555555555555555555555555555555555555555555555555555555555555555555556"
+          ],
+          "rounded_float64": [
+            "-0x1.39aa406b1756ep+1",
+            "-0x1.7afcfd7f9b98bp+4",
+            "-0x1.39bd28f19630cp-4",
+            "0x1.c71c71c71c71cp-5"
+          ]
+        }
+      ]
+    },
+    {
+      "input": {
+        "id": "invariance_positive_itemwise",
+        "k": 3,
+        "rows": [
+          {
+            "values": [
+              0,
+              2,
+              12
+            ]
+          },
+          {
+            "values": [
+              1,
+              6,
+              -8
+            ]
+          },
+          {
+            "values": [
+              2,
+              -2,
+              16
+            ]
+          },
+          {
+            "values": [
+              4,
+              4,
+              4
+            ]
+          }
+        ]
+      },
+      "input_float64_hex": [
+        [
+          "0x0.0p+0",
+          "0x1.0000000000000p+1",
+          "0x1.8000000000000p+3"
+        ],
+        [
+          "0x1.0000000000000p+0",
+          "0x1.8000000000000p+2",
+          "-0x1.0000000000000p+3"
+        ],
+        [
+          "0x1.0000000000000p+1",
+          "-0x1.0000000000000p+1",
+          "0x1.0000000000000p+4"
+        ],
+        [
+          "0x1.0000000000000p+2",
+          "0x1.0000000000000p+2",
+          "0x1.0000000000000p+2"
+        ]
+      ],
+      "scored_float64_hex": [
+        [
+          "0x0.0p+0",
+          "0x1.0000000000000p+1",
+          "0x1.8000000000000p+3"
+        ],
+        [
+          "0x1.0000000000000p+0",
+          "0x1.8000000000000p+2",
+          "-0x1.0000000000000p+3"
+        ],
+        [
+          "0x1.0000000000000p+1",
+          "-0x1.0000000000000p+1",
+          "0x1.0000000000000p+4"
+        ],
+        [
+          "0x1.0000000000000p+2",
+          "0x1.0000000000000p+2",
+          "0x1.0000000000000p+2"
+        ]
+      ],
+      "exact": {
+        "n": 4,
+        "physical_rows": 4,
+        "means": [
+          "7/4",
+          "5/2",
+          "6/1"
+        ],
+        "sample_variances": [
+          "35/12",
+          "35/3",
+          "112/1"
+        ],
+        "scatter": [
+          [
+            "35/4",
+            "1/2",
+            "-2/1"
+          ],
+          [
+            "1/2",
+            "35/1",
+            "-100/1"
+          ],
+          [
+            "-2/1",
+            "-100/1",
+            "336/1"
+          ]
+        ],
+        "total_energy": "707/4",
+        "raw_alpha": "-174/101",
+        "raw_deletion": [
+          "-400/171",
+          "-32/1363",
+          "8/179"
+        ],
+        "corrected": [
+          {
+            "sign": -1,
+            "squared": "1/665"
+          },
+          {
+            "sign": -1,
+            "squared": "39601/47705"
+          },
+          {
+            "sign": -1,
+            "squared": "867/1253"
+          }
+        ]
+      },
+      "exact_total_energy_state": "Positive",
+      "float64_publication_controls": {
+        "means": [
+          "0x1.c000000000000p+0",
+          "0x1.4000000000000p+1",
+          "0x1.8000000000000p+2"
+        ],
+        "sample_sd": [
+          "0x1.b534070e9620cp+0",
+          "0x1.b534070e9620cp+1",
+          "0x1.52a7fa9d2f8eap+3"
+        ],
+        "raw_alpha": "-0x1.b9079a9d26051p+0",
+        "raw_deletion": [
+          "-0x1.2b6a4ada92b6ap+1",
+          "-0x1.80a849a03617bp-6",
+          "0x1.6e1f76b4337c7p-5"
+        ],
+        "corrected": [
+          "-0x1.3dac10ffb2707p-5",
+          "-0x1.d27d1892ab768p-1",
+          "-0x1.a9e57acc92406p-1"
+        ]
+      },
+      "precision_controls": [
+        {
+          "decimal_digits": 80,
+          "standardized_alpha_and_deletions": [
+            "-2.450508167543993099804013233985588553931033214881554178218285357683268186631001",
+            "-23.686765192478144634661298999307635125377478153200516266415007437633809837981297",
+            "-0.076596412597961629962547296453615251432780522989212904049354268018513301481086796",
+            "0.055555555555555555555555555555555555555555555555555555555555555555555555555555556"
+          ],
+          "rounded_float64": [
+            "-0x1.39aa406b1756ep+1",
+            "-0x1.7afcfd7f9b98bp+4",
+            "-0x1.39bd28f19630cp-4",
+            "0x1.c71c71c71c71cp-5"
+          ]
+        },
+        {
+          "decimal_digits": 160,
+          "standardized_alpha_and_deletions": [
+            "-2.45050816754399309980401323398558855393103321488155417821828535768326818663100102196778046",
+            "-23.6867651924781446346612989993076351253774781532005162664150074376338098379812969248340962",
+            "-0.0765964125979616299625472964536152514327805229892129040493542680185133014810867935548637919",
+            "0.0555555555555555555555555555555555555555555555555555555555555555555555555555555555555555556"
+          ],
+          "rounded_float64": [
+            "-0x1.39aa406b1756ep+1",
+            "-0x1.7afcfd7f9b98bp+4",
+            "-0x1.39bd28f19630cp-4",
+            "0x1.c71c71c71c71cp-5"
+          ]
+        },
+        {
+          "decimal_digits": 320,
+          "standardized_alpha_and_deletions": [
+            "-2.45050816754399309980401323398558855393103321488155417821828535768326818663100102196778046",
+            "-23.6867651924781446346612989993076351253774781532005162664150074376338098379812969248340962",
+            "-0.0765964125979616299625472964536152514327805229892129040493542680185133014810867935548637919",
+            "0.0555555555555555555555555555555555555555555555555555555555555555555555555555555555555555556"
+          ],
+          "rounded_float64": [
+            "-0x1.39aa406b1756ep+1",
+            "-0x1.7afcfd7f9b98bp+4",
+            "-0x1.39bd28f19630cp-4",
+            "0x1.c71c71c71c71cp-5"
+          ]
+        },
+        {
+          "decimal_digits": 640,
+          "standardized_alpha_and_deletions": [
+            "-2.45050816754399309980401323398558855393103321488155417821828535768326818663100102196778046",
+            "-23.6867651924781446346612989993076351253774781532005162664150074376338098379812969248340962",
+            "-0.0765964125979616299625472964536152514327805229892129040493542680185133014810867935548637919",
+            "0.0555555555555555555555555555555555555555555555555555555555555555555555555555555555555555556"
+          ],
+          "rounded_float64": [
+            "-0x1.39aa406b1756ep+1",
+            "-0x1.7afcfd7f9b98bp+4",
+            "-0x1.39bd28f19630cp-4",
+            "0x1.c71c71c71c71cp-5"
+          ]
+        }
+      ]
+    },
+    {
+      "input": {
+        "id": "explicit_reverse_control",
+        "k": 2,
+        "rows": [
+          {
+            "values": [
+              1,
+              0
+            ]
+          },
+          {
+            "values": [
+              0,
+              2
+            ]
+          }
+        ]
+      },
+      "input_float64_hex": [
+        [
+          "0x1.0000000000000p+0",
+          "0x0.0p+0"
+        ],
+        [
+          "0x0.0p+0",
+          "0x1.0000000000000p+1"
+        ]
+      ],
+      "scored_float64_hex": [
+        [
+          "0x1.0000000000000p+0",
+          "0x0.0p+0"
+        ],
+        [
+          "0x0.0p+0",
+          "0x1.0000000000000p+1"
+        ]
+      ],
+      "exact": {
+        "n": 2,
+        "physical_rows": 2,
+        "means": [
+          "1/2",
+          "1/1"
+        ],
+        "sample_variances": [
+          "1/2",
+          "2/1"
+        ],
+        "scatter": [
+          [
+            "1/2",
+            "-1/1"
+          ],
+          [
+            "-1/1",
+            "2/1"
+          ]
+        ],
+        "total_energy": "1/2",
+        "raw_alpha": "-8/1",
+        "raw_deletion": [
+          null,
+          null
+        ],
+        "corrected": [
+          {
+            "sign": -1,
+            "squared": "1/1"
+          },
+          {
+            "sign": -1,
+            "squared": "1/1"
+          }
+        ]
+      },
+      "exact_total_energy_state": "Positive",
+      "float64_publication_controls": {
+        "means": [
+          "0x1.0000000000000p-1",
+          "0x1.0000000000000p+0"
+        ],
+        "sample_sd": [
+          "0x1.6a09e667f3bcdp-1",
+          "0x1.6a09e667f3bcdp+0"
+        ],
+        "raw_alpha": "-0x1.0000000000000p+3",
+        "raw_deletion": [
+          null,
+          null
+        ],
+        "corrected": [
+          "-0x1.0000000000000p+0",
+          "-0x1.0000000000000p+0"
+        ]
+      },
+      "precision_controls": [
+        {
+          "decimal_digits": 80,
+          "standardized_alpha_and_deletions": [
+            null,
+            null,
+            null
+          ],
+          "rounded_float64": [
+            null,
+            null,
+            null
+          ]
+        },
+        {
+          "decimal_digits": 160,
+          "standardized_alpha_and_deletions": [
+            null,
+            null,
+            null
+          ],
+          "rounded_float64": [
+            null,
+            null,
+            null
+          ]
+        },
+        {
+          "decimal_digits": 320,
+          "standardized_alpha_and_deletions": [
+            null,
+            null,
+            null
+          ],
+          "rounded_float64": [
+            null,
+            null,
+            null
+          ]
+        },
+        {
+          "decimal_digits": 640,
+          "standardized_alpha_and_deletions": [
+            null,
+            null,
+            null
+          ],
+          "rounded_float64": [
+            null,
+            null,
+            null
+          ]
+        }
+      ]
+    }
+  ]
+}

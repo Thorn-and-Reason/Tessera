@@ -1,0 +1,2653 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:foreign:project:v3",
+  "title": "Reference project structure version 3",
+  "description": "Captured frequency and chart histories alongside unchanged earlier procedures. Semantic invariants and work limits are checked by the decoder.",
+  "type": "object",
+  "properties": {
+    "format": {
+      "const": "foreign-project"
+    },
+    "version": {
+      "const": 3
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1
+    },
+    "dataset": {
+      "$ref": "#/$defs/dataset"
+    },
+    "runs": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/run"
+      },
+      "maxItems": 2000000
+    },
+    "next_run_id": {
+      "$ref": "#/$defs/id"
+    },
+    "provenance": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "maxItems": 2000000
+    }
+  },
+  "required": [
+    "format",
+    "version",
+    "title",
+    "dataset",
+    "runs",
+    "next_run_id",
+    "provenance"
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "id": {
+      "type": "string",
+      "pattern": "^(?:[1-9][0-9]{0,18}|1[0-7][0-9]{18}|18[0-3][0-9]{17}|184[0-3][0-9]{16}|1844[0-5][0-9]{15}|18446[0-6][0-9]{14}|184467[0-3][0-9]{13}|1844674[0-3][0-9]{12}|184467440[0-6][0-9]{10}|1844674407[0-2][0-9]{9}|18446744073[0-6][0-9]{8}|1844674407370[0-8][0-9]{6}|18446744073709[0-4][0-9]{5}|184467440737095[0-4][0-9]{4}|18446744073709550[0-9]{3}|18446744073709551[0-5][0-9]{2}|1844674407370955160[0-9]{1}|1844674407370955161[0-4]|18446744073709551615)$"
+    },
+    "number": {
+      "type": "number",
+      "minimum": -1.7976931348623157e+308,
+      "maximum": 1.7976931348623157e+308
+    },
+    "count": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 2000000
+    },
+    "frequency": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740992
+    },
+    "kind": {
+      "enum": [
+        "number",
+        "text"
+      ]
+    },
+    "statistic": {
+      "enum": [
+        "mean",
+        "sample_std_dev",
+        "variance",
+        "minimum",
+        "maximum",
+        "sum",
+        "range",
+        "std_error_mean"
+      ]
+    },
+    "number_rules": {
+      "type": "object",
+      "properties": {
+        "number": {
+          "type": "object",
+          "properties": {
+            "values": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/number"
+              },
+              "maxItems": 2000000
+            },
+            "ranges": {
+              "type": "array",
+              "items": {
+                "type": "array",
+                "prefixItems": [
+                  {
+                    "$ref": "#/$defs/number"
+                  },
+                  {
+                    "$ref": "#/$defs/number"
+                  }
+                ],
+                "items": false,
+                "minItems": 2,
+                "maxItems": 2
+              },
+              "maxItems": 2000000
+            }
+          },
+          "required": [
+            "values",
+            "ranges"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "number"
+      ],
+      "additionalProperties": false
+    },
+    "text_rules": {
+      "type": "object",
+      "properties": {
+        "text": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 2000000
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "additionalProperties": false
+    },
+    "rules": {
+      "oneOf": [
+        {
+          "const": "none"
+        },
+        {
+          "$ref": "#/$defs/number_rules"
+        },
+        {
+          "$ref": "#/$defs/text_rules"
+        }
+      ]
+    },
+    "label": {
+      "type": "object",
+      "properties": {
+        "value": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/number"
+            },
+            {
+              "type": "string"
+            }
+          ]
+        },
+        "label": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "value",
+        "label"
+      ],
+      "additionalProperties": false
+    },
+    "metadata": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "description": {
+          "type": "string"
+        },
+        "measurement": {
+          "enum": [
+            "unknown",
+            "nominal",
+            "ordinal",
+            "scale"
+          ]
+        },
+        "missing_rules": {
+          "$ref": "#/$defs/rules"
+        },
+        "value_labels": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/label"
+          },
+          "maxItems": 2000000
+        },
+        "display_decimals": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 16
+        }
+      },
+      "required": [
+        "name",
+        "description",
+        "measurement",
+        "missing_rules",
+        "value_labels",
+        "display_decimals"
+      ],
+      "additionalProperties": false
+    },
+    "column": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "kind": {
+          "$ref": "#/$defs/kind"
+        },
+        "metadata": {
+          "$ref": "#/$defs/metadata"
+        },
+        "values": {
+          "type": "array",
+          "items": {
+            "oneOf": [
+              {
+                "$ref": "#/$defs/number"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "maxItems": 2000000
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "metadata",
+        "values"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "number"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "values": {
+                "type": "array",
+                "items": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/$defs/number"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "maxItems": 2000000
+              },
+              "metadata": {
+                "properties": {
+                  "missing_rules": {
+                    "oneOf": [
+                      {
+                        "const": "none"
+                      },
+                      {
+                        "$ref": "#/$defs/number_rules"
+                      }
+                    ]
+                  },
+                  "value_labels": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "value": {
+                          "$ref": "#/$defs/number"
+                        },
+                        "label": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "value",
+                        "label"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "maxItems": 2000000
+                  }
+                }
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "values": {
+                "type": "array",
+                "items": {
+                  "oneOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "maxItems": 2000000
+              },
+              "metadata": {
+                "properties": {
+                  "missing_rules": {
+                    "oneOf": [
+                      {
+                        "const": "none"
+                      },
+                      {
+                        "$ref": "#/$defs/text_rules"
+                      }
+                    ]
+                  },
+                  "value_labels": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "value": {
+                          "type": "string"
+                        },
+                        "label": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "value",
+                        "label"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "maxItems": 2000000
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "dataset": {
+      "type": "object",
+      "properties": {
+        "revision": {
+          "$ref": "#/$defs/id"
+        },
+        "rows": {
+          "$ref": "#/$defs/count"
+        },
+        "columns": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/column"
+          },
+          "maxItems": 2000000
+        }
+      },
+      "required": [
+        "revision",
+        "rows",
+        "columns"
+      ],
+      "additionalProperties": false
+    },
+    "predicate": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "number": {
+              "type": "object",
+              "properties": {
+                "column": {
+                  "$ref": "#/$defs/id"
+                },
+                "comparison": {
+                  "enum": [
+                    "equal",
+                    "not_equal",
+                    "less",
+                    "less_or_equal",
+                    "greater",
+                    "greater_or_equal"
+                  ]
+                },
+                "value": {
+                  "$ref": "#/$defs/number"
+                }
+              },
+              "required": [
+                "column",
+                "comparison",
+                "value"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "number"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "text": {
+              "type": "object",
+              "properties": {
+                "column": {
+                  "$ref": "#/$defs/id"
+                },
+                "value": {
+                  "type": "string"
+                },
+                "equal": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "column",
+                "value",
+                "equal"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "text"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "missing": {
+              "type": "object",
+              "properties": {
+                "column": {
+                  "$ref": "#/$defs/id"
+                },
+                "missing": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "column",
+                "missing"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "missing"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "request": {
+      "type": "object",
+      "properties": {
+        "columns": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/id"
+          },
+          "maxItems": 2000000,
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "statistics": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/statistic"
+          },
+          "maxItems": 8,
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "missing_policy": {
+          "enum": [
+            "per_variable",
+            "complete_case"
+          ]
+        },
+        "filter": {
+          "type": "object",
+          "properties": {
+            "predicates": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/predicate"
+              },
+              "maxItems": 2000000
+            }
+          },
+          "required": [
+            "predicates"
+          ],
+          "additionalProperties": false
+        },
+        "frequency_weight": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "columns",
+        "statistics",
+        "missing_policy",
+        "filter",
+        "frequency_weight"
+      ],
+      "additionalProperties": false
+    },
+    "snapshot": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "kind": {
+          "$ref": "#/$defs/kind"
+        },
+        "description": {
+          "type": "string"
+        },
+        "missing_rules": {
+          "$ref": "#/$defs/rules"
+        },
+        "value_labels": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/label"
+          },
+          "maxItems": 2000000
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "kind",
+        "description",
+        "missing_rules",
+        "value_labels"
+      ],
+      "additionalProperties": false
+    },
+    "estimate": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "value": {
+              "$ref": "#/$defs/number"
+            },
+            "reason": {
+              "type": "null"
+            }
+          },
+          "required": [
+            "value",
+            "reason"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "value": {
+              "type": "null"
+            },
+            "reason": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "value",
+            "reason"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "estimates": {
+      "type": "object",
+      "properties": {
+        "mean": {
+          "$ref": "#/$defs/estimate"
+        },
+        "sample_std_dev": {
+          "$ref": "#/$defs/estimate"
+        },
+        "variance": {
+          "$ref": "#/$defs/estimate"
+        },
+        "minimum": {
+          "$ref": "#/$defs/estimate"
+        },
+        "maximum": {
+          "$ref": "#/$defs/estimate"
+        },
+        "sum": {
+          "$ref": "#/$defs/estimate"
+        },
+        "range": {
+          "$ref": "#/$defs/estimate"
+        },
+        "std_error_mean": {
+          "$ref": "#/$defs/estimate"
+        }
+      },
+      "additionalProperties": false,
+      "minProperties": 1,
+      "maxProperties": 8
+    },
+    "result": {
+      "type": "object",
+      "properties": {
+        "column": {
+          "$ref": "#/$defs/id"
+        },
+        "valid_n": {
+          "$ref": "#/$defs/frequency"
+        },
+        "missing_n": {
+          "$ref": "#/$defs/frequency"
+        },
+        "complete_case_excluded_n": {
+          "$ref": "#/$defs/frequency"
+        },
+        "estimates": {
+          "$ref": "#/$defs/estimates"
+        }
+      },
+      "required": [
+        "column",
+        "valid_n",
+        "missing_n",
+        "complete_case_excluded_n",
+        "estimates"
+      ],
+      "additionalProperties": false
+    },
+    "diagnostics": {
+      "type": "object",
+      "properties": {
+        "filtered_rows": {
+          "$ref": "#/$defs/count"
+        },
+        "missing_weight_rows": {
+          "$ref": "#/$defs/count"
+        },
+        "zero_weight_rows": {
+          "$ref": "#/$defs/count"
+        },
+        "complete_case_rows": {
+          "$ref": "#/$defs/count"
+        }
+      },
+      "required": [
+        "filtered_rows",
+        "missing_weight_rows",
+        "zero_weight_rows",
+        "complete_case_rows"
+      ],
+      "additionalProperties": false
+    },
+    "point": {
+      "type": "object",
+      "properties": {
+        "row": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1999999
+        },
+        "value": {
+          "$ref": "#/$defs/number"
+        },
+        "frequency": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740992
+        }
+      },
+      "required": [
+        "row",
+        "value",
+        "frequency"
+      ],
+      "additionalProperties": false
+    },
+    "plot": {
+      "type": "object",
+      "properties": {
+        "column": {
+          "$ref": "#/$defs/id"
+        },
+        "points": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/point"
+          },
+          "maxItems": 2000
+        },
+        "source_rows": {
+          "$ref": "#/$defs/count"
+        },
+        "reduced": {
+          "type": "boolean"
+        },
+        "label": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "column",
+        "points",
+        "source_rows",
+        "reduced",
+        "label"
+      ],
+      "additionalProperties": false
+    },
+    "analysis": {
+      "type": "object",
+      "properties": {
+        "revision": {
+          "$ref": "#/$defs/id"
+        },
+        "request": {
+          "$ref": "#/$defs/request"
+        },
+        "columns": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/snapshot"
+          },
+          "maxItems": 2000000
+        },
+        "rows": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/result"
+          },
+          "maxItems": 2000000
+        },
+        "diagnostics": {
+          "$ref": "#/$defs/diagnostics"
+        },
+        "plots": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/plot"
+          },
+          "maxItems": 2000000
+        }
+      },
+      "required": [
+        "revision",
+        "request",
+        "columns",
+        "rows",
+        "diagnostics",
+        "plots"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "request": {
+                "properties": {
+                  "frequency_weight": {
+                    "type": "null"
+                  }
+                },
+                "required": [
+                  "frequency_weight"
+                ]
+              }
+            },
+            "required": [
+              "request"
+            ]
+          },
+          "then": {
+            "properties": {
+              "diagnostics": {
+                "properties": {
+                  "missing_weight_rows": {
+                    "const": 0
+                  },
+                  "zero_weight_rows": {
+                    "const": 0
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "run": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "analysis": {
+          "$ref": "#/$defs/completed"
+        }
+      },
+      "required": [
+        "id",
+        "analysis"
+      ],
+      "additionalProperties": false
+    },
+    "confidence": {
+      "enum": [
+        "90%",
+        "95%",
+        "99%"
+      ]
+    },
+    "correlation_policy": {
+      "enum": [
+        "pairwise_complete",
+        "complete_cases"
+      ]
+    },
+    "method": {
+      "enum": [
+        "welch",
+        "pooled"
+      ]
+    },
+    "group_value": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/number"
+        },
+        {
+          "type": "string"
+        }
+      ]
+    },
+    "pair_groups": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/group_value"
+      },
+      "minItems": 2,
+      "maxItems": 2
+    },
+    "pearson_request": {
+      "type": "object",
+      "properties": {
+        "columns": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/id"
+          },
+          "minItems": 2,
+          "maxItems": 2000000,
+          "uniqueItems": true
+        },
+        "missing_policy": {
+          "$ref": "#/$defs/correlation_policy"
+        },
+        "filter": {
+          "type": "object",
+          "properties": {
+            "predicates": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/predicate"
+              },
+              "maxItems": 2000000
+            }
+          },
+          "required": [
+            "predicates"
+          ],
+          "additionalProperties": false
+        },
+        "frequency_weight": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "columns",
+        "missing_policy",
+        "filter",
+        "frequency_weight"
+      ],
+      "additionalProperties": false
+    },
+    "one_sample_t_request": {
+      "type": "object",
+      "properties": {
+        "variable": {
+          "$ref": "#/$defs/id"
+        },
+        "reference_mean": {
+          "$ref": "#/$defs/number"
+        },
+        "confidence": {
+          "$ref": "#/$defs/confidence"
+        },
+        "filter": {
+          "type": "object",
+          "properties": {
+            "predicates": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/predicate"
+              },
+              "maxItems": 2000000
+            }
+          },
+          "required": [
+            "predicates"
+          ],
+          "additionalProperties": false
+        },
+        "frequency_weight": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "variable",
+        "reference_mean",
+        "confidence",
+        "filter",
+        "frequency_weight"
+      ],
+      "additionalProperties": false
+    },
+    "paired_t_request": {
+      "type": "object",
+      "properties": {
+        "first": {
+          "$ref": "#/$defs/id"
+        },
+        "second": {
+          "$ref": "#/$defs/id"
+        },
+        "confidence": {
+          "$ref": "#/$defs/confidence"
+        },
+        "filter": {
+          "type": "object",
+          "properties": {
+            "predicates": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/predicate"
+              },
+              "maxItems": 2000000
+            }
+          },
+          "required": [
+            "predicates"
+          ],
+          "additionalProperties": false
+        },
+        "frequency_weight": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "first",
+        "second",
+        "confidence",
+        "filter",
+        "frequency_weight"
+      ],
+      "additionalProperties": false
+    },
+    "independent_t_request": {
+      "type": "object",
+      "properties": {
+        "outcome": {
+          "$ref": "#/$defs/id"
+        },
+        "group": {
+          "$ref": "#/$defs/id"
+        },
+        "groups": {
+          "$ref": "#/$defs/pair_groups"
+        },
+        "method": {
+          "$ref": "#/$defs/method"
+        },
+        "confidence": {
+          "$ref": "#/$defs/confidence"
+        },
+        "filter": {
+          "type": "object",
+          "properties": {
+            "predicates": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/predicate"
+              },
+              "maxItems": 2000000
+            }
+          },
+          "required": [
+            "predicates"
+          ],
+          "additionalProperties": false
+        },
+        "frequency_weight": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "outcome",
+        "group",
+        "groups",
+        "method",
+        "confidence",
+        "filter",
+        "frequency_weight"
+      ],
+      "additionalProperties": false
+    },
+    "correlation_row": {
+      "type": "object",
+      "properties": {
+        "first": {
+          "$ref": "#/$defs/id"
+        },
+        "second": {
+          "$ref": "#/$defs/id"
+        },
+        "n": {
+          "$ref": "#/$defs/frequency"
+        },
+        "r": {
+          "$ref": "#/$defs/correlation_estimate"
+        },
+        "p": {
+          "$ref": "#/$defs/probability_estimate"
+        },
+        "missing_rows": {
+          "$ref": "#/$defs/count"
+        },
+        "complete_case_excluded_rows": {
+          "$ref": "#/$defs/count"
+        }
+      },
+      "required": [
+        "first",
+        "second",
+        "n",
+        "r",
+        "p",
+        "missing_rows",
+        "complete_case_excluded_rows"
+      ],
+      "additionalProperties": false
+    },
+    "sample": {
+      "type": "object",
+      "properties": {
+        "n": {
+          "$ref": "#/$defs/frequency"
+        },
+        "mean": {
+          "$ref": "#/$defs/estimate"
+        },
+        "sample_sd": {
+          "$ref": "#/$defs/nonnegative_estimate"
+        }
+      },
+      "required": [
+        "n",
+        "mean",
+        "sample_sd"
+      ],
+      "additionalProperties": false
+    },
+    "t_statistics": {
+      "type": "object",
+      "properties": {
+        "difference": {
+          "$ref": "#/$defs/estimate"
+        },
+        "standard_error": {
+          "$ref": "#/$defs/nonnegative_estimate"
+        },
+        "t": {
+          "$ref": "#/$defs/estimate"
+        },
+        "df": {
+          "$ref": "#/$defs/df_estimate"
+        },
+        "p": {
+          "$ref": "#/$defs/positive_probability_estimate"
+        },
+        "interval": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/estimate"
+          },
+          "minItems": 2,
+          "maxItems": 2
+        },
+        "effect_size": {
+          "$ref": "#/$defs/estimate"
+        }
+      },
+      "required": [
+        "difference",
+        "standard_error",
+        "t",
+        "df",
+        "p",
+        "interval",
+        "effect_size"
+      ],
+      "additionalProperties": false
+    },
+    "group_exclusions": {
+      "type": "object",
+      "properties": {
+        "missing_group_rows": {
+          "$ref": "#/$defs/count"
+        },
+        "other_group_rows": {
+          "$ref": "#/$defs/count"
+        },
+        "missing_outcome_rows": {
+          "$ref": "#/$defs/count"
+        }
+      },
+      "required": [
+        "missing_group_rows",
+        "other_group_rows",
+        "missing_outcome_rows"
+      ],
+      "additionalProperties": false
+    },
+    "pearson_analysis": {
+      "type": "object",
+      "properties": {
+        "revision": {
+          "$ref": "#/$defs/id"
+        },
+        "request": {
+          "$ref": "#/$defs/pearson_request"
+        },
+        "columns": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/snapshot"
+          },
+          "minItems": 0,
+          "maxItems": 2000000
+        },
+        "diagnostics": {
+          "$ref": "#/$defs/diagnostics"
+        },
+        "rows": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/correlation_row"
+          },
+          "minItems": 0,
+          "maxItems": 2000000
+        }
+      },
+      "required": [
+        "revision",
+        "request",
+        "columns",
+        "diagnostics",
+        "rows"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "request": {
+                "properties": {
+                  "frequency_weight": {
+                    "type": "null"
+                  }
+                },
+                "required": [
+                  "frequency_weight"
+                ]
+              }
+            },
+            "required": [
+              "request"
+            ]
+          },
+          "then": {
+            "properties": {
+              "diagnostics": {
+                "properties": {
+                  "missing_weight_rows": {
+                    "const": 0
+                  },
+                  "zero_weight_rows": {
+                    "const": 0
+                  }
+                }
+              },
+              "rows": {
+                "items": {
+                  "properties": {
+                    "n": {
+                      "maximum": 2000000
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "one_sample_t_analysis": {
+      "type": "object",
+      "properties": {
+        "revision": {
+          "$ref": "#/$defs/id"
+        },
+        "request": {
+          "$ref": "#/$defs/one_sample_t_request"
+        },
+        "columns": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/snapshot"
+          },
+          "minItems": 0,
+          "maxItems": 2000000
+        },
+        "diagnostics": {
+          "$ref": "#/$defs/diagnostics"
+        },
+        "sample": {
+          "$ref": "#/$defs/sample"
+        },
+        "missing_rows": {
+          "$ref": "#/$defs/count"
+        },
+        "statistics": {
+          "$ref": "#/$defs/t_statistics"
+        }
+      },
+      "required": [
+        "revision",
+        "request",
+        "columns",
+        "diagnostics",
+        "sample",
+        "missing_rows",
+        "statistics"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "request": {
+                "properties": {
+                  "frequency_weight": {
+                    "type": "null"
+                  }
+                },
+                "required": [
+                  "frequency_weight"
+                ]
+              }
+            },
+            "required": [
+              "request"
+            ]
+          },
+          "then": {
+            "properties": {
+              "diagnostics": {
+                "properties": {
+                  "missing_weight_rows": {
+                    "const": 0
+                  },
+                  "zero_weight_rows": {
+                    "const": 0
+                  }
+                }
+              },
+              "sample": {
+                "properties": {
+                  "n": {
+                    "maximum": 2000000
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "paired_t_analysis": {
+      "type": "object",
+      "properties": {
+        "revision": {
+          "$ref": "#/$defs/id"
+        },
+        "request": {
+          "$ref": "#/$defs/paired_t_request"
+        },
+        "columns": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/snapshot"
+          },
+          "minItems": 0,
+          "maxItems": 2000000
+        },
+        "diagnostics": {
+          "$ref": "#/$defs/diagnostics"
+        },
+        "first": {
+          "$ref": "#/$defs/sample"
+        },
+        "second": {
+          "$ref": "#/$defs/sample"
+        },
+        "difference_sd": {
+          "$ref": "#/$defs/nonnegative_estimate"
+        },
+        "statistics": {
+          "$ref": "#/$defs/t_statistics"
+        }
+      },
+      "required": [
+        "revision",
+        "request",
+        "columns",
+        "diagnostics",
+        "first",
+        "second",
+        "difference_sd",
+        "statistics"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "request": {
+                "properties": {
+                  "frequency_weight": {
+                    "type": "null"
+                  }
+                },
+                "required": [
+                  "frequency_weight"
+                ]
+              }
+            },
+            "required": [
+              "request"
+            ]
+          },
+          "then": {
+            "properties": {
+              "diagnostics": {
+                "properties": {
+                  "missing_weight_rows": {
+                    "const": 0
+                  },
+                  "zero_weight_rows": {
+                    "const": 0
+                  }
+                }
+              },
+              "first": {
+                "properties": {
+                  "n": {
+                    "maximum": 2000000
+                  }
+                }
+              },
+              "second": {
+                "properties": {
+                  "n": {
+                    "maximum": 2000000
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "independent_t_analysis": {
+      "type": "object",
+      "properties": {
+        "revision": {
+          "$ref": "#/$defs/id"
+        },
+        "request": {
+          "$ref": "#/$defs/independent_t_request"
+        },
+        "columns": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/snapshot"
+          },
+          "minItems": 0,
+          "maxItems": 2000000
+        },
+        "diagnostics": {
+          "$ref": "#/$defs/diagnostics"
+        },
+        "groups": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/sample"
+          },
+          "minItems": 2,
+          "maxItems": 2
+        },
+        "exclusions": {
+          "$ref": "#/$defs/group_exclusions"
+        },
+        "statistics": {
+          "$ref": "#/$defs/t_statistics"
+        }
+      },
+      "required": [
+        "revision",
+        "request",
+        "columns",
+        "diagnostics",
+        "groups",
+        "exclusions",
+        "statistics"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "request": {
+                "properties": {
+                  "frequency_weight": {
+                    "type": "null"
+                  }
+                },
+                "required": [
+                  "frequency_weight"
+                ]
+              }
+            },
+            "required": [
+              "request"
+            ]
+          },
+          "then": {
+            "properties": {
+              "diagnostics": {
+                "properties": {
+                  "missing_weight_rows": {
+                    "const": 0
+                  },
+                  "zero_weight_rows": {
+                    "const": 0
+                  }
+                }
+              },
+              "groups": {
+                "items": {
+                  "properties": {
+                    "n": {
+                      "maximum": 2000000
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "completed": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "describe": {
+              "$ref": "#/$defs/analysis"
+            }
+          },
+          "required": [
+            "describe"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "pearson": {
+              "$ref": "#/$defs/pearson_analysis"
+            }
+          },
+          "required": [
+            "pearson"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "one_sample_t": {
+              "$ref": "#/$defs/one_sample_t_analysis"
+            }
+          },
+          "required": [
+            "one_sample_t"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "paired_t": {
+              "$ref": "#/$defs/paired_t_analysis"
+            }
+          },
+          "required": [
+            "paired_t"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "independent_t": {
+              "$ref": "#/$defs/independent_t_analysis"
+            }
+          },
+          "required": [
+            "independent_t"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "frequencies": {
+              "$ref": "#/$defs/frequencies_analysis"
+            }
+          },
+          "required": [
+            "frequencies"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "histogram": {
+              "$ref": "#/$defs/histogram_analysis"
+            }
+          },
+          "required": [
+            "histogram"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "scatter": {
+              "$ref": "#/$defs/scatter_analysis"
+            }
+          },
+          "required": [
+            "scatter"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "boxplot": {
+              "$ref": "#/$defs/boxplot_analysis"
+            }
+          },
+          "required": [
+            "boxplot"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "correlation_estimate": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "value": {
+              "type": "number",
+              "minimum": -1,
+              "maximum": 1
+            },
+            "reason": {
+              "type": "null"
+            }
+          },
+          "required": [
+            "value",
+            "reason"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "value": {
+              "type": "null"
+            },
+            "reason": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "value",
+            "reason"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "probability_estimate": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "value": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "reason": {
+              "type": "null"
+            }
+          },
+          "required": [
+            "value",
+            "reason"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "value": {
+              "type": "null"
+            },
+            "reason": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "value",
+            "reason"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "positive_probability_estimate": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "value": {
+              "type": "number",
+              "minimum": -1.7976931348623157e+308,
+              "maximum": 1,
+              "exclusiveMinimum": 0
+            },
+            "reason": {
+              "type": "null"
+            }
+          },
+          "required": [
+            "value",
+            "reason"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "value": {
+              "type": "null"
+            },
+            "reason": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "value",
+            "reason"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "nonnegative_estimate": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "value": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1.7976931348623157e+308
+            },
+            "reason": {
+              "type": "null"
+            }
+          },
+          "required": [
+            "value",
+            "reason"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "value": {
+              "type": "null"
+            },
+            "reason": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "value",
+            "reason"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "df_estimate": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "value": {
+              "type": "number",
+              "minimum": 1,
+              "maximum": 9007199254740992
+            },
+            "reason": {
+              "type": "null"
+            }
+          },
+          "required": [
+            "value",
+            "reason"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "value": {
+              "type": "null"
+            },
+            "reason": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "value",
+            "reason"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "histogram_bins": {
+      "oneOf": [
+        {
+          "const": "automatic"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "count": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 128
+            }
+          },
+          "required": [
+            "count"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "frequencies_request": {
+      "type": "object",
+      "properties": {
+        "columns": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/id"
+          },
+          "maxItems": 2000000,
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "filter": {
+          "type": "object",
+          "properties": {
+            "predicates": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/predicate"
+              },
+              "maxItems": 2000000
+            }
+          },
+          "required": [
+            "predicates"
+          ],
+          "additionalProperties": false
+        },
+        "frequency_weight": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "columns",
+        "filter",
+        "frequency_weight"
+      ],
+      "additionalProperties": false
+    },
+    "histogram_request": {
+      "type": "object",
+      "properties": {
+        "variable": {
+          "$ref": "#/$defs/id"
+        },
+        "bins": {
+          "$ref": "#/$defs/histogram_bins"
+        },
+        "filter": {
+          "type": "object",
+          "properties": {
+            "predicates": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/predicate"
+              },
+              "maxItems": 2000000
+            }
+          },
+          "required": [
+            "predicates"
+          ],
+          "additionalProperties": false
+        },
+        "frequency_weight": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "variable",
+        "bins",
+        "filter",
+        "frequency_weight"
+      ],
+      "additionalProperties": false
+    },
+    "scatter_request": {
+      "type": "object",
+      "properties": {
+        "x": {
+          "$ref": "#/$defs/id"
+        },
+        "y": {
+          "$ref": "#/$defs/id"
+        },
+        "filter": {
+          "type": "object",
+          "properties": {
+            "predicates": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/predicate"
+              },
+              "maxItems": 2000000
+            }
+          },
+          "required": [
+            "predicates"
+          ],
+          "additionalProperties": false
+        },
+        "frequency_weight": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "x",
+        "y",
+        "filter",
+        "frequency_weight"
+      ],
+      "additionalProperties": false
+    },
+    "boxplot_request": {
+      "type": "object",
+      "properties": {
+        "outcome": {
+          "$ref": "#/$defs/id"
+        },
+        "group": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "filter": {
+          "type": "object",
+          "properties": {
+            "predicates": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/predicate"
+              },
+              "maxItems": 2000000
+            }
+          },
+          "required": [
+            "predicates"
+          ],
+          "additionalProperties": false
+        },
+        "frequency_weight": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "outcome",
+        "group",
+        "filter",
+        "frequency_weight"
+      ],
+      "additionalProperties": false
+    },
+    "frequency_category": {
+      "type": "object",
+      "properties": {
+        "value": {
+          "$ref": "#/$defs/group_value"
+        },
+        "value_label_index": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/count"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "rows": {
+          "$ref": "#/$defs/count"
+        },
+        "frequency": {
+          "$ref": "#/$defs/frequency"
+        },
+        "percent": {
+          "$ref": "#/$defs/estimate"
+        },
+        "valid_percent": {
+          "$ref": "#/$defs/estimate"
+        },
+        "cumulative_frequency": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/frequency"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "cumulative_percent": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/estimate"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "value",
+        "value_label_index",
+        "rows",
+        "frequency",
+        "percent",
+        "valid_percent",
+        "cumulative_frequency",
+        "cumulative_percent"
+      ],
+      "additionalProperties": false
+    },
+    "frequency_table": {
+      "type": "object",
+      "properties": {
+        "column": {
+          "$ref": "#/$defs/id"
+        },
+        "valid_rows": {
+          "$ref": "#/$defs/count"
+        },
+        "missing_rows": {
+          "$ref": "#/$defs/count"
+        },
+        "valid_n": {
+          "$ref": "#/$defs/frequency"
+        },
+        "missing_n": {
+          "$ref": "#/$defs/frequency"
+        },
+        "missing_percent": {
+          "$ref": "#/$defs/estimate"
+        },
+        "categories": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/frequency_category"
+          },
+          "maxItems": 2000000
+        }
+      },
+      "required": [
+        "column",
+        "valid_rows",
+        "missing_rows",
+        "valid_n",
+        "missing_n",
+        "missing_percent",
+        "categories"
+      ],
+      "additionalProperties": false
+    },
+    "histogram_bin": {
+      "type": "object",
+      "properties": {
+        "left": {
+          "$ref": "#/$defs/number"
+        },
+        "right": {
+          "$ref": "#/$defs/number"
+        },
+        "rows": {
+          "$ref": "#/$defs/count"
+        },
+        "frequency": {
+          "$ref": "#/$defs/frequency"
+        }
+      },
+      "required": [
+        "left",
+        "right",
+        "rows",
+        "frequency"
+      ],
+      "additionalProperties": false
+    },
+    "scatter_point": {
+      "type": "object",
+      "properties": {
+        "row": {
+          "$ref": "#/$defs/count"
+        },
+        "x": {
+          "$ref": "#/$defs/number"
+        },
+        "y": {
+          "$ref": "#/$defs/number"
+        },
+        "frequency": {
+          "$ref": "#/$defs/frequency"
+        }
+      },
+      "required": [
+        "row",
+        "x",
+        "y",
+        "frequency"
+      ],
+      "additionalProperties": false
+    },
+    "boxplot_group": {
+      "type": "object",
+      "properties": {
+        "value": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/group_value"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "value_label_index": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/count"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "rows": {
+          "$ref": "#/$defs/count"
+        },
+        "n": {
+          "$ref": "#/$defs/frequency"
+        },
+        "minimum": {
+          "$ref": "#/$defs/estimate"
+        },
+        "q1": {
+          "$ref": "#/$defs/estimate"
+        },
+        "median": {
+          "$ref": "#/$defs/estimate"
+        },
+        "q3": {
+          "$ref": "#/$defs/estimate"
+        },
+        "maximum": {
+          "$ref": "#/$defs/estimate"
+        },
+        "whiskers": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/estimate"
+          },
+          "minItems": 2,
+          "maxItems": 2
+        },
+        "outlier_rows": {
+          "$ref": "#/$defs/count"
+        },
+        "outlier_n": {
+          "$ref": "#/$defs/frequency"
+        }
+      },
+      "required": [
+        "value",
+        "value_label_index",
+        "rows",
+        "n",
+        "minimum",
+        "q1",
+        "median",
+        "q3",
+        "maximum",
+        "whiskers",
+        "outlier_rows",
+        "outlier_n"
+      ],
+      "additionalProperties": false
+    },
+    "boxplot_point": {
+      "type": "object",
+      "properties": {
+        "group_index": {
+          "$ref": "#/$defs/count"
+        },
+        "row": {
+          "$ref": "#/$defs/count"
+        },
+        "value": {
+          "$ref": "#/$defs/number"
+        },
+        "frequency": {
+          "$ref": "#/$defs/frequency"
+        }
+      },
+      "required": [
+        "group_index",
+        "row",
+        "value",
+        "frequency"
+      ],
+      "additionalProperties": false
+    },
+    "frequencies_analysis": {
+      "type": "object",
+      "properties": {
+        "revision": {
+          "$ref": "#/$defs/id"
+        },
+        "request": {
+          "$ref": "#/$defs/frequencies_request"
+        },
+        "columns": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/snapshot"
+          },
+          "maxItems": 2000000
+        },
+        "source_rows": {
+          "$ref": "#/$defs/count"
+        },
+        "diagnostics": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/diagnostics"
+            },
+            {
+              "properties": {
+                "complete_case_rows": {
+                  "const": 0
+                }
+              }
+            }
+          ]
+        },
+        "tables": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/frequency_table"
+          },
+          "maxItems": 2000000
+        }
+      },
+      "required": [
+        "revision",
+        "request",
+        "columns",
+        "source_rows",
+        "diagnostics",
+        "tables"
+      ],
+      "additionalProperties": false
+    },
+    "histogram_analysis": {
+      "type": "object",
+      "properties": {
+        "revision": {
+          "$ref": "#/$defs/id"
+        },
+        "request": {
+          "$ref": "#/$defs/histogram_request"
+        },
+        "columns": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/snapshot"
+          },
+          "maxItems": 2000000
+        },
+        "source_rows": {
+          "$ref": "#/$defs/count"
+        },
+        "diagnostics": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/diagnostics"
+            },
+            {
+              "properties": {
+                "complete_case_rows": {
+                  "const": 0
+                }
+              }
+            }
+          ]
+        },
+        "valid_rows": {
+          "$ref": "#/$defs/count"
+        },
+        "n": {
+          "$ref": "#/$defs/frequency"
+        },
+        "missing_rows": {
+          "$ref": "#/$defs/count"
+        },
+        "missing_n": {
+          "$ref": "#/$defs/frequency"
+        },
+        "range": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/estimate"
+          },
+          "minItems": 2,
+          "maxItems": 2
+        },
+        "bins": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/histogram_bin"
+          },
+          "maxItems": 128
+        },
+        "bin_adjustment": {
+          "oneOf": [
+            {
+              "type": "string",
+              "minLength": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "revision",
+        "request",
+        "columns",
+        "source_rows",
+        "diagnostics",
+        "valid_rows",
+        "n",
+        "missing_rows",
+        "missing_n",
+        "range",
+        "bins",
+        "bin_adjustment"
+      ],
+      "additionalProperties": false
+    },
+    "scatter_analysis": {
+      "type": "object",
+      "properties": {
+        "revision": {
+          "$ref": "#/$defs/id"
+        },
+        "request": {
+          "$ref": "#/$defs/scatter_request"
+        },
+        "columns": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/snapshot"
+          },
+          "maxItems": 2000000
+        },
+        "source_rows": {
+          "$ref": "#/$defs/count"
+        },
+        "diagnostics": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/diagnostics"
+            },
+            {
+              "properties": {
+                "complete_case_rows": {
+                  "const": 0
+                }
+              }
+            }
+          ]
+        },
+        "valid_rows": {
+          "$ref": "#/$defs/count"
+        },
+        "n": {
+          "$ref": "#/$defs/frequency"
+        },
+        "missing_rows": {
+          "$ref": "#/$defs/count"
+        },
+        "missing_n": {
+          "$ref": "#/$defs/frequency"
+        },
+        "ranges": {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/estimate"
+            },
+            "minItems": 2,
+            "maxItems": 2
+          },
+          "minItems": 2,
+          "maxItems": 2
+        },
+        "points": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/scatter_point"
+          },
+          "maxItems": 2000
+        },
+        "reduced": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "revision",
+        "request",
+        "columns",
+        "source_rows",
+        "diagnostics",
+        "valid_rows",
+        "n",
+        "missing_rows",
+        "missing_n",
+        "ranges",
+        "points",
+        "reduced"
+      ],
+      "additionalProperties": false
+    },
+    "boxplot_analysis": {
+      "type": "object",
+      "properties": {
+        "revision": {
+          "$ref": "#/$defs/id"
+        },
+        "request": {
+          "$ref": "#/$defs/boxplot_request"
+        },
+        "columns": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/snapshot"
+          },
+          "maxItems": 2000000
+        },
+        "source_rows": {
+          "$ref": "#/$defs/count"
+        },
+        "diagnostics": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/diagnostics"
+            },
+            {
+              "properties": {
+                "complete_case_rows": {
+                  "const": 0
+                }
+              }
+            }
+          ]
+        },
+        "missing_group_rows": {
+          "$ref": "#/$defs/count"
+        },
+        "missing_group_n": {
+          "$ref": "#/$defs/frequency"
+        },
+        "missing_outcome_rows": {
+          "$ref": "#/$defs/count"
+        },
+        "missing_outcome_n": {
+          "$ref": "#/$defs/frequency"
+        },
+        "groups": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/boxplot_group"
+          },
+          "maxItems": 2000000
+        },
+        "points": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/boxplot_point"
+          },
+          "maxItems": 2000
+        },
+        "reduced": {
+          "type": "boolean"
+        },
+        "empty_reason": {
+          "oneOf": [
+            {
+              "type": "string",
+              "minLength": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "revision",
+        "request",
+        "columns",
+        "source_rows",
+        "diagnostics",
+        "missing_group_rows",
+        "missing_group_n",
+        "missing_outcome_rows",
+        "missing_outcome_n",
+        "groups",
+        "points",
+        "reduced",
+        "empty_reason"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

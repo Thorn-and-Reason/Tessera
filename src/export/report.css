@@ -1,0 +1,45 @@
+/* Thorn & Reason palette. Reports stay self-contained for offline use. */
+body{font:15px/1.55 "DejaVu Sans","Noto Sans",Arial,sans-serif;color:#263449;background:#F2EBDC;max-width:72rem;margin:2rem auto;padding:0 1.5rem}
+h1,h2,h3{font-family:Georgia,"Times New Roman",serif;line-height:1.25;font-weight:400}
+h1{font-size:1.9rem;margin-bottom:.5rem}
+h2{font-size:1.45rem;margin:2.5rem 0 .75rem}
+h3{font-size:1.1rem;margin:1.5rem 0 .5rem}
+p,figcaption,dt,summary{color:#4E5A66}
+section{border-top:1px solid #D1C9B9;padding-top:.5rem}
+table{border-collapse:collapse;background:#F2EBDC;margin:1rem 0 1.75rem;width:100%;font-size:.875rem;font-variant-numeric:tabular-nums}
+caption{text-align:left;font-weight:700;color:#263449;padding:0 0 .6rem}
+th,td{padding:.55rem .7rem;border-bottom:1px solid #D1C9B9;text-align:left;vertical-align:top;overflow-wrap:anywhere}
+thead th{background:#EEE6D6;border-top:2px solid #C59B43;border-bottom:1px solid #F2EBDC}
+tbody th{font-weight:400}
+tbody tr:nth-child(even){background:#EEE6D6}
+figure{margin:1.5rem 0}
+svg{display:block;width:100%;max-width:48rem;background:#F2EBDC;font-family:inherit;font-size:12px}
+figure:not(.report-figure) svg text{fill:#263449}
+.chart-grid{stroke:#D1C9B9;stroke-width:1;fill:none}
+.chart-bar{fill:#86631F;stroke:#F2EBDC;stroke-width:1}
+.chart-point{fill:#C59B43;stroke:#263449;stroke-width:.6}
+.chart-box{fill:#F2EBDC;stroke:#263449}
+.chart-median-edge{stroke:#263449;stroke-width:5}
+.chart-median{stroke:#C59B43;stroke-width:3}
+figcaption{font-size:.85rem;margin-top:.6rem}
+pre{white-space:pre-wrap;overflow-wrap:anywhere}
+summary{cursor:pointer}
+a:focus-visible,summary:focus-visible{outline:3px solid #263449;outline-offset:3px}
+@media screen and (max-width:50rem){body{padding:0 .75rem}table{display:block;overflow-x:auto}th,td{min-width:5rem}}
+@media print{
+  @page{margin:15mm}
+  body{margin:0;padding:0;max-width:none;font-size:10pt;print-color-adjust:exact;-webkit-print-color-adjust:exact}
+  h1,h2,h3,caption{break-after:avoid}
+  /* Oversized tables can continue; fitting outputs and individual rows stay whole. */
+  figure,table,svg,tr{break-inside:avoid;page-break-inside:avoid}
+  figcaption{break-before:avoid;page-break-before:avoid}
+  table{font-size:9pt}
+  th,td{padding:4pt 3pt}
+  td{min-width:4ch}
+  th{overflow-wrap:normal}
+  thead{display:table-header-group}
+  svg{max-width:100%;break-after:avoid;page-break-after:avoid}
+}
+
+/* Shared standalone figures keep their saved appearance in reports. */
+.report-figure svg{width:auto;max-width:100%;height:auto;background:transparent;font-family:Arial,sans-serif}

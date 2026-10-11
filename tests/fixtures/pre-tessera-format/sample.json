@@ -1,0 +1,136 @@
+{
+  "format": "foreign-project",
+  "version": 1,
+  "title": "Six-row teaching example",
+  "dataset": {
+    "revision": "1",
+    "rows": 6,
+    "columns": [
+      {
+        "id": "1",
+        "kind": "text",
+        "metadata": {
+          "name": "Participant",
+          "description": "",
+          "measurement": "nominal",
+          "missing_rules": "none",
+          "value_labels": [],
+          "display_decimals": 0
+        },
+        "values": [
+          "P01",
+          "P02",
+          "P03",
+          "P04",
+          "P05",
+          "P06"
+        ]
+      },
+      {
+        "id": "2",
+        "kind": "number",
+        "metadata": {
+          "name": "Age",
+          "description": "",
+          "measurement": "scale",
+          "missing_rules": "none",
+          "value_labels": [],
+          "display_decimals": 0
+        },
+        "values": [
+          17,
+          18,
+          20,
+          21,
+          22,
+          24
+        ]
+      },
+      {
+        "id": "3",
+        "kind": "number",
+        "metadata": {
+          "name": "First item",
+          "description": "",
+          "measurement": "scale",
+          "missing_rules": "none",
+          "value_labels": [],
+          "display_decimals": 0
+        },
+        "values": [
+          8,
+          10,
+          12,
+          9,
+          11,
+          15
+        ]
+      },
+      {
+        "id": "4",
+        "kind": "number",
+        "metadata": {
+          "name": "Second item",
+          "description": "",
+          "measurement": "scale",
+          "missing_rules": "none",
+          "value_labels": [],
+          "display_decimals": 0
+        },
+        "values": [
+          9,
+          12,
+          13,
+          11,
+          14,
+          16
+        ]
+      },
+      {
+        "id": "5",
+        "kind": "text",
+        "metadata": {
+          "name": "Group",
+          "description": "",
+          "measurement": "nominal",
+          "missing_rules": "none",
+          "value_labels": [],
+          "display_decimals": 0
+        },
+        "values": [
+          "Control",
+          "Control",
+          "Control",
+          "Comparison",
+          "Comparison",
+          "Comparison"
+        ]
+      },
+      {
+        "id": "6",
+        "kind": "number",
+        "metadata": {
+          "name": "Total score",
+          "description": "Sum of the two scale items",
+          "measurement": "scale",
+          "missing_rules": "none",
+          "value_labels": [],
+          "display_decimals": 0
+        },
+        "values": [
+          17,
+          22,
+          25,
+          20,
+          25,
+          31
+        ]
+      }
+    ]
+  },
+  "runs": [],
+  "next_run_id": "1",
+  "provenance": [
+    "Synthetic six-row teaching data."
+  ]
+}

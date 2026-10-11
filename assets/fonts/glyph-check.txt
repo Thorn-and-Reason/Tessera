@@ -1,0 +1,5 @@
+Checked actual cmap glyph IDs, no fallback fonts. Characters: ŵŴŷŶâêîôûáéíóúàèìòùäëïöü£–—±×Σμσ·•…
+NotoSans-Regular.ttf: cmap glyph check PASS; SHA-256 b85c38ecea8a7cfb39c24e395a4007474fa5a4fc864f6ee33309eb4948d232d5
+NotoSans-SemiBold.ttf: cmap glyph check PASS; SHA-256 87a8b90ece1e89746b544e4e086f85a3710e41485a8078f9be874837dfad45d5
+NotoSansMono-Regular.ttf: cmap glyph check PASS; SHA-256 d9e2b23d19f8230be7146f409a52b1d23117e635e28f2e2892cf91b7382f325b
+Math comparison labels use ASCII <=, >=, !=; bundled Noto Sans lacks these mathematical glyphs.

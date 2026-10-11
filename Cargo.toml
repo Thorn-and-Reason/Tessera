@@ -1,0 +1,67 @@
+[package]
+name = "tessera"
+version = "0.3.0"
+edition = "2021"
+rust-version = "1.95"
+license = "GPL-3.0-only"
+
+[lib]
+name = "tessera"
+path = "src/lib.rs"
+
+[dependencies]
+serde = { version = "1", features = ["derive", "rc"] }
+serde_json = { version = "1", features = ["float_roundtrip"] }
+sha2 = "0.10"
+statrs = { version = "0.18", default-features = false }
+nalgebra = { version = "=0.33.3", default-features = false, features = ["std"] }
+tessera-workbook = { path = "crates/tessera-workbook" }
+resvg = { version = "0.45", default-features = false, features = ["text"] }
+ttf-parser = "0.25.1"
+png = "0.17.16"
+
+# Core checks and development probes can opt out of the native shell.
+[features]
+default = ["desktop"]
+desktop = ["dep:eframe", "dep:rfd", "dep:image", "dep:objc2", "dep:objc2-app-kit", "dep:objc2-foundation", "dep:raw-window-handle"]
+
+[[bin]]
+name = "tessera"
+path = "src/main.rs"
+required-features = ["desktop"]
+
+[dependencies.eframe]
+version = "=0.36.2"
+optional = true
+default-features = false
+features = ["accesskit", "default_fonts", "wgpu", "persistence"]
+
+[dependencies.rfd]
+version = "0.16"
+optional = true
+default-features = false
+
+[dependencies.image]
+version = "=0.25.10"
+optional = true
+default-features = false
+features = ["png"]
+
+[target.'cfg(target_os = "macos")'.dependencies]
+libc = "0.2"
+objc2 = { version = "=0.6.5", optional = true }
+objc2-app-kit = { version = "=0.3.2", optional = true, default-features = false, features = ["std", "NSApplication", "NSMenu", "NSMenuItem", "NSEvent", "NSPasteboard"] }
+
+objc2-foundation = { version = "=0.3.2", optional = true, default-features = false, features = ["std", "NSString"] }
+
+[target.'cfg(target_os = "windows")'.dependencies]
+windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_Storage_FileSystem", "Win32_System_IO", "Win32_Security", "Win32_Security_Authorization", "Win32_Graphics_Dwm", "Win32_UI_Accessibility", "Win32_UI_WindowsAndMessaging"] }
+raw-window-handle = { version = "0.6", optional = true }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+libc = "0.2"
+eframe = { version = "=0.36.2", optional = true, default-features = false, features = ["x11", "wayland"] }
+rfd = { version = "0.16", optional = true, default-features = false, features = ["xdg-portal", "async-std", "wayland"] }
+
+[build-dependencies]
+cc = "=1.6.0"

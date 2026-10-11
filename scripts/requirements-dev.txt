@@ -1,0 +1,2 @@
+# Python 3.11+; schema checks and packaging helpers
+jsonschema==4.25.1
