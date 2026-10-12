@@ -1,0 +1,5 @@
+Measurement,Constant,All missing,Large identifier,<script>header</script>
+1,5,,9007199254740993,<script>alert(1)</script>
+,5,,9007199254740994,<script>alert(1)</script>
+3,5,,9007199254740995,"=SUM(1,1)"
+,5,,9007199254740996,A&B

@@ -419,6 +419,7 @@ pub(crate) fn commit_button(ui: &mut egui::Ui, state: &mut DesktopState, jobs: &
         let response = ui.add_enabled(!state.cancelled, egui::Button::new("Cancel import"));
         super::super::procedure_forms::record(state, "Cancel import", &response);
         if response.clicked() {
+            state.cancel_survey_import();
             jobs.cancel();
             state.cancelled = true;
         }

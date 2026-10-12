@@ -56,6 +56,13 @@ pub enum FilterPredicate {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case", deny_unknown_fields)]
 pub enum Step {
+    CleanText {
+        #[serde(with = "wire::column_id")]
+        source: ColumnId,
+        name: String,
+        trim_whitespace: bool,
+        rules: Vec<RecodeRule>,
+    },
     Compute {
         name: String,
         left: Operand,
@@ -92,6 +99,7 @@ pub enum Step {
 impl Step {
     pub fn label(&self) -> &'static str {
         match self {
+            Self::CleanText { .. } => "Clean survey responses",
             Self::Compute { .. } => "Compute variable",
             Self::Mean { .. } => "Domain average",
             Self::Recode { .. } => "Recode variable",
@@ -109,7 +117,7 @@ impl Step {
                 n.add(name.capacity())?;
                 n.array::<ColumnId>(columns.capacity())?;
             }
-            Self::Recode { name, rules, .. } => {
+            Self::Recode { name, rules, .. } | Self::CleanText { name, rules, .. } => {
                 n.add(name.capacity())?;
                 n.array::<RecodeRule>(rules.capacity())?;
                 for r in rules {
@@ -126,9 +134,10 @@ impl Step {
     }
     pub(crate) fn validate_shape(&self) -> AppResult<()> {
         let name = match self {
-            Self::Compute { name, .. } | Self::Mean { name, .. } | Self::Recode { name, .. } => {
-                Some(name)
-            }
+            Self::Compute { name, .. }
+            | Self::Mean { name, .. }
+            | Self::Recode { name, .. }
+            | Self::CleanText { name, .. } => Some(name),
             _ => None,
         };
         if let Some(n) = name {
@@ -138,6 +147,17 @@ impl Step {
             }
         }
         match self {
+            Self::CleanText {
+                source,
+                trim_whitespace,
+                rules,
+                ..
+            } => {
+                if source.0 == 0 {
+                    return Err(invalid("Source identity must be positive."));
+                }
+                crate::survey::cleaning::validate_spec(*trim_whitespace, rules)?;
+            }
             Self::Compute { left, right, .. } => validate_operands(left, right)?,
             Self::Mean { columns, .. } => {
                 if !(2..=MAX_MEAN_ITEMS).contains(&columns.len())
@@ -185,7 +205,8 @@ impl Step {
                     _ => None,
                 },
             ),
-            Self::Recode { source, .. }
+            Self::CleanText { source, .. }
+            | Self::Recode { source, .. }
             | Self::Sort { source, .. }
             | Self::Filter { source, .. } => (Some(*source), None),
             Self::Mean { .. } | Self::DatasetEdit => (None, None),
@@ -202,6 +223,15 @@ impl Step {
             d.column(id)?;
         }
         match self {
+            Self::CleanText {
+                source,
+                trim_whitespace,
+                rules,
+                ..
+            } => {
+                let col = d.column(*source)?;
+                crate::survey::cleaning::validate_column(col, *trim_whitespace, rules)?;
+            }
             Self::Compute { .. } | Self::Mean { .. } => {
                 for id in self.source_ids() {
                     if d.column(id)?.kind() != ColumnKind::Number {

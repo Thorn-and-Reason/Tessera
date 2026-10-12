@@ -5419,6 +5419,34 @@
         {
           "type": "object",
           "additionalProperties": false,
+          "required": ["clean_text"],
+          "properties": {
+            "clean_text": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["source", "name", "trim_whitespace", "rules"],
+              "properties": {
+                "source": { "$ref": "#/$defs/id" },
+                "name": { "type": "string", "minLength": 1, "maxLength": 1024 },
+                "trim_whitespace": { "type": "boolean" },
+                "rules": {
+                  "type": "array", "maxItems": 256,
+                  "items": {
+                    "type": "object", "additionalProperties": false,
+                    "required": ["from", "to"],
+                    "properties": {
+                      "from": { "type": ["number", "string"], "maxLength": 4096 },
+                      "to": { "type": ["number", "string", "null"], "maxLength": 4096 }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
           "properties": {
             "mean": {
               "type": "object",

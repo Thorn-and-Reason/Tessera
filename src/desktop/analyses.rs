@@ -27,6 +27,15 @@ pub fn statistic_label(statistic: Statistic) -> &'static str {
         .map_or("", |(_, s)| s)
 }
 pub fn show(ui: &mut egui::Ui, state: &mut DesktopState, jobs: &mut JobRunner) {
+    if state.survey_visible() {
+        super::survey::show(ui, state, jobs);
+        return;
+    }
+    if super::guidance::show(ui, state) {
+        return;
+    }
+    super::survey::entry(ui, state);
+    super::guidance::entry(ui, state);
     ui.horizontal_wrapped(|ui| {
         ui.heading("Analysis");
         super::experience::mode_switch(ui, state);

@@ -215,11 +215,29 @@ impl Project {
         retained: &[&Dataset],
         extra_bytes: usize,
     ) -> AppResult<Self> {
+        self.with_provenance_impl(provenance, retained, extra_bytes, None)
+    }
+    pub fn with_provenance_with_budget_controlled(
+        &self,
+        provenance: Vec<String>,
+        retained: &[&Dataset],
+        extra_bytes: usize,
+        control: &crate::operation::JobControl,
+    ) -> AppResult<Self> {
+        self.with_provenance_impl(provenance, retained, extra_bytes, Some(control))
+    }
+    fn with_provenance_impl(
+        &self,
+        provenance: Vec<String>,
+        retained: &[&Dataset],
+        extra_bytes: usize,
+        control: Option<&crate::operation::JobControl>,
+    ) -> AppResult<Self> {
         let output = self.copied_shell_bytes(self.runs.len())?
             + provenance_bytes(&provenance, provenance.capacity())?;
-        self.check_update_budget(None, retained, extra_bytes, output, 0)?;
-        Ok(Self {
-            title: self.title.clone(),
+        self.check_update_budget_controlled(None, retained, extra_bytes, output, 0, control)?;
+        let next = Self {
+            title: copy_string(&self.title, control)?,
             dataset: Arc::clone(&self.dataset),
             runs: self.runs.clone(),
             next_run: self.next_run,
@@ -228,7 +246,11 @@ impl Project {
             presets: self.presets.clone(),
             steps: self.steps.clone(),
             next_column: self.next_column,
-        })
+        };
+        if let Some(c) = control {
+            c.check_cancelled()?;
+        }
+        Ok(next)
     }
     /// Counts non-dataset owned storage: project/title/provenance, run references/results
     /// and the dataset Arc control block. Shared run results are counted once within
@@ -433,11 +455,11 @@ impl Project {
             analysis,
         }));
         let next = Self {
-            title: self.title.clone(),
+            title: copy_string(&self.title, control)?,
             dataset: Arc::clone(&self.dataset),
             runs,
             next_run,
-            provenance: self.provenance.clone(),
+            provenance: copy_provenance(&self.provenance, control)?,
             figures: self.figures.clone(),
             presets: self.presets.clone(),
             steps: self.steps.clone(),
@@ -484,11 +506,12 @@ impl Project {
         })?;
         counter.add(output)?;
         counter.add(scratch)?;
-        Budget::dataset_bytes_iter(
+        Budget::dataset_bytes_iter_controlled(
             std::iter::once(self.dataset())
                 .chain(next)
                 .chain(retained.iter().copied()),
             counter.bytes,
+            control,
         )
         .map(|_| ())
     }
@@ -620,4 +643,69 @@ mod reliability_tests {
         assert!(matches!(result, Err(AppError::Cancelled)));
         assert_eq!(allocated, 0);
     }
+}
+
+#[cfg(test)]
+mod survey_controlled_tests {
+    use super::*;
+    use crate::operation::{JobControl, CHECKPOINT_HOOK};
+    #[test]
+    fn controlled_provenance_matches_existing_and_cancels_during_copy() {
+        let p = Project::new(&"a".repeat(20000), Dataset::new(vec![]).unwrap()).unwrap();
+        let entries = vec!["Survey audit".into()];
+        let old = p.with_provenance(entries.clone()).unwrap();
+        let new = p
+            .with_provenance_with_budget_controlled(entries, &[], 0, &JobControl::default())
+            .unwrap();
+        assert_eq!(old.owned_bytes().unwrap(), new.owned_bytes().unwrap());
+        assert_eq!(old.provenance(), new.provenance());
+        let c = JobControl::default();
+        let cancel = c.clone();
+        CHECKPOINT_HOOK.with(|h| {
+            *h.borrow_mut() = Some(Box::new(move |progress| {
+                if progress.done == 4096 {
+                    cancel.cancel();
+                }
+            }))
+        });
+        let result = p.with_provenance_with_budget_controlled(vec![], &[], 0, &c);
+        CHECKPOINT_HOOK.with(|h| *h.borrow_mut() = None);
+        assert!(matches!(result, Err(AppError::Cancelled)));
+        assert!(p.provenance().is_empty());
+    }
+}
+
+// Copies long owned text in bounded chunks so cancellation remains responsive.
+pub(crate) fn copy_string(
+    value: &str,
+    control: Option<&crate::operation::JobControl>,
+) -> AppResult<String> {
+    let Some(control) = control else {
+        return Ok(value.to_owned());
+    };
+    let quiet = control.without_progress();
+    quiet.checkpoint(0, None)?;
+    let mut copied = String::with_capacity(value.len());
+    let mut start = 0;
+    while start < value.len() {
+        quiet.checkpoint(start, None)?;
+        let mut end = (start + 4096).min(value.len());
+        while !value.is_char_boundary(end) {
+            end -= 1;
+        }
+        copied.push_str(&value[start..end]);
+        start = end;
+    }
+    quiet.check_cancelled()?;
+    Ok(copied)
+}
+fn copy_provenance(
+    values: &[String],
+    control: Option<&crate::operation::JobControl>,
+) -> AppResult<Vec<String>> {
+    let mut copied = Vec::with_capacity(values.len());
+    for value in values {
+        copied.push(copy_string(value, control)?);
+    }
+    Ok(copied)
 }

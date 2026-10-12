@@ -39,6 +39,8 @@ pub fn import(state: &mut DesktopState) {
             Delimiter::Comma
         };
         state.act(UiAction::Request(PendingAction::Import(path, delimiter)));
+    } else {
+        state.cancel_survey_import();
     }
 }
 pub fn save(state: &mut DesktopState, jobs: &mut JobRunner, save_as: bool) {
@@ -125,6 +127,56 @@ pub fn export_report(state: &mut DesktopState, jobs: &mut JobRunner) {
                 runs,
             },
         );
+    }
+}
+pub fn export_survey_report(state: &mut DesktopState, jobs: &mut JobRunner) {
+    let runs = match state.survey_export_runs() {
+        Ok(runs) => runs,
+        Err(error) => {
+            state.fail(error);
+            return;
+        }
+    };
+    state.modal_file_dialog = true;
+    if let Some(path) = rfd::FileDialog::new()
+        .add_filter("HTML report", &["html"])
+        .set_file_name("survey-report.html")
+        .save_file()
+    {
+        start(
+            state,
+            jobs,
+            JobOperation::ExportReport {
+                project: Arc::clone(state.project()),
+                path,
+                runs,
+            },
+        );
+    }
+}
+pub fn save_survey_recipe(state: &mut DesktopState, jobs: &mut JobRunner) {
+    state.modal_file_dialog = true;
+    let path = rfd::FileDialog::new()
+        .add_filter("Survey recipe", &["tessera-recipe"])
+        .set_file_name("survey.tessera-recipe")
+        .save_file();
+    state.modal_file_dialog = false;
+    if let Some(path) = path {
+        if let Err(error) = state.save_survey_recipe(jobs, path) {
+            state.fail(error);
+        }
+    }
+}
+pub fn load_survey_recipe(state: &mut DesktopState, jobs: &mut JobRunner) {
+    state.modal_file_dialog = true;
+    let path = rfd::FileDialog::new()
+        .add_filter("Survey recipe", &["tessera-recipe"])
+        .pick_file();
+    state.modal_file_dialog = false;
+    if let Some(path) = path {
+        if let Err(error) = state.load_survey_recipe(jobs, path) {
+            state.fail(error);
+        }
     }
 }
 pub fn show(ctx: &egui::Context, state: &mut DesktopState, jobs: &mut JobRunner) {
@@ -257,6 +309,9 @@ pub fn show(ctx: &egui::Context, state: &mut DesktopState, jobs: &mut JobRunner)
         } else if dialog == Dialog::Unsaved {
             state.act(UiAction::ResolveUnsaved(UnsavedChoice::Cancel));
         } else {
+            if matches!(dialog, Dialog::Import | Dialog::ExcelImport) {
+                state.cancel_survey_import();
+            }
             state.dialog = None;
         }
         if let Some(id) = state.return_focus.take() {

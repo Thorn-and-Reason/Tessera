@@ -83,6 +83,7 @@ impl DesktopState {
         next.pending_workspace = None;
         if choice == PropertyChoice::Stay {
             next.pending_save_as = None;
+            next.cancel_survey_import();
         }
         Ok(next)
     }
