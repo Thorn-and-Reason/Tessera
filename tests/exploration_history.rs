@@ -28,6 +28,7 @@ fn mixed() -> Project {
 fn requests() -> Vec<AnalysisRequest> {
     vec![
         AnalysisRequest::Frequencies(FrequenciesRequest {
+            group: None,
             columns: vec![ColumnId(1), ColumnId(3)],
             filter: RowFilter::default(),
             frequency_weight: None,
@@ -444,6 +445,11 @@ fn complete_reports_escape_whitespace_labels_and_use_full_scatter_extrema() {
     }
     for run in p.runs() {
         for key in tessera::figures::figure_keys(run) {
+            if key.kind == tessera::figures::FigureKind::Likert
+                && p.figure_settings(&key).likert_points.is_none()
+            {
+                continue; // Ordered response charts are opt-in, not an automatic reinterpretation.
+            }
             match tessera::figures::render::svg(
                 run,
                 &key,
@@ -591,4 +597,62 @@ fn unavailable_observed_whiskers_remain_accessible_in_passive_native_output() {
         })
         .is_err());
     assert_eq!(state.project().runs(), previous);
+}
+
+#[test]
+fn legacy_boxplot_mean_stays_unavailable_and_new_mean_is_validated() {
+    let p = decode(
+        &include_bytes!("../examples/exploration.tessera")[..],
+        &JobControl::default(),
+    )
+    .unwrap();
+    let CompletedAnalysis::Boxplot(v) = &p.runs()[8].analysis else {
+        panic!("expected boxplot")
+    };
+    assert!(v
+        .groups
+        .iter()
+        .all(|g| g.mean.value.is_none()
+            && g.mean.reason.as_ref().is_some_and(|s| s.contains("Rerun"))));
+    let mut wire: serde_json::Value = serde_json::from_str(&encoded(&p)).unwrap();
+    let group = &mut wire["runs"][8]["analysis"]["boxplot"]["groups"][0];
+    group["mean"] = serde_json::json!({"value": group["minimum"]["value"], "reason": null});
+    assert!(decode(
+        serde_json::to_string(&wire).unwrap().as_bytes(),
+        &JobControl::default()
+    )
+    .is_ok());
+    wire["runs"][8]["analysis"]["boxplot"]["groups"][0]["mean"] =
+        serde_json::json!({"value": 1e300, "reason": null});
+    assert!(decode(
+        serde_json::to_string(&wire).unwrap().as_bytes(),
+        &JobControl::default()
+    )
+    .is_err());
+}
+
+#[test]
+fn grouped_frequencies_roundtrip_and_additive_legacy_defaults() {
+    let c = JobControl::default();
+    let p = decode(
+        &include_bytes!("../examples/mixed-analysis.tessera")[..],
+        &c,
+    )
+    .unwrap();
+    let request = AnalysisRequest::Frequencies(FrequenciesRequest {
+        columns: vec![ColumnId(1)],
+        group: Some(ColumnId(3)),
+        filter: RowFilter::default(),
+        frequency_weight: None,
+    });
+    let a = analyze_with_budget(p.dataset(), &request, &c, &[], p.owned_bytes().unwrap()).unwrap();
+    let p = p.with_run(a).unwrap();
+    let wire = encoded(&p);
+    let reopened = decode(wire.as_bytes(), &c).unwrap();
+    assert_eq!(p.runs(), reopened.runs());
+    let mut json: serde_json::Value = serde_json::from_str(&encoded(&mixed())).unwrap();
+    let result = json.pointer_mut("/runs/5/analysis/frequencies").unwrap();
+    result.as_object_mut().unwrap().remove("groups");
+    result["request"].as_object_mut().unwrap().remove("group");
+    decode(&serde_json::to_vec(&json).unwrap()[..], &c).unwrap();
 }

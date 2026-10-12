@@ -214,9 +214,9 @@ fn disabled_run_and_keyboard_submission_share_draft_guidance() {
 }
 #[test]
 fn settings_footer_is_reachable_at_minimum_size_and_editor_stays_single_after_resize() {
-    use eframe::egui::{self, Event, Modifiers};
+    use eframe::egui;
     use tessera::{
-        desktop::{configure_context, render, Dialog, Workspace},
+        desktop::{configure_context, render, Workspace},
         jobs::JobRunner,
     };
     let mut state = state()
@@ -241,24 +241,8 @@ fn settings_footer_is_reachable_at_minimum_size_and_editor_stays_single_after_re
         output
     };
     let _ = frame(&mut state, &mut jobs, 640.0, vec![]);
-    let position = state.control_rect("Settings").unwrap().center();
-    for pressed in [true, false] {
-        let _ = frame(
-            &mut state,
-            &mut jobs,
-            640.0,
-            vec![
-                Event::PointerMoved(position),
-                Event::PointerButton {
-                    pos: position,
-                    button: egui::PointerButton::Primary,
-                    pressed,
-                    modifiers: Modifiers::NONE,
-                },
-            ],
-        );
-    }
-    assert_eq!(state.dialog(), Some(Dialog::Settings));
+    assert!(state.control_rect("Settings").is_none());
+    assert!(state.dialog().is_none());
     for procedure in Procedure::ALL {
         state = state
             .apply_action(UiAction::SetDraft(
@@ -283,13 +267,13 @@ fn settings_footer_is_reachable_at_minimum_size_and_editor_stays_single_after_re
         .shapes
         .iter()
         .filter(|shape| match &shape.shape {
-            egui::epaint::Shape::Text(text) => text.galley.text() == "New analysis",
+            egui::epaint::Shape::Text(text) => text.galley.text() == "Analysis",
             _ => false,
         })
         .count();
     assert_eq!(
         editor_titles, 1,
-        "A resized settings dialog must not duplicate the inspector"
+        "Resizing must preserve one analysis builder"
     );
 }
 #[test]

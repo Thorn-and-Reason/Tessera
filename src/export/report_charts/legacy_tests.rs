@@ -8,6 +8,27 @@ use sha2::{Digest, Sha256};
 
 // Normalize only the approved visual delta; legacy hashes still guard coordinates and captures.
 fn legacy_style(svg: &str) -> String {
+    // Table display precision may change; the baseline still checks every exact number.
+    let mut exact = String::new();
+    let mut remaining = svg;
+    while let Some(start) = remaining.find("<span class=\"numeric\"") {
+        exact.push_str(&remaining[..start]);
+        let span = &remaining[start..];
+        let end = span.find("</span>").expect("numeric span closes");
+        let value = span
+            .split("title=\"Exact captured value: ")
+            .nth(1)
+            .expect("numeric span retains exact value")
+            .split('"')
+            .next()
+            .unwrap();
+        let mut original = Vec::new();
+        crate::export::number(&mut original, value.parse().expect("exact numeric value")).unwrap();
+        exact.push_str(&String::from_utf8(original).unwrap());
+        remaining = &span[end + "</span>".len()..];
+    }
+    exact.push_str(remaining);
+    let svg = exact.as_str();
     let svg = svg
         .replace(
             "stroke=\"#F2EBDC\" class=\"chart-bar\"",

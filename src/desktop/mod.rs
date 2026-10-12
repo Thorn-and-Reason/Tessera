@@ -21,6 +21,7 @@ mod regression_results;
 mod requests;
 mod result_tables;
 mod results;
+mod shell;
 mod state;
 mod theme;
 mod variables;
@@ -58,13 +59,13 @@ pub fn launch() -> AppResult<()> {
         .with_min_inner_size([640.0, 440.0]);
     #[cfg(target_os = "macos")]
     let viewport = viewport
-        .with_fullsize_content_view(true)
-        .with_titlebar_shown(false)
-        .with_title_shown(false)
+        .with_fullsize_content_view(false)
+        .with_titlebar_shown(true)
+        .with_title_shown(true)
         .with_titlebar_buttons_shown(true);
     let options = eframe::NativeOptions {
         viewport,
-        persist_window: false,
+        persist_window: true,
         ..Default::default()
     };
     eframe::run_native(
@@ -163,6 +164,7 @@ impl eframe::App for NativeApp {
                     dialogs::export_report(&mut self.state, &mut self.jobs)
                 }
                 Command::Data => self.state.act(UiAction::Navigate(Workspace::Data)),
+                Command::Prepare => self.state.act(UiAction::Navigate(Workspace::Prepare)),
                 Command::Variables => self.state.act(UiAction::Navigate(Workspace::Variables)),
                 Command::Analyses => self.state.act(UiAction::Navigate(Workspace::Analyses)),
                 Command::Results => self.state.act(UiAction::Navigate(Workspace::Results)),
@@ -254,269 +256,16 @@ fn render_with_recovery(
     if blocked {
         ui.disable();
     }
-    egui::Panel::top("project-bar")
-        .exact_size(54.0)
-        .frame(
-            egui::Frame::new()
-                .fill(theme::surface(ui))
-                .inner_margin(egui::Margin::symmetric(12, 0)),
-        )
-        .show(ui, |ui| {
-            ui.horizontal_centered(|ui| {
-                #[cfg(target_os = "macos")]
-                ui.add_space(78. / ui.ctx().zoom_factor());
-                if let Some(logo) = ui
-                    .ctx()
-                    .data(|d| d.get_temp::<egui::TextureId>(egui::Id::new("tessera-logo")))
-                {
-                    ui.image((logo, egui::vec2(24.0, 24.0)));
-                }
-                theme::wordmark(ui, "Tessera");
-                ui.separator();
-                experience::mode_switch(ui, state);
-                ui.separator();
-                ui.add(
-                    egui::Label::new(
-                        egui::RichText::new(theme::caption(format_args!(
-                            "{}{}",
-                            state.project().title(),
-                            if state.is_dirty() { " •" } else { "" }
-                        )))
-                        .strong(),
-                    )
-                    .truncate(),
-                );
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    if ui
-                        .add_enabled(
-                            !state.active,
-                            theme::secondary(ui, "Save")
-                                .min_size(egui::vec2(64., 28.)),
-                        )
-                        .clicked()
-                    {
-                        dialogs::save(state, jobs, false);
-                    }
-                    if button(ui, state, "Open").clicked() {
-                        dialogs::open(state);
-                    }
-                    let help = ui.menu_button("Help", |ui| {
-                        let response = button(ui, state, "About Tessera");
-                        if response.clicked() {
-                            state.dialog = Some(Dialog::About);
-                            state.return_focus = Some(response.id);
-                            ui.close();
-                        }
-                    });
-                    procedure_forms::record(state, "Help", &help.response);
-                    ui.menu_button("View", |ui| {
-                        ui.strong("Appearance");
-                        let mut preference = ui.ctx().options(|o| o.theme_preference);
-                        preference.radio_buttons(ui);
-                        ui.ctx().set_theme(preference);
-                        ui.separator();
-                        ui.label("Text and interface size");
-                        let mut zoom = ui.ctx().zoom_factor();
-                        if ui.add(egui::Slider::new(&mut zoom, 0.85..=1.5).step_by(0.05).suffix("×")).changed() {
-                            ui.ctx().set_zoom_factor(zoom);
-                        }
-                        if ui.button("Reset size").clicked() { ui.ctx().set_zoom_factor(1.); }
-                        ui.separator();
-                        ui.label(format!("Run analysis: {}", ui.ctx().format_shortcut(&egui::KeyboardShortcut::new(Modifiers::COMMAND, Key::Enter))));
-                        ui.small("In Analyses. In Data, use arrows to move, Enter to edit, Tab to advance, and Escape to cancel.");
-                        ui.small("Paste TSV into existing cells: up to 4,096 cells / 512 KiB. Blank numbers become missing; blank text stays empty.");
-                    });
-                    ui.menu_button("Edit", |ui| {
-                        if ui.add_enabled(state.can_undo(), egui::Button::new("Undo").shortcut_text(ui.ctx().format_shortcut(&egui::KeyboardShortcut::new(Modifiers::COMMAND, Key::Z)))).clicked() { state.act(UiAction::Undo); ui.close(); }
-                        if ui.add_enabled(state.can_redo(), egui::Button::new("Redo").shortcut_text(ui.ctx().format_shortcut(&egui::KeyboardShortcut::new(Modifiers::COMMAND | Modifiers::SHIFT, Key::Z)))).clicked() { state.act(UiAction::Redo); ui.close(); }
-                        ui.separator();
-                        if ui.add_enabled(!state.active && state.cell_editor.is_none() && !state.metadata_has_changes() && !state.project().dataset().columns().is_empty(),egui::Button::new("Prepare data…")).clicked() { state.dialog = Some(Dialog::Prepare); ui.close(); }
-                    });
-                    ui.menu_button("File", |ui| {
-                        if ui.add(egui::Button::new("New project").shortcut_text(ui.ctx().format_shortcut(&egui::KeyboardShortcut::new(Modifiers::COMMAND, Key::N)))).clicked() {
-                            state.act(UiAction::Request(PendingAction::New));
-                            ui.close();
-                        }
-                        if ui.add(egui::Button::new("Open…").shortcut_text(ui.ctx().format_shortcut(&egui::KeyboardShortcut::new(Modifiers::COMMAND, Key::O)))).clicked() {
-                            dialogs::open(state);
-                            ui.close();
-                        }
-                        if button(ui, state, "Import data…").clicked() {
-                            dialogs::import(state);
-                            ui.close();
-                        }
-                        ui.separator();
-                        if ui
-                            .add_enabled(!state.active, egui::Button::new("Save").shortcut_text(ui.ctx().format_shortcut(&egui::KeyboardShortcut::new(Modifiers::COMMAND, Key::S))))
-                            .clicked()
-                        {
-                            dialogs::save(state, jobs, false);
-                            ui.close();
-                        }
-                        if ui
-                            .add_enabled(!state.active, egui::Button::new("Save as…"))
-                            .clicked()
-                        {
-                            dialogs::save(state, jobs, true);
-                            ui.close();
-                        }
-                        ui.separator();
-                        if ui
-                            .add_enabled(!state.active, egui::Button::new("Export CSV…"))
-                            .clicked()
-                        {
-                            dialogs::export_data(state, jobs, crate::import::Delimiter::Comma);
-                            ui.close();
-                        }
-                        if ui
-                            .add_enabled(!state.active, egui::Button::new("Export TSV…"))
-                            .clicked()
-                        {
-                            dialogs::export_data(state, jobs, crate::import::Delimiter::Tab);
-                            ui.close();
-                        }
-                        if ui
-                            .add_enabled(
-                                !state.active && !state.project().runs().is_empty(),
-                                egui::Button::new("Export report…"),
-                            )
-                            .clicked()
-                        {
-                            dialogs::export_report(state, jobs);
-                            ui.close();
-                        }
-                    });
-                    #[cfg(target_os = "macos")]
-                    {
-                        let drag = ui.allocate_response(egui::vec2(ui.available_width().max(0.), ui.available_height()), egui::Sense::drag());
-                        if drag.drag_started() { ui.ctx().send_viewport_cmd(egui::ViewportCommand::StartDrag); }
-                    }
-                });
-            });
-        });
-    egui::Panel::bottom("status-bar")
-        .min_size(28.0)
-        .frame(
-            egui::Frame::new()
-                .fill(theme::surface(ui))
-                .inner_margin(egui::Margin::symmetric(12, 4)),
-        )
-        .show(ui, |ui| {
-            ui.horizontal_wrapped(|ui| {
-                ui.label(
-                    egui::RichText::new(format!(
-                        "{} rows · {} variables",
-                        state.project().dataset().row_count(),
-                        state.project().dataset().column_count()
-                    ))
-                    .small()
-                    .color(theme::muted(ui)),
-                );
-                if state.active {
-                    ui.spinner();
-                    ui.label(state.operation_name);
-                    if let Some(p) = state.progress {
-                        if let Some(total) = p.total {
-                            ui.label(format!("{}%", p.done.saturating_mul(100) / total.max(1)));
-                        }
-                    }
-                    if button(ui, state, "Cancel operation").clicked() {
-                        jobs.cancel();
-                        state.cancelled = true;
-                    }
-                } else {
-                    ui.add(egui::Label::new(theme::caption(&state.status)).truncate());
-                }
-                if state.file_outcome.is_some() && ui.small_button("File details").clicked() {
-                    state.dialog = Some(Dialog::FileOutcome);
-                }
-            });
-            if let Some(error) = state.error() {
-                ui.label(
-                    egui::RichText::new(format!("Needs attention: {}", theme::caption(error)))
-                        .color(ui.visuals().error_fg_color),
-                );
-            }
-        });
-    egui::Panel::left("navigation")
-        .exact_size(164.0)
-        .resizable(false)
-        .frame(
-            egui::Frame::new()
-                .fill(theme::surface(ui))
-                .inner_margin(egui::Margin::same(12)),
-        )
-        .show(ui, |ui| {
-            ui.add_space(4.);
-            ui.label(
-                egui::RichText::new("WORKSPACE")
-                    .small()
-                    .strong()
-                    .color(theme::muted(ui)),
-            );
-            ui.add_space(8.);
-            for view in [
-                Workspace::Data,
-                Workspace::Variables,
-                Workspace::Analyses,
-                Workspace::Results,
-            ] {
-                let selected = state.workspace() == view;
-                let response = ui.add_sized(
-                    [ui.available_width(), 40.0],
-                    egui::Button::new(egui::RichText::new(view.label()).color(if selected {
-                        theme::text(ui)
-                    } else {
-                        theme::muted(ui)
-                    }))
-                    .right_text("")
-                    .selected(selected)
-                    .frame_when_inactive(selected)
-                    .fill(if selected {
-                        theme::selection(ui)
-                    } else {
-                        egui::Color32::TRANSPARENT
-                    }),
-                );
-                state.controls.insert(view.label().into(), response.rect);
-                if response.has_focus() {
-                    ui.painter().rect_stroke(
-                        response.rect.shrink(1.0),
-                        6.0,
-                        egui::Stroke::new(2.0, theme::text(ui)),
-                        egui::StrokeKind::Inside,
-                    );
-                }
-                if selected {
-                    ui.painter().rect_filled(
-                        egui::Rect::from_min_size(
-                            response.rect.left_top() + egui::vec2(0., 7.),
-                            egui::vec2(3., response.rect.height() - 14.),
-                        ),
-                        1.5,
-                        theme::accent(ui),
-                    );
-                }
-                if response.clicked() {
-                    state.act(UiAction::Navigate(view));
-                }
-            }
-            ui.separator();
-            if button(ui, state, "New project").clicked() {
-                state.act(UiAction::Request(PendingAction::New));
-            }
-            if button(ui, state, "Import…").clicked() {
-                dialogs::import(state);
-            }
-        });
+    shell::show(ui, state, jobs);
     egui::CentralPanel::default()
         .frame(
             egui::Frame::new()
                 .fill(ui.visuals().panel_fill)
-                .inner_margin(18),
+                .inner_margin(16),
         )
         .show(ui, |ui| match state.workspace() {
             Workspace::Data => data::show(ui, state, jobs),
+            Workspace::Prepare => preparation::show(ui, state, jobs),
             Workspace::Variables => variables::show(ui, state, jobs),
             Workspace::Analyses => analyses::show(ui, state, jobs),
             Workspace::Results => results::show(ui, state, jobs),

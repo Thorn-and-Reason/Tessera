@@ -141,7 +141,14 @@ fn exploration_forms_choose_roles_bins_group_and_run_with_keys() {
             .unwrap();
         let mut jobs = JobRunner::default();
         frame(&ctx, &mut state, &mut jobs, size, vec![]);
-        click(&ctx, &mut state, &mut jobs, "Procedure", size);
+        click(&ctx, &mut state, &mut jobs, "Search procedures", size);
+        frame(
+            &ctx,
+            &mut state,
+            &mut jobs,
+            size,
+            vec![Event::Text(p.label().into())],
+        );
         frame(&ctx, &mut state, &mut jobs, size, vec![]);
         click(&ctx, &mut state, &mut jobs, p.label(), size);
         frame(&ctx, &mut state, &mut jobs, size, vec![]);
@@ -219,6 +226,7 @@ fn frequency_state() -> DesktopState {
     let result = analyze_with_budget(
         &data,
         &AnalysisRequest::Frequencies(FrequenciesRequest {
+            group: None,
             columns: vec![ColumnId(1), ColumnId(2)],
             filter: RowFilter::default(),
             frequency_weight: None,
@@ -325,6 +333,7 @@ fn exploration_search_queues_latest_behind_analysis_and_success_switch_invalidat
         let mut state = frequency_state();
         let mut jobs = JobRunner::default();
         let request = AnalysisRequest::Frequencies(FrequenciesRequest {
+            group: None,
             columns: if valid { vec![ColumnId(1)] } else { vec![] },
             filter: RowFilter::default(),
             frequency_weight: None,
@@ -689,14 +698,9 @@ fn exploration_scatter_reduction_axes_zoom_and_keyboard_reach_exact_row_context(
         .apply_action(UiAction::Navigate(Workspace::Analyses))
         .unwrap();
     frame(&ctx, &mut state, &mut jobs, Vec2::new(760., 520.), vec![]);
-    click(
-        &ctx,
-        &mut state,
-        &mut jobs,
-        "Settings",
-        Vec2::new(760., 520.),
-    );
-    assert_eq!(state.dialog(), Some(Dialog::Settings));
+    assert!(state.dialog().is_none());
+    assert!(state.control_rect("Search procedures").is_some());
+    assert!(state.control_rect("Settings").is_none());
 }
 #[test]
 fn exploration_visible_captured_categories_keep_labels_after_current_metadata_edit() {
@@ -724,6 +728,7 @@ fn exploration_visible_captured_categories_keep_labels_after_current_metadata_ed
     let mut state = result_state(
         data,
         AnalysisRequest::Frequencies(FrequenciesRequest {
+            group: None,
             columns: vec![ColumnId(1)],
             filter: RowFilter::default(),
             frequency_weight: None,

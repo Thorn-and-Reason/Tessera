@@ -546,3 +546,175 @@ fn public_dataset_replacement_cannot_reuse_a_branch_column_identity() {
         .unwrap();
     assert!(q.with_dataset(d).is_ok());
 }
+
+fn domain_project() -> Project {
+    let a = Column::numeric(
+        ColumnId(1),
+        "a",
+        vec![Some(1.), None, Some(99.), Some(f64::MAX), Some(f64::MAX)],
+    )
+    .unwrap();
+    let mut metadata = a.metadata().clone();
+    metadata.missing_rules = MissingRules::Number {
+        values: vec![99.],
+        ranges: vec![],
+    };
+    Project::new(
+        "Domain",
+        Dataset::new(vec![
+            a.with_metadata(metadata).unwrap(),
+            Column::numeric(
+                ColumnId(2),
+                "b",
+                vec![
+                    Some(3.),
+                    Some(2.),
+                    Some(2.),
+                    Some(f64::MAX),
+                    Some(-f64::MAX),
+                ],
+            )
+            .unwrap(),
+            Column::numeric(
+                ColumnId(3),
+                "c",
+                vec![Some(5.), Some(2.), Some(2.), Some(f64::MAX), Some(0.)],
+            )
+            .unwrap(),
+        ])
+        .unwrap(),
+    )
+    .unwrap()
+}
+fn domain_step() -> Step {
+    Step::Mean {
+        name: "domain".into(),
+        columns: vec![ColumnId(1), ColumnId(2), ColumnId(3)],
+    }
+}
+#[test]
+fn domain_average_requires_complete_answers_and_is_overflow_safe() {
+    let p = domain_project();
+    let q = run(&p, domain_step());
+    for (row, expected) in [
+        Cell::Number(3.),
+        Cell::Missing,
+        Cell::Missing,
+        Cell::Number(f64::MAX),
+        Cell::Number(0.),
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        assert_eq!(q.dataset().cell(ColumnId(4), row).unwrap(), expected);
+    }
+    assert_eq!(
+        q.dataset()
+            .column(ColumnId(4))
+            .unwrap()
+            .metadata()
+            .measurement,
+        tessera::data::Measurement::Scale
+    );
+    assert_eq!(p.dataset().column_count(), 3);
+    let mut bytes = vec![];
+    tessera::project_io::encode(&q, &mut bytes, &JobControl::default()).unwrap();
+    let saved = tessera::project_io::decode(bytes.as_slice(), &JobControl::default()).unwrap();
+    assert_eq!(saved.steps(), q.steps());
+    let replay = run(&p, saved.steps()[0].step.clone());
+    assert_eq!(
+        replay.dataset().cell(ColumnId(4), 0).unwrap(),
+        Cell::Number(3.)
+    );
+    let snapshot = p.data_snapshot_with_budget(&[], 0).unwrap();
+    let restored = q
+        .with_restored_dataset_and_steps(&snapshot, &JobControl::default(), &[], 0)
+        .unwrap();
+    assert_eq!(restored.dataset().column_count(), 3);
+    assert!(restored.steps().is_empty());
+}
+#[test]
+fn invalid_domain_requests_and_budget_fail_atomically() {
+    let p = domain_project();
+    for columns in [
+        vec![],
+        vec![ColumnId(1)],
+        vec![ColumnId(1); 2],
+        vec![ColumnId(1); 65],
+        vec![ColumnId(1), ColumnId(99)],
+        vec![ColumnId(0), ColumnId(1)],
+    ] {
+        assert!(prepare_with_budget(
+            &p,
+            &Step::Mean {
+                name: "domain".into(),
+                columns
+            },
+            &JobControl::default(),
+            &[],
+            0
+        )
+        .is_err());
+    }
+    assert!(prepare_with_budget(
+        &sample(),
+        &Step::Mean {
+            name: "domain".into(),
+            columns: vec![ColumnId(1), ColumnId(2)]
+        },
+        &JobControl::default(),
+        &[],
+        0
+    )
+    .is_err());
+    assert!(prepare_with_budget(
+        &p,
+        &domain_step(),
+        &JobControl::default(),
+        &[],
+        tessera::data::MAX_OWNED_BYTES
+    )
+    .is_err());
+    assert!(p.steps().is_empty());
+    assert_eq!(p.dataset().column_count(), 3);
+}
+
+#[test]
+fn domain_name_limits_and_cancellation_preserve_source() {
+    let p = domain_project();
+    for name in [String::new(), "a".into(), "x".repeat(1025)] {
+        let step = Step::Mean {
+            name,
+            columns: vec![ColumnId(1), ColumnId(2)],
+        };
+        assert!(prepare_with_budget(&p, &step, &JobControl::default(), &[], 0).is_err());
+    }
+    let control = JobControl::default();
+    control.cancel();
+    assert!(prepare_with_budget(&p, &domain_step(), &control, &[], 0).is_err());
+    assert_eq!(p.dataset().column_count(), 3);
+}
+
+#[test]
+fn domain_average_accepts_64_distinct_items() {
+    let p = Project::new(
+        "Wide",
+        Dataset::new(
+            (1..=64)
+                .map(|id| {
+                    Column::numeric(ColumnId(id), &format!("item{id}"), vec![Some(2.)]).unwrap()
+                })
+                .collect(),
+        )
+        .unwrap(),
+    )
+    .unwrap();
+    let q = run(
+        &p,
+        Step::Mean {
+            name: "domain".into(),
+            columns: (1..=64).map(ColumnId).collect(),
+        },
+    );
+    assert_eq!(q.dataset().cell(ColumnId(65), 0).unwrap(), Cell::Number(2.));
+}

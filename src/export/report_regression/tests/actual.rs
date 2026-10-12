@@ -7,7 +7,14 @@ fn every_actual_regression_table_has_its_named_focusable_region() {
         let tables = out.matches("<table>").count();
         assert!(tables > 0);
         assert_eq!(out.matches("role=\"region\"").count(), tables, "{case}");
-        assert_eq!(out.matches("tabindex=\"0\"").count(), tables, "{case}");
+        assert_eq!(
+            out.split("<div role=\"region\"")
+                .skip(1)
+                .filter(|region| region.split('>').next().unwrap().contains("tabindex=\"0\""))
+                .count(),
+            tables,
+            "{case}"
+        );
         assert_eq!(out.matches("</table></div>").count(), tables, "{case}");
     }
 }
@@ -36,8 +43,12 @@ fn actual_direct_captures_preserve_every_scalar_reason_and_identity() {
         let out = html(&result);
         let check = |value: &Estimate| {
             let mut bytes = Vec::new();
-            estimate(&mut bytes, value).unwrap();
-            let exact = String::from_utf8(bytes).unwrap();
+            let exact = if let Some(captured) = value.value {
+                format!("title=\"Exact captured value: {captured}\"")
+            } else {
+                text(&mut bytes, value.reason.as_deref().unwrap_or("Unavailable")).unwrap();
+                String::from_utf8(bytes).unwrap()
+            };
             assert!(out.contains(&exact), "{case}: missing {exact}");
         };
         match &result.outcome {
@@ -56,6 +67,14 @@ fn actual_direct_captures_preserve_every_scalar_reason_and_identity() {
                     &f.outcome_scale,
                 ] {
                     check(e);
+                }
+                for p in std::iter::once(&s.f_p).chain(f.coefficients.iter().map(|c| &c.p)) {
+                    let mut bytes = Vec::new();
+                    p_value(&mut bytes, p).unwrap();
+                    assert!(
+                        out.contains(&String::from_utf8(bytes).unwrap()),
+                        "{case}: incorrect visible p formatting"
+                    );
                 }
                 for c in &f.coefficients {
                     for e in [

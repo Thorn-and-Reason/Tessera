@@ -2,7 +2,7 @@
 use super::{
     number,
     report::{missing, text},
-    report_analyses::{cell, confidence, estimate},
+    report_analyses::{cell, confidence, estimate, p_value},
     report_charts,
 };
 use crate::{
@@ -182,7 +182,15 @@ fn row(w: &mut dyn Write, label: &str, values: &[&Estimate]) -> AppResult<()> {
     w.write_all(b"<tr><th scope=\"row\">")?;
     text(w, label)?;
     w.write_all(b"</th>")?;
-    estimates(w, values)?;
+    if label.ends_with(" p") {
+        for value in values {
+            w.write_all(b"<td>")?;
+            p_value(w, value)?;
+            w.write_all(b"</td>")?;
+        }
+    } else {
+        estimates(w, values)?;
+    }
     w.write_all(b"</tr>")?;
     Ok(())
 }
@@ -412,11 +420,12 @@ fn fitted(
                     &coefficient.estimate,
                     &coefficient.standard_error,
                     &coefficient.t,
-                    &coefficient.p,
-                    &coefficient.interval[0],
-                    &coefficient.interval[1],
                 ],
             )?;
+            w.write_all(b"<td>")?;
+            p_value(w, &coefficient.p)?;
+            w.write_all(b"</td>")?;
+            estimates(w, &[&coefficient.interval[0], &coefficient.interval[1]])?;
         }
         if let Some(scale) = f.term_scales.get(index) {
             estimates(w, &[scale])?;

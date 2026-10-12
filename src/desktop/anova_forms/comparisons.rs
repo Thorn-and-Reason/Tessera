@@ -18,15 +18,13 @@ fn value(
             |c| theme::caption(format_args!("{c:?}")),
         ))
         .show_ui(ui, |ui| {
-            if ui
-                .selectable_label(selected.is_none(), "Select exact level")
-                .clicked()
-            {
+            if theme::selectable_label(ui, selected.is_none(), "Select exact level").clicked() {
                 *selected = None;
             }
             if let Some(levels) = declared {
                 for (i, s) in levels.iter().enumerate() {
-                    let r = ui.selectable_label(
+                    let r = theme::selectable_label(
+                        ui,
                         matches!(selected,Some(Cell::Text(t)) if t==s),
                         theme::caption(format_args!("{s:?}")),
                     );
@@ -38,7 +36,8 @@ fn value(
                 }
             } else if let Some(lookup) = choices {
                 for (i, c) in lookup.choices.iter().enumerate() {
-                    let r = ui.selectable_label(
+                    let r = theme::selectable_label(
+                        ui,
                         selected.as_ref() == Some(&c.value),
                         theme::caption(format_args!("{} · {:?}", c.label, c.value)),
                     );
@@ -121,7 +120,7 @@ pub(super) fn show(
                         AnovaDesignDraft::Repeated { factors, .. } => theme::caption(format_args!("{}: {:?}", i + 1, factors[i].name)),
                         _ => theme::caption(format_args!("{}: {}", i + 1, draft.independent_factor(i).and_then(|id| data.column(id).ok()).map_or("Unavailable", |c| c.name()))),
                     };
-                    let r = ui.selectable_value(&mut draft.comparison_factor, i, name);
+                    let r = theme::selectable_value(ui, &mut draft.comparison_factor, i, name);
                     record(state, &format!("Comparison factor choice {i}"), &r);
                 }
             }).response;

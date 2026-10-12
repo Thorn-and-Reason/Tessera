@@ -13,6 +13,8 @@ pub(super) enum Bins {
 #[derive(Serialize, Deserialize)]
 #[serde(remote = "FrequenciesRequest", deny_unknown_fields)]
 pub(super) struct FrequenciesRequestWire {
+    #[serde(default, with = "optional_column_id")]
+    group: Option<ColumnId>,
     #[serde(with = "column_ids")]
     columns: Vec<ColumnId>,
     #[serde(with = "Filter")]
@@ -113,6 +115,8 @@ pub(super) struct BoxplotGroupWire {
     value_label_index: Option<usize>,
     rows: usize,
     n: u64,
+    #[serde(default = "legacy_boxplot_mean", with = "EstimateWire")]
+    mean: Estimate,
     #[serde(with = "EstimateWire")]
     minimum: Estimate,
     #[serde(with = "EstimateWire")]
@@ -128,6 +132,12 @@ pub(super) struct BoxplotGroupWire {
     outlier_rows: usize,
     outlier_n: u64,
 }
+fn legacy_boxplot_mean() -> Estimate {
+    Estimate {
+        value: None,
+        reason: Some("Mean was not captured. Rerun the boxplot analysis.".into()),
+    }
+}
 #[derive(Serialize, Deserialize)]
 #[serde(remote = "BoxplotPoint", deny_unknown_fields)]
 pub(super) struct BoxplotPointWire {
@@ -139,6 +149,8 @@ pub(super) struct BoxplotPointWire {
 #[derive(Serialize, Deserialize)]
 #[serde(remote = "ComputedFrequencies", deny_unknown_fields)]
 pub(super) struct ComputedFrequenciesWire {
+    #[serde(default, with = "frequencygroups")]
+    groups: Vec<FrequencyGroup>,
     #[serde(with = "revision_id")]
     revision: RevisionId,
     #[serde(with = "FrequenciesRequestWire")]
@@ -269,3 +281,17 @@ mod ranges {
         <[Owned; 2]>::deserialize(d).map(|[Owned(a), Owned(b)]| [a, b])
     }
 }
+
+#[derive(Serialize, Deserialize)]
+#[serde(remote = "FrequencyGroup", deny_unknown_fields)]
+pub(super) struct FrequencyGroupWire {
+    #[serde(with = "cell")]
+    value: Cell,
+    #[serde(deserialize_with = "required_nullable")]
+    value_label_index: Option<usize>,
+    rows: usize,
+    frequency: u64,
+    #[serde(with = "frequencytables")]
+    tables: Vec<FrequencyTable>,
+}
+remote_vector!(frequencygroups, FrequencyGroup, "FrequencyGroupWire");

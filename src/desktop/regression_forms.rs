@@ -66,6 +66,7 @@ fn add_predictor(
     lookup: Option<&GroupLookupResult>,
 ) {
     let mut selected = None;
+    let mut bulk = false;
     let response = egui::ComboBox::from_id_salt("regression-add")
         .close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside)
         .selected_text("Add predictor")
@@ -94,6 +95,24 @@ fn add_predictor(
                         && query.matches(c.name())
                 })
             };
+            let label = if state.search.trim().is_empty() {
+                "Select all"
+            } else {
+                "Select all matching"
+            };
+            let r = ui.add_enabled(candidates().count() > 0, egui::Button::new(label));
+            r.widget_info(|| {
+                egui::WidgetInfo::labeled(
+                    egui::WidgetType::Button,
+                    r.enabled(),
+                    "Select all predictors",
+                )
+            });
+            record(state, "Select all predictors", &r);
+            if r.clicked() {
+                bulk = true;
+                ui.close();
+            }
             super::paged_rows::show_rows(
                 ui,
                 "regression-predictor-picker",
@@ -105,7 +124,11 @@ fn add_predictor(
                     for column in candidates().skip(range.start).take(range.len()) {
                         let response = ui
                             .push_id(column.id(), |ui| {
-                                ui.selectable_label(false, theme::caption_limit(column.name(), 128))
+                                theme::selectable_label(
+                                    ui,
+                                    false,
+                                    theme::caption_limit(column.name(), 128),
+                                )
                             })
                             .inner;
                         record(
@@ -124,6 +147,50 @@ fn add_predictor(
         })
         .response;
     record(state, "Add predictor", &response);
+    if bulk {
+        let query = match theme::NameQuery::new(&state.search) {
+            Ok(query) => query,
+            Err(error) => {
+                state.fail(error);
+                return;
+            }
+        };
+        let eligible = |c: &&crate::data::Column| {
+            Some(c.id()) != draft.outcome
+                && !draft.predictors.iter().any(|p| p.column == c.id())
+                && query.matches(c.name())
+        };
+        let count = data.columns().iter().filter(eligible).count();
+        let size = std::mem::size_of::<RegressionPredictorDraft>();
+        let growth =
+            (draft.predictors.len() + count).saturating_sub(draft.predictors.capacity()) * size;
+        let overlap = if growth > 0 {
+            draft.predictors.capacity() * size
+        } else {
+            0
+        };
+        match admitted(state, draft, lookup, growth, overlap, 0) {
+            Ok(()) => {
+                draft.predictors.reserve_exact(count);
+                for c in data.columns() {
+                    if Some(c.id()) != draft.outcome
+                        && query.matches(c.name())
+                        && !draft.predictors.iter().any(|p| p.column == c.id())
+                    {
+                        draft.predictors.push(RegressionPredictorDraft {
+                            column: c.id(),
+                            role: if c.kind() == ColumnKind::Number {
+                                RegressionDraftRole::Numeric
+                            } else {
+                                RegressionDraftRole::Categorical { reference: None }
+                            },
+                        });
+                    }
+                }
+            }
+            Err(error) => state.fail(error),
+        }
+    }
     if let Some(column) = selected {
         let grow = draft.predictors.len() == draft.predictors.capacity();
         let size = std::mem::size_of::<RegressionPredictorDraft>();
@@ -181,8 +248,7 @@ fn references(
         .height(180.0)
         .selected_text(selected)
         .show_ui(ui, |ui| {
-            clear = ui
-                .selectable_label(reference.is_none(), "Select reference level")
+            clear = theme::selectable_label(ui, reference.is_none(), "Select reference level")
                 .clicked();
             if clear {
                 ui.close();
@@ -196,7 +262,11 @@ fn references(
                     ));
                     let response = ui
                         .push_id(i, |ui| {
-                            ui.selectable_label(reference.as_ref() == Some(&choice.value), text)
+                            theme::selectable_label(
+                                ui,
+                                reference.as_ref() == Some(&choice.value),
+                                text,
+                            )
                         })
                         .inner;
                     record(
@@ -306,7 +376,7 @@ fn predictors(
                     let numeric =
                         matches!(draft.predictors[index].role, RegressionDraftRole::Numeric);
                     for (label, selected) in [("Numeric", numeric), ("Categorical", !numeric)] {
-                        let response = ui.selectable_label(selected, label);
+                        let response = theme::selectable_label(ui, selected, label);
                         record(state, &format!("{label}: {}", column.0), &response);
                         if response.clicked() && !selected {
                             draft.predictors[index].role = if numeric {

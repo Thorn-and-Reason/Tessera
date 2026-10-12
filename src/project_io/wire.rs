@@ -278,7 +278,10 @@ id_module!(run_id, RunId);
 // Remote wrappers keep serde out of the shared model and borrow every saved value.
 macro_rules! remote_vector {
     ($name:ident, $ty:ty, $remote:literal) => {
-        pub(super) mod $name {
+        remote_vector!(pub(super) $name, $ty, $remote);
+    };
+    ($visibility:vis $name:ident, $ty:ty, $remote:literal) => {
+        $visibility mod $name {
             use super::*;
             #[derive(Serialize)]
             struct Ref<'a>(#[serde(with = $remote)] &'a $ty);
@@ -318,7 +321,7 @@ macro_rules! remote_vector {
 }
 pub(super) use remote_vector;
 remote_vector!(labels, ValueLabel, "Label");
-remote_vector!(column_ids, ColumnId, "column_id");
+remote_vector!(pub(crate) column_ids, ColumnId, "column_id");
 remote_vector!(statistics, Statistic, "Stat");
 remote_vector!(predicates, RowPredicate, "Predicate");
 remote_vector!(infos, RunColumnInfo, "Info");

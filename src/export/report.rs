@@ -89,6 +89,10 @@ fn figures(
     ) {
         control.check_cancelled()?;
         let settings = project.figure_settings(key);
+        // Ordered response charts require the user's explicit scale confirmation.
+        if key.kind == crate::figures::FigureKind::Likert && settings.likert_points.is_none() {
+            continue;
+        }
         let svg = match crate::figures::render::svg(
             run,
             key,
@@ -223,15 +227,7 @@ fn run_report(
         for statistic in &a.request.statistics {
             writer.write_all(b"<td>")?;
             if let Some(estimate) = row.estimates.get(statistic) {
-                if let Some(value) = estimate.value {
-                    super::number(writer, value)?;
-                } else {
-                    writer.write_all(b"Unavailable")?;
-                    if let Some(reason) = &estimate.reason {
-                        writer.write_all(b": ")?;
-                        text(writer, reason)?;
-                    }
-                }
+                super::report_analyses::estimate(writer, estimate)?;
             } else {
                 writer.write_all(b"Not selected")?;
             }

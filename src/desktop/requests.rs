@@ -293,7 +293,14 @@ mod workflow_budget_tests {
             );
         }
         assert!(!jobs.is_running());
-        assert!(state.control_rect("Run analysis").is_none());
+        assert!(
+            state.control_rect("Run analysis").is_some(),
+            "the fixed footer stays visible when copying the draft is refused"
+        );
+        assert!(
+            state.error().is_some(),
+            "the button must explain the clone-budget refusal"
+        );
         frame(
             &mut state,
             &mut jobs,

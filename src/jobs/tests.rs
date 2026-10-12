@@ -573,7 +573,26 @@ fn exploration_jobs_and_search_charge_retained_results_and_terminal_storage() {
         let JobOutput::Analyzed(result) = task.execute(&control).unwrap() else {
             panic!()
         };
-        assert_eq!(result, project.runs()[index].analysis);
+        let mut expected = project.runs()[index].analysis.clone();
+        if let (
+            crate::analysis::CompletedAnalysis::Boxplot(actual),
+            crate::analysis::CompletedAnalysis::Boxplot(legacy),
+        ) = (&result, &mut expected)
+        {
+            assert_eq!(
+                actual
+                    .groups
+                    .iter()
+                    .map(|g| g.mean.value)
+                    .collect::<Vec<_>>(),
+                vec![Some(1.5), Some(4.5)]
+            );
+            for (old, new) in legacy.groups.iter_mut().zip(&actual.groups) {
+                assert!(old.mean.value.is_none());
+                old.mean = new.mean.clone();
+            }
+        }
+        assert_eq!(result, expected);
         project = project.with_run(result).unwrap();
     }
     let request = crate::analysis::FrequencySearchRequest {

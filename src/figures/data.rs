@@ -122,7 +122,10 @@ fn preflight(
         s.width_mm * 72. / 25.4
     };
     if count as f64 * s.font_size * 1.4 > available {
-        return Err(AppError::invalid("figure","This figure is too small for all categories. Increase its dimensions or reduce the font size; no categories were omitted."));
+        return Err(AppError::invalid(
+            "figure",
+            "This figure is too small for all categories. Increase its dimensions or reduce the font size; no categories were omitted.",
+        ));
     }
     let text = bytes
         .saturating_add(s.title.len())
@@ -131,7 +134,10 @@ fn preflight(
         .saturating_add(s.x_label.len())
         .saturating_add(s.y_label.len());
     if text > 16_384 {
-        return Err(AppError::invalid("figure","The complete category labels exceed the figure's text budget. Shorten their wording or use the exact frequency table; no categories were omitted."));
+        return Err(AppError::invalid(
+            "figure",
+            "The complete category labels exceed the figure's text budget. Shorten their wording or use the exact frequency table; no categories were omitted.",
+        ));
     }
     Ok(())
 }
@@ -166,7 +172,10 @@ pub(super) fn captured(
                     v.bins.iter().map(|b| b.frequency).max().unwrap_or(0) as f64,
                 ],
             ];
-            d.note=format!("Valid: {} source rows; frequency {}. Missing: {} rows; frequency {}. Full-cohort bins.",v.valid_rows,v.n,v.missing_rows,v.missing_n);
+            d.note = format!(
+                "Valid: {} source rows; frequency {}. Missing: {} rows; frequency {}. Full-cohort bins.",
+                v.valid_rows, v.n, v.missing_rows, v.missing_n
+            );
             if let Some(reason) = &v.bin_adjustment {
                 d.note.push(' ');
                 d.note.push_str(reason);
@@ -181,7 +190,15 @@ pub(super) fn captured(
             d.x = name(run, v.request.x)?;
             d.y = name(run, v.request.y)?;
             d.bounds = [range(&v.ranges[0])?, range(&v.ranges[1])?];
-            d.note=format!("Showing {} of {} complete-pair source rows; frequency {}. Missing: {} rows; frequency {}. Axes use full-cohort bounds.{}",v.points.len(),v.valid_rows,v.n,v.missing_rows,v.missing_n,if v.reduced{" Drawing reduced."}else{""});
+            d.note = format!(
+                "Showing {} of {} complete-pair source rows; frequency {}. Missing: {} rows; frequency {}. Axes use full-cohort bounds.{}",
+                v.points.len(),
+                v.valid_rows,
+                v.n,
+                v.missing_rows,
+                v.missing_n,
+                if v.reduced { " Drawing reduced." } else { "" }
+            );
             for p in &v.points {
                 c.check_cancelled()?;
                 d.marks.push(Mark::Point(p.x, p.y));
@@ -229,7 +246,20 @@ pub(super) fn captured(
                 d.marks
                     .push(Mark::Point(p.group_index as f64 + 0.5, p.value));
             }
-            d.note=format!("Full-cohort quartiles and observed whiskers. Outliers: {} of {} source rows drawn. Missing group: {} rows, frequency {}; missing outcome: {} rows, frequency {}.{}",v.points.len(),v.groups.iter().map(|g|g.outlier_rows).sum::<usize>(),v.missing_group_rows,v.missing_group_n,v.missing_outcome_rows,v.missing_outcome_n,if v.reduced{" Outlier drawing reduced."}else{""});
+            d.note = format!(
+                "Full-cohort quartiles and observed whiskers. Outliers: {} of {} source rows drawn. Missing group: {} rows, frequency {}; missing outcome: {} rows, frequency {}.{}",
+                v.points.len(),
+                v.groups.iter().map(|g| g.outlier_rows).sum::<usize>(),
+                v.missing_group_rows,
+                v.missing_group_n,
+                v.missing_outcome_rows,
+                v.missing_outcome_n,
+                if v.reduced {
+                    " Outlier drawing reduced."
+                } else {
+                    ""
+                }
+            );
         }
         (CompletedAnalysis::Frequencies(v), FigureKind::Frequency(id)) => {
             let t = v
@@ -276,7 +306,21 @@ pub(super) fn captured(
                 d.marks.push(Mark::Bar(i, value));
             }
             d.bounds = [[0., rows.len() as f64], [0., max]];
-            d.note=format!("Valid: {} rows; frequency {}. Missing: {} rows; frequency {}. {}",t.valid_rows,t.valid_n,t.missing_rows,t.missing_n,match s.metric{FrequencyMetric::Count=>"Counts are literal frequencies; missing responses excluded from bars.",FrequencyMetric::ValidPercent=>"Denominator: valid frequency; missing responses excluded.",FrequencyMetric::AllPercent=>"Denominator: valid plus missing frequency; missing responses excluded from bars."});
+            d.note = format!(
+                "Valid: {} rows; frequency {}. Missing: {} rows; frequency {}. {}",
+                t.valid_rows,
+                t.valid_n,
+                t.missing_rows,
+                t.missing_n,
+                match s.metric {
+                    FrequencyMetric::Count =>
+                        "Counts are literal frequencies; missing responses excluded from bars.",
+                    FrequencyMetric::ValidPercent =>
+                        "Denominator: valid frequency; missing responses excluded.",
+                    FrequencyMetric::AllPercent =>
+                        "Denominator: valid plus missing frequency; missing responses excluded from bars.",
+                }
+            );
         }
         (CompletedAnalysis::Regression(v), FigureKind::Residual | FigureKind::Qq) => {
             let RegressionOutcome::Fitted(f) = &v.outcome else {
@@ -320,7 +364,17 @@ pub(super) fn captured(
                     }
                 }
             }
-            d.note=format!("Fitted cohort: {} source rows; literal replicated frequency {}. Showing {} retained diagnostic points. Full-cohort bounds.{}",v.fitted_rows,v.frequency,d.marks.len(),if if qq{p.qq_reduced}else{p.residual_reduced}{" Drawing reduced."}else{""});
+            d.note = format!(
+                "Fitted cohort: {} source rows; literal replicated frequency {}. Showing {} retained diagnostic points. Full-cohort bounds.{}",
+                v.fitted_rows,
+                v.frequency,
+                d.marks.len(),
+                if if qq { p.qq_reduced } else { p.residual_reduced } {
+                    " Drawing reduced."
+                } else {
+                    ""
+                }
+            );
         }
         (CompletedAnalysis::Describe(v), FigureKind::Distribution(id)) => {
             let p = v
@@ -336,23 +390,55 @@ pub(super) fn captured(
             let lo = row.estimates.get(&Statistic::Minimum).and_then(|e| e.value);
             let hi = row.estimates.get(&Statistic::Maximum).and_then(|e| e.value);
             // shortcut: older reduced captures lack extrema; rerun with minimum and maximum before exporting.
-            let bounds=match(lo,hi){(Some(lo),Some(hi))=>[lo,hi],_ if !p.reduced=>[p.points.iter().map(|p|p.value).reduce(f64::min).ok_or_else(unavailable)?,p.points.iter().map(|p|p.value).reduce(f64::max).ok_or_else(unavailable)?],_=>return Err(AppError::invalid("figure","Rerun descriptives with minimum and maximum to retain full-cohort drawing bounds."))};
+            let bounds = match (lo, hi) {
+                (Some(lo), Some(hi)) => [lo, hi],
+                _ if !p.reduced => [
+                    p.points
+                        .iter()
+                        .map(|p| p.value)
+                        .reduce(f64::min)
+                        .ok_or_else(unavailable)?,
+                    p.points
+                        .iter()
+                        .map(|p| p.value)
+                        .reduce(f64::max)
+                        .ok_or_else(unavailable)?,
+                ],
+                _ => {
+                    return Err(AppError::invalid(
+                        "figure",
+                        "Rerun descriptives with minimum and maximum to retain full-cohort drawing bounds.",
+                    ));
+                }
+            };
             d.title = "Observed distribution".into();
             d.x = name(run, p.column)?;
-            d.y = "Observation rows".into();
-            d.bounds = [bounds, [0., 1.]];
-            for point in &p.points {
-                c.check_cancelled()?;
-                d.marks.push(Mark::Point(point.value, 0.5));
-            }
-            d.note=format!("{} Showing {} of {} eligible source rows. Valid frequency {}; missing frequency {}.{}",p.label,p.points.len(),p.source_rows,row.valid_n,row.missing_n,if p.reduced{" Drawing reduced."}else{""});
+            d.y = "Retained rows".into();
+            let points = crate::charts::stacked_rows(p.points.iter().map(|point| point.value), c)?;
+            let max_stack = points.iter().map(|point| point[1]).fold(0., f64::max);
+            d.bounds = [bounds, [0., max_stack + 1.]];
+            d.marks
+                .extend(points.into_iter().map(|[x, y]| Mark::Point(x, y)));
+            d.note = format!(
+                "{} Showing {} of {} eligible source rows. Valid frequency {}; missing frequency {}.{}",
+                p.label,
+                p.points.len(),
+                p.source_rows,
+                row.valid_n,
+                row.missing_n,
+                if p.reduced { " Drawing reduced." } else { "" }
+            );
         }
         _ => {
             return Err(AppError::invalid(
                 "figure",
                 "The figure does not belong to this captured analysis.",
-            ))
+            ));
         }
+    }
+    if matches!(kind, FigureKind::Distribution(_)) {
+        d.note
+            .push_str(" Each dot is one retained source row; equal values stack vertically.");
     }
     d.visible_note = match (&run.analysis, kind) {
         (CompletedAnalysis::Histogram(v), _) => concise(v.valid_rows, v.n, v.missing_rows, None),
@@ -422,6 +508,7 @@ pub(super) fn captured(
             if row.missing_n > 0 {
                 note.push_str(&format!(" Missing frequency: {}.", row.missing_n));
             }
+            note.push_str(" Each dot is one retained source row; equal values stack vertically.");
             note
         }
         _ => String::new(),
@@ -520,6 +607,70 @@ mod caption_tests {
             .contains("Full-cohort quartiles and observed whiskers"));
         assert!(d.note.contains("0 filtered"));
         assert!(d.note.contains("Missing group: 0"));
+    }
+    #[test]
+    fn distribution_stacks_equal_values_without_moving_the_data_axis() {
+        let values = vec![
+            Some(-0.),
+            Some(0.),
+            Some(1.),
+            Some(1. + f64::EPSILON),
+            Some(1.),
+        ];
+        let dataset = crate::data::Dataset::new(vec![crate::data::Column::numeric(
+            ColumnId(1),
+            "Score",
+            values.clone(),
+        )
+        .unwrap()])
+        .unwrap();
+        let c = JobControl::default();
+        let result = analyze_with_budget(
+            &dataset,
+            &AnalysisRequest::Describe(DescribeRequest {
+                columns: vec![ColumnId(1)],
+                statistics: vec![Statistic::Minimum, Statistic::Maximum],
+                missing_policy: MissingPolicy::PerVariable,
+                filter: RowFilter::default(),
+                frequency_weight: None,
+            }),
+            &c,
+            &[],
+            4096,
+        )
+        .unwrap();
+        let run = AnalysisRun {
+            id: crate::operation::RunId(1),
+            analysis: result,
+        };
+        let d = captured(
+            &run,
+            &FigureKind::Distribution(1),
+            &FigureSettings::default(),
+            &c,
+        )
+        .unwrap();
+        let points: Vec<_> = d
+            .marks
+            .iter()
+            .filter_map(|mark| match mark {
+                Mark::Point(x, y) => Some([*x, *y]),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(
+            points,
+            vec![
+                [-0., 1.],
+                [0., 2.],
+                [1., 1.],
+                [1. + f64::EPSILON, 1.],
+                [1., 2.]
+            ]
+        );
+        assert_eq!(d.bounds[1], [0., 3.]);
+        assert!(d.y.contains("Retained"));
+        assert!(d.visible_note.contains("Each dot"));
     }
     #[test]
     fn weighted_missing_and_reduced_disclosures_are_never_hidden() {

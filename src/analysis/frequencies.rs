@@ -9,8 +9,8 @@ use super::{
     selection::{self, Eligible},
     support,
     validation::invalid_analysis,
-    ComputedFrequencies, Estimate, FrequenciesRequest, FrequencyCategory, FrequencyTable,
-    RunColumnInfo,
+    ComputedFrequencies, Estimate, FrequenciesRequest, FrequencyCategory, FrequencyGroup,
+    FrequencyTable, RunColumnInfo,
 };
 use crate::{
     data::{Budget, Cell, Column, ColumnKind, Dataset},
@@ -36,6 +36,11 @@ pub fn frequencies_with_budget(
         checked_sum([extra_bytes, validation])?,
     )?;
     let ids = request.validate_current(dataset, retained, extra_bytes)?;
+    let group_label_work = if let Some(id) = request.group {
+        LabelIndex::scratch_bytes(dataset.column(id)?.metadata().value_labels.len())?
+    } else {
+        0
+    };
     let mut label_work = 0;
     for id in &request.columns {
         label_work = label_work.max(LabelIndex::scratch_bytes(
@@ -46,7 +51,15 @@ pub fn frequencies_with_budget(
     let scratch = checked_sum([
         checked_product(dataset.row_count(), size_of::<Eligible>())?,
         checked_product(dataset.row_count(), 2 * size_of::<usize>())?,
-        label_work,
+        checked_sum([label_work, group_label_work])?,
+        if request.group.is_some() {
+            checked_product(
+                dataset.row_count(),
+                size_of::<Eligible>() + 2 * size_of::<usize>(),
+            )?
+        } else {
+            0
+        },
     ])?;
     let mut owned = checked_sum([
         size_of::<ComputedFrequencies>(),
@@ -62,7 +75,7 @@ pub fn frequencies_with_budget(
     let passes = request
         .columns
         .len()
-        .checked_add(1)
+        .checked_add(1 + usize::from(request.group.is_some()))
         .ok_or_else(invalid_analysis)?;
     let total = rows.checked_mul(passes).ok_or_else(invalid_analysis)?;
     let (eligible, diagnostics) = selection::select_rows(
@@ -89,6 +102,10 @@ pub fn frequencies_with_budget(
         tables.push(table);
         control.checkpoint(rows * (index + 2), Some(total))?;
     }
+    let groups = grouped_tables(dataset, request, &columns, &eligible, &quiet, |growth| {
+        owned = checked_sum([owned, growth])?;
+        check_work(baseline, scratch, owned)
+    })?;
     let request = clone_request(request, control)?;
     control.checkpoint(total, Some(total))?;
     Ok(ComputedFrequencies {
@@ -98,6 +115,7 @@ pub fn frequencies_with_budget(
         source_rows: rows,
         diagnostics,
         tables,
+        groups,
     })
 }
 fn check_work(baseline: usize, scratch: usize, owned: usize) -> AppResult<()> {
@@ -124,7 +142,7 @@ fn table(
     mut charge: impl FnMut(usize) -> AppResult<()>,
 ) -> AppResult<FrequencyTable> {
     let (mut missing_rows, mut missing_n, mut valid_n) = (0, 0, 0);
-    let mut indices = Vec::with_capacity(column.len());
+    let mut indices = Vec::with_capacity(eligible.len());
     for (index, entry) in eligible.iter().enumerate() {
         if index.is_multiple_of(4096) {
             control.checkpoint(index, Some(eligible.len()))?;
@@ -242,6 +260,7 @@ fn clone_request(
         columns.extend_from_slice(chunk);
     }
     Ok(FrequenciesRequest {
+        group: request.group,
         columns,
         filter: support::clone_filter(&request.filter, control)?,
         frequency_weight: request.frequency_weight,
@@ -270,6 +289,7 @@ mod cancellation_tests {
             .unwrap();
         let dataset = Dataset::new(vec![column]).unwrap();
         let request = FrequenciesRequest {
+            group: None,
             columns: vec![ColumnId(1)],
             filter: super::super::RowFilter::default(),
             frequency_weight: None,
@@ -312,6 +332,7 @@ mod cancellation_tests {
         .unwrap();
         let dataset = Dataset::new(vec![column]).unwrap();
         let request = FrequenciesRequest {
+            group: None,
             columns: vec![ColumnId(1)],
             filter: super::super::RowFilter::default(),
             frequency_weight: None,
@@ -335,4 +356,111 @@ mod cancellation_tests {
         CHECKPOINT_HOOK.with(|hook| *hook.borrow_mut() = None);
         assert!(matches!(result, Err(AppError::Cancelled)));
     }
+}
+
+fn grouped_tables(
+    dataset: &Dataset,
+    request: &FrequenciesRequest,
+    columns: &[RunColumnInfo],
+    eligible: &[Eligible],
+    control: &JobControl,
+    mut charge: impl FnMut(usize) -> AppResult<()>,
+) -> AppResult<Vec<FrequencyGroup>> {
+    let Some(id) = request.group else {
+        return Ok(Vec::new());
+    };
+    let column = dataset.column(id)?;
+    let info = columns
+        .iter()
+        .find(|info| info.id == id)
+        .ok_or_else(invalid_analysis)?;
+    let labels = LabelIndex::new(info, control)?;
+    let mut indices: Vec<usize> = (0..eligible.len()).collect();
+    let mut scratch = vec![0; indices.len()];
+    let compare = |a: usize, b: usize| -> AppResult<Ordering> {
+        let (a, b) = (eligible[a].row, eligible[b].row);
+        match (column.is_missing(a)?, column.is_missing(b)?) {
+            (true, true) => Ok(Ordering::Equal),
+            (true, false) => Ok(Ordering::Greater),
+            (false, true) => Ok(Ordering::Less),
+            (false, false) => compare_rows(column, a, b, control),
+        }
+    };
+    sort_indices(&mut indices, &mut scratch, control, compare)?;
+    let mut group_count = 0;
+    for position in 0..indices.len() {
+        control.check_cancelled()?;
+        if position == 0 || compare(indices[position - 1], indices[position])? != Ordering::Equal {
+            group_count += 1;
+        }
+    }
+    charge(checked_product(group_count, size_of::<FrequencyGroup>())?)?;
+    let mut groups = Vec::with_capacity(group_count);
+    let mut position = 0;
+    while position < indices.len() {
+        control.check_cancelled()?;
+        let first = position;
+        let row = eligible[indices[first]].row;
+        while position < indices.len()
+            && compare(indices[first], indices[position])? == Ordering::Equal
+        {
+            control.check_cancelled()?;
+            position += 1;
+        }
+        let missing = column.is_missing(row)?;
+        let text_bytes = if !missing && column.kind() == ColumnKind::Text {
+            column.text_value(row)?.ok_or_else(invalid_analysis)?.len()
+        } else {
+            0
+        };
+        charge(checked_sum([
+            text_bytes,
+            checked_product(
+                request.columns.len(),
+                size_of::<FrequencyTable>() + NO_DENOMINATOR.len(),
+            )?,
+        ])?)?;
+        let value = if missing {
+            Cell::Missing
+        } else {
+            match column.kind() {
+                ColumnKind::Text => Cell::Text(support::clone_text(
+                    column.text_value(row)?.ok_or_else(invalid_analysis)?,
+                    control,
+                )?),
+                ColumnKind::Number => column.cell(row)?,
+            }
+        };
+        let cohort: Vec<Eligible> = indices[first..position]
+            .iter()
+            .map(|&index| eligible[index])
+            .collect();
+        let frequency = cohort.iter().map(|entry| entry.weight).sum();
+        let mut tables = Vec::with_capacity(request.columns.len());
+        for id in &request.columns {
+            let info = columns
+                .iter()
+                .find(|info| info.id == *id)
+                .ok_or_else(invalid_analysis)?;
+            tables.push(table(
+                dataset.column(*id)?,
+                info,
+                &cohort,
+                control,
+                &mut charge,
+            )?);
+        }
+        groups.push(FrequencyGroup {
+            value_label_index: if missing {
+                None
+            } else {
+                labels.find(&value, control)?
+            },
+            value,
+            rows: cohort.len(),
+            frequency,
+            tables,
+        });
+    }
+    Ok(groups)
 }

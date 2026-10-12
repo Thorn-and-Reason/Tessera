@@ -94,6 +94,7 @@ fn native_workflow_actions_preserve_data() {
         },
     );
     assert_eq!(state.project().runs().len(), 1);
+    assert_eq!(state.workspace(), Workspace::Results);
     assert!(state.is_dirty());
     let project = Arc::clone(state.project());
     run(
@@ -255,6 +256,9 @@ fn click(
             modifiers: Modifiers::NONE,
         }],
     );
+    for _ in 0..2 {
+        frame(ctx, state, jobs, size, vec![]);
+    }
 }
 #[test]
 fn narrow_layout_keeps_panels_accessible() {
@@ -265,31 +269,25 @@ fn narrow_layout_keeps_panels_accessible() {
             ctx.set_pixels_per_point(scale);
             let mut state = state();
             let mut jobs = JobRunner::default();
-            frame(&ctx, &mut state, &mut jobs, size, vec![]);
-            for name in ["Variables", "Analyses", "Results", "Data"] {
+            for _ in 0..3 {
+                frame(&ctx, &mut state, &mut jobs, size, vec![]);
+            }
+            for name in ["Variables", "Prepare", "Analyses", "Results", "Data"] {
                 click(&ctx, &mut state, &mut jobs, name, size);
-                assert_eq!(state.workspace().label(), name);
-            }
-            assert!(state.control_rect("Properties").is_some());
-            click(&ctx, &mut state, &mut jobs, "Properties", size);
-            if size.x < 1000.0 {
-                assert_eq!(state.dialog(), Some(Dialog::Properties));
-                frame(
-                    &ctx,
-                    &mut state,
-                    &mut jobs,
-                    size,
-                    vec![Event::Key {
-                        key: Key::Escape,
-                        physical_key: None,
-                        pressed: true,
-                        repeat: false,
-                        modifiers: Modifiers::NONE,
-                    }],
+                assert_eq!(
+                    state.workspace().label(),
+                    name,
+                    "scale {scale} size {size:?} control {:?}",
+                    state.control_rect(name)
                 );
-                assert_eq!(state.dialog(), None);
-                assert_eq!(ctx.memory(|m| m.focused()), state.control_id("Properties"));
             }
+            assert!(state.control_rect("Variable details").is_some());
+            click(&ctx, &mut state, &mut jobs, "Variable details", size);
+            assert_eq!(state.workspace(), Workspace::Variables);
+            assert!(
+                state.control_rect("Apply properties").is_some(),
+                "scale {scale} size {size:?} should show editable variable details"
+            );
         }
     }
 }
@@ -525,8 +523,8 @@ fn actual_settings_picker_starts_descriptives() {
     let mut jobs = JobRunner::default();
     frame(&ctx, &mut state, &mut jobs, size, vec![]);
     click(&ctx, &mut state, &mut jobs, "Analyses", size);
-    click(&ctx, &mut state, &mut jobs, "Add variables…", size);
-    click(&ctx, &mut state, &mut jobs, "Sgôr ŵ", size);
+    assert!(state.control_rect("Variable 1").is_some());
+    click(&ctx, &mut state, &mut jobs, "Variable 1", size);
     let tessera::desktop::draft::AnalysisDraft::Describe(draft) = state.draft() else {
         panic!("expected descriptives");
     };

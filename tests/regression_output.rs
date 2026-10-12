@@ -80,7 +80,10 @@ fn real_file_save_fresh_open_and_frozen_report_do_not_recompute() {
         panic!()
     };
     for c in &f.coefficients {
-        assert!(html.contains(&format!("<td>{}</td>", c.estimate.value.unwrap())));
+        assert!(html.contains(&format!(
+            "title=\"Exact captured value: {}\"",
+            c.estimate.value.unwrap()
+        )));
     }
     assert_eq!(changed.runs()[0].analysis, before);
     assert!(!html.contains("-900"));

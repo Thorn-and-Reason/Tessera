@@ -31,6 +31,7 @@ fn project() -> Project {
             frequency_weight: None,
         }),
         AnalysisRequest::Frequencies(FrequenciesRequest {
+            group: None,
             columns: vec![ColumnId(1)],
             filter: RowFilter::default(),
             frequency_weight: None,
@@ -88,7 +89,8 @@ fn survey_report_styles_all_output_without_changing_values() {
         "background:#F2EBDC",
         "#263449",
         "#C59B43",
-        "#EEE6D6",
+        "#173451",
+        "#eef5fb",
         "#D1C9B9",
         "#4E5A66",
         "tbody tr:nth-child(even)",
@@ -99,14 +101,21 @@ fn survey_report_styles_all_output_without_changing_values() {
     }
     for run in p.runs() {
         for key in tessera::figures::figure_keys(run) {
-            let svg = tessera::figures::render::svg(
+            let rendered = tessera::figures::render::svg(
                 run,
                 &key,
                 &p.figure_settings(&key),
                 false,
                 &JobControl::default(),
-            )
-            .unwrap();
+            );
+            if key.kind == tessera::figures::FigureKind::Likert {
+                assert!(
+                    rendered.is_err(),
+                    "Likert output requires explicit scale settings"
+                );
+                continue;
+            }
+            let svg = rendered.unwrap();
             assert!(
                 html.contains(&svg),
                 "Report must use the same figure as standalone export"
@@ -121,7 +130,8 @@ fn survey_report_styles_all_output_without_changing_values() {
         );
     }
     assert!(html.contains("Score &lt;&amp;&gt;"));
-    assert!(html.contains("<td>2.5</td>"));
+    assert!(html.contains("title=\"Exact captured value: 2.5\""));
+    assert!(html.contains(">2.50</span>"));
     assert!(html.contains("scope=\"col\""));
     assert!(html.contains("role=\"img\""));
     assert!(html.contains("default-src 'none'"));

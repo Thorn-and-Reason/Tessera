@@ -18,7 +18,7 @@ fn contrast(a: Color32, b: Color32) -> f64 {
     (a.max(b) + 0.05) / (a.min(b) + 0.05)
 }
 #[test]
-fn brand_theme_has_legible_light_and_dark_surfaces_and_serif_headings() {
+fn desktop_theme_has_compact_controls_sans_headings_and_legible_surfaces() {
     let ctx = egui::Context::default();
     configure_context(&ctx);
     for theme in [egui::Theme::Light, egui::Theme::Dark] {
@@ -29,15 +29,18 @@ fn brand_theme_has_legible_light_and_dark_surfaces_and_serif_headings() {
         assert!(contrast(visual.selection.stroke.color, visual.selection.bg_fill) >= 4.5);
         assert_eq!(
             style.text_styles[&TextStyle::Heading].family,
-            FontFamily::Name("brand-serif".into())
+            FontFamily::Name("semibold".into())
         );
+        assert!(style.spacing.interact_size.y <= 28.);
+        assert!(style.text_styles[&TextStyle::Heading].size <= 18.);
+        assert!(style.spacing.button_padding.y <= 4.);
     }
     assert_eq!(
         ctx.style_of(egui::Theme::Light).visuals.panel_fill,
-        Color32::from_rgb(242, 235, 220)
+        Color32::WHITE
     );
     assert_eq!(
         ctx.style_of(egui::Theme::Light).visuals.text_color(),
-        Color32::from_rgb(38, 52, 73)
+        Color32::from_rgb(39, 45, 55)
     );
 }

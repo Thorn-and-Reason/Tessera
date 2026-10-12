@@ -86,17 +86,14 @@ fn grouped_boxplots_share_outcome_coordinates_and_exact_read_only_values() {
         "disjoint outcome ranges must occupy disjoint coordinates: {boxes:?}"
     );
     let nodes = output.platform_output.accesskit_update.unwrap().nodes;
-    assert!(nodes
-        .iter()
-        .any(|(_, n)| n.role() == egui::accesskit::Role::ComboBox
-            && n.label() == Some("History")
-            && n.value()
-                .is_some_and(|value| value.starts_with("Run 1 · Boxplot ·")
-                    && value.contains("Outcome")
-                    && value.ends_with("Current data"))));
+    assert!(nodes.iter().any(|(_, node)| node
+        .label()
+        .is_some_and(|label| label.contains("Boxplot")
+            && label.contains("Outcome")
+            && label.ends_with("Current data"))));
     assert!(
         boxes.iter().all(|r| r.bottom() <= 780.),
-        "both groups remain visible at the supported window size"
+        "both groups remain visible at the supported window size: {boxes:?}"
     );
     assert!(
         !nodes
@@ -177,7 +174,7 @@ fn empty_results_explain_the_next_action_in_both_themes() {
         );
         output.textures_delta.clear();
         assert!(state.control_rect("Go to Analyses").is_some());
-        assert!(output.shapes.iter().any(|s| matches!(&s.shape,egui::Shape::Text(t) if t.galley.text()=="Your results will appear here")));
+        assert!(output.shapes.iter().any(|s| matches!(&s.shape,egui::Shape::Text(t) if t.galley.text()=="Your results will appear here")), "{:?}", output.shapes.iter().filter_map(|s| if let egui::Shape::Text(t) = &s.shape {Some(t.galley.text())} else {None}).collect::<Vec<_>>());
     }
 }
 
@@ -215,12 +212,12 @@ fn choosing_a_saved_result_closes_history_popup() {
     tessera::desktop::configure_context(&ctx);
     ctx.enable_accesskit();
     let mut jobs = JobRunner::default();
-    result_frame(&ctx, &mut state, &mut jobs, vec![]);
+    compact_result_frame(&ctx, &mut state, &mut jobs, vec![]);
     let pos = state.control_rect("History").unwrap().center();
     for pressed in [true, false] {
-        result_frame(&ctx, &mut state, &mut jobs, pointer_click(pos, pressed));
+        compact_result_frame(&ctx, &mut state, &mut jobs, pointer_click(pos, pressed));
     }
-    let output = result_frame(&ctx, &mut state, &mut jobs, vec![]);
+    let output = compact_result_frame(&ctx, &mut state, &mut jobs, vec![]);
     let nodes = output.platform_output.accesskit_update.unwrap().nodes;
     assert!(nodes
         .iter()
@@ -241,9 +238,9 @@ fn choosing_a_saved_result_closes_history_popup() {
         ((bounds.y0 + bounds.y1) / 2.) as f32,
     );
     for pressed in [true, false] {
-        result_frame(&ctx, &mut state, &mut jobs, pointer_click(pos, pressed));
+        compact_result_frame(&ctx, &mut state, &mut jobs, pointer_click(pos, pressed));
     }
-    let output = result_frame(&ctx, &mut state, &mut jobs, vec![]);
+    let output = compact_result_frame(&ctx, &mut state, &mut jobs, vec![]);
     assert_eq!(state.selected_run().unwrap().id.0, 1);
     assert!(
         !output
@@ -276,6 +273,91 @@ fn result_frame(
     let mut output = ctx.run_ui(
         egui::RawInput {
             screen_rect: Some(Rect::from_min_size(Pos2::ZERO, Vec2::new(1180., 780.))),
+            events,
+            ..Default::default()
+        },
+        |ui| render(ui, state, jobs),
+    );
+    output.textures_delta.clear();
+    output
+}
+
+#[test]
+fn results_have_visible_history_and_clear_analysis_actions() {
+    let project = tessera::project_io::decode(
+        &include_bytes!("../examples/mixed-analysis.tessera")[..],
+        &JobControl::default(),
+    )
+    .unwrap();
+    let selected = project.runs().last().unwrap().id;
+    let mut state = DesktopState::from_project(project)
+        .unwrap()
+        .apply_action(UiAction::Navigate(Workspace::Results))
+        .unwrap()
+        .apply_action(UiAction::SelectRun(selected))
+        .unwrap();
+    let ctx = egui::Context::default();
+    tessera::desktop::configure_context(&ctx);
+    ctx.enable_accesskit();
+    let mut jobs = JobRunner::default();
+    let output = result_frame(&ctx, &mut state, &mut jobs, vec![]);
+    assert!(state.control_rect("Search saved results").is_some());
+    assert!(state.control_rect("New analysis").is_some());
+    assert!(state.control_rect("Edit selected analysis").is_some());
+    assert!(output.shapes.iter().any(|shape| matches!(&shape.shape,
+        egui::Shape::Text(text) if text.galley.text().contains("Saved results"))));
+    let nodes = &output
+        .platform_output
+        .accesskit_update
+        .as_ref()
+        .unwrap()
+        .nodes;
+    let saved_rows = nodes
+        .iter()
+        .filter(|(_, node)| {
+            node.label()
+                .or_else(|| node.value())
+                .is_some_and(|label| label.contains(" · Run ") && label.ends_with("Current data"))
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(saved_rows.len(), state.project().runs().len());
+    assert!(
+        saved_rows
+            .iter()
+            .all(|(_, node)| node.bounds().is_some_and(|rect| rect.y1 - rect.y0 <= 42.)),
+        "saved-result rows stay compact"
+    );
+    assert!(saved_rows.iter().any(|(_, node)| node.toggled()
+        == Some(egui::accesskit::Toggled::True)
+        && node
+            .label()
+            .or_else(|| node.value())
+            .is_some_and(|label| label.contains(&format!("Run {}", selected.0)))));
+    let pos = state
+        .control_rect("Edit selected analysis")
+        .unwrap()
+        .center();
+    for pressed in [true, false] {
+        result_frame(&ctx, &mut state, &mut jobs, pointer_click(pos, pressed));
+    }
+    assert_eq!(
+        state.workspace(),
+        Workspace::Analyses,
+        "{:?}",
+        state.error()
+    );
+    assert!(state.checked_draft_request().is_ok());
+}
+
+fn compact_result_frame(
+    ctx: &egui::Context,
+    state: &mut DesktopState,
+    jobs: &mut JobRunner,
+    events: Vec<egui::Event>,
+) -> egui::FullOutput {
+    let mut output = ctx.run_ui(
+        egui::RawInput {
+            screen_rect: Some(Rect::from_min_size(Pos2::ZERO, Vec2::new(760., 780.))),
             events,
             ..Default::default()
         },

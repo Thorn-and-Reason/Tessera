@@ -297,6 +297,7 @@ fn review_fix_long_categories_keep_absolute_captured_identity_and_full_report_ro
     let mut state = result_state(
         data,
         AnalysisRequest::Frequencies(FrequenciesRequest {
+            group: None,
             columns: vec![ColumnId(1)],
             filter: RowFilter::default(),
             frequency_weight: None,
@@ -423,6 +424,9 @@ fn review_fix_long_axis_names_fit_named_canvas_and_preserve_numeric_coordinates(
             ctx.set_theme(egui::Theme::Light);
             ctx.set_pixels_per_point(2.);
             let mut jobs = JobRunner::default();
+            for _ in 0..3 {
+                draw(&ctx, &mut state, &mut jobs, Vec2::new(760., 1100.), vec![]);
+            }
             let output = draw(&ctx, &mut state, &mut jobs, Vec2::new(760., 1100.), vec![]);
             let canvas = state.control_rect("Chart").unwrap();
             let mut found = 0;
@@ -434,7 +438,7 @@ fn review_fix_long_axis_names_fit_named_canvas_and_preserve_numeric_coordinates(
                             canvas.contains_rect(rect),
                             "{family:?} precise={precise}: {rect:?} outside {canvas:?}"
                         );
-                        assert!(s.clip_rect.contains_rect(rect), "name outside actual clip");
+                        assert!(s.clip_rect.contains_rect(rect), "{family:?} precise={precise}: name {rect:?} outside actual clip {:?}, canvas {canvas:?}", s.clip_rect);
                         found += 1;
                     }
                 }

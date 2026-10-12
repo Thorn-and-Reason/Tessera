@@ -36,7 +36,8 @@ pub fn history(ui: &mut egui::Ui, state: &mut DesktopState) {
     let project = Arc::clone(state.project());
     let revision = project.dataset().revision();
     let history = egui::ComboBox::from_id_salt("run-history")
-        .width(300.)
+        .width(ui.available_width().min(300.))
+        .truncate()
         .selected_text(
             state
                 .selected_run()
@@ -78,13 +79,13 @@ pub fn history(ui: &mut egui::Ui, state: &mut DesktopState) {
                 .show_rows(ui, 28., count, |ui, range| {
                     for run in matches().skip(range.start).take(range.len()) {
                         let label = history_label(run, revision);
-                        if ui
-                            .selectable_label(
-                                state.selected_run().is_some_and(|r| r.id == run.id),
-                                &label,
-                            )
-                            .on_hover_text(&label)
-                            .clicked()
+                        if theme::selectable_label(
+                            ui,
+                            state.selected_run().is_some_and(|r| r.id == run.id),
+                            &label,
+                        )
+                        .on_hover_text(&label)
+                        .clicked()
                         {
                             state.act(UiAction::SelectRun(run.id));
                             ui.close();
@@ -103,16 +104,130 @@ pub fn history(ui: &mut egui::Ui, state: &mut DesktopState) {
         ..egui::WidgetInfo::labeled(egui::WidgetType::ComboBox, true, "History")
     });
     super::procedure_forms::record(state, "History", &history.response);
+    if let Some(run) = state.selected_run() {
+        history.response.on_hover_text(history_label(run, revision));
+    }
 }
+fn saved_list(ui: &mut egui::Ui, state: &mut DesktopState) {
+    let project = Arc::clone(state.project());
+    let revision = project.dataset().revision();
+    ui.strong("Saved results");
+    ui.small(format!("{} saved analyses", project.runs().len()));
+    let response = ui.add(
+        egui::TextEdit::singleline(&mut state.history_search)
+            .hint_text("Search saved results")
+            .char_limit(super::state::TEXT_LIMIT),
+    );
+    response.widget_info(|| {
+        egui::WidgetInfo::labeled(egui::WidgetType::TextEdit, true, "Search saved results")
+    });
+    super::procedure_forms::record(state, "Search saved results", &response);
+    let query = match theme::NameQuery::new(&state.history_search) {
+        Ok(query) => query,
+        Err(error) => {
+            state.fail(error);
+            return;
+        }
+    };
+    let matches = || {
+        project.runs().iter().rev().filter(|run| {
+            query.matches(&history_label(run, revision))
+                || run
+                    .analysis
+                    .columns()
+                    .iter()
+                    .any(|column| query.matches(&column.name))
+        })
+    };
+    let count = matches().count();
+    if count == 0 {
+        ui.label("No matching saved results");
+    }
+    egui::ScrollArea::vertical()
+        .id_salt("saved-results-list")
+        .show_rows(ui, 40., count, |ui, range| {
+            for run in matches().skip(range.start).take(range.len()) {
+                let method = format!(
+                    "{} · Run {}",
+                    crate::export::report_analyses::method(&run.analysis),
+                    run.id.0
+                );
+                let variables = run
+                    .analysis
+                    .columns()
+                    .iter()
+                    .take(3)
+                    .map(|column| theme::caption_limit(&column.name, 24))
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                let subtitle = format!(
+                    "{variables} · {}",
+                    if run.analysis.revision() == revision {
+                        "Current data"
+                    } else {
+                        "Data changed"
+                    }
+                );
+                let response = ui
+                    .push_id(run.id.0, |ui| {
+                        theme::list_row(
+                            ui,
+                            state
+                                .selected_run()
+                                .is_some_and(|selected| selected.id == run.id),
+                            &method,
+                            Some(&subtitle),
+                        )
+                    })
+                    .inner;
+                if response
+                    .on_hover_text(history_label(run, revision))
+                    .clicked()
+                {
+                    state.act(UiAction::SelectRun(run.id));
+                }
+            }
+        });
+}
+
 pub fn show(ui: &mut egui::Ui, state: &mut DesktopState, jobs: &mut JobRunner) {
-    ui.horizontal_wrapped(|ui| {
+    if state.project().runs().is_empty() {
         ui.heading("Results");
-        history(ui, state);
+        output(ui, state);
+        return;
+    }
+    let wide = ui.available_width() >= 760. && !state.project().runs().is_empty();
+    if !wide {
+        ui.horizontal_wrapped(|ui| {
+            ui.heading("Results");
+            history(ui, state);
+        });
+    }
+    ui.horizontal_wrapped(|ui| {
+        if wide {
+            ui.heading("Results");
+        }
+        if button(ui, state, "New analysis").clicked() {
+            state.act(UiAction::Navigate(super::Workspace::Analyses));
+        }
+        let edit = ui.add_enabled(
+            !state.active && state.selected_run().is_some(),
+            egui::Button::new("Edit selected analysis"),
+        );
+        super::procedure_forms::record(state, "Edit selected analysis", &edit);
+        super::procedure_forms::record(state, "Use this run in Analyses", &edit);
+        if edit.clicked() {
+            state.load_selected_request();
+            if state.error().is_none() {
+                state.act(UiAction::Navigate(super::Workspace::Analyses));
+            }
+        }
         if ui
             .add_enabled(
                 !state.active && !state.project().runs().is_empty(),
-                egui::Button::new("Export report…"),
+                theme::primary(ui, "Export all results…"),
             )
+            .on_hover_text("Export every saved result, including its captured settings and complete tables, as an HTML report")
             .clicked()
         {
             dialogs::export_report(state, jobs);
@@ -122,6 +237,7 @@ pub fn show(ui: &mut egui::Ui, state: &mut DesktopState, jobs: &mut JobRunner) {
                 !state.active && state.selected_run().is_some(),
                 egui::Button::new("Rerun"),
             )
+            .on_hover_text("Run the saved settings against the current data")
             .clicked()
         {
             if let Some(run) = state.selected_run() {
@@ -134,32 +250,47 @@ pub fn show(ui: &mut egui::Ui, state: &mut DesktopState, jobs: &mut JobRunner) {
                             request,
                         },
                     ),
-                    Err(e) => state.fail(e),
+                    Err(error) => state.fail(error),
                 }
             }
         }
     });
-    if !state.project().runs().is_empty() {
-        ui.small(format!(
-            "Export includes all {} saved results, with captured settings and complete tables.",
-            state.project().runs().len()
-        ));
-    }
     ui.separator();
-    super::figure_editor::toolbar(ui, state, jobs);
-    output(ui, state);
+    if state.selected_run().is_some() {
+        super::figure_editor::toolbar(ui, state, jobs);
+    }
+    if wide {
+        let height = ui.available_height();
+        ui.horizontal_top(|ui| {
+            ui.allocate_ui_with_layout(
+                egui::vec2(230., height),
+                egui::Layout::top_down(egui::Align::LEFT),
+                |ui| saved_list(ui, state),
+            );
+            ui.separator();
+            ui.vertical(|ui| {
+                output(ui, state);
+            });
+        });
+    } else {
+        output(ui, state);
+    }
 }
 pub fn output(ui: &mut egui::Ui, state: &mut DesktopState) {
-    ui.scope(|ui| {
-        super::output_style::apply(ui);
-        output_contents(ui, state);
-    });
+    egui::Frame::new()
+        .fill(ui.visuals().panel_fill)
+        .inner_margin(16)
+        .show(ui, |ui| {
+            ui.set_min_width(ui.available_width());
+            super::output_style::apply(ui);
+            output_contents(ui, state);
+        });
 }
 fn output_contents(ui: &mut egui::Ui, state: &mut DesktopState) {
     let Some(run) = state.selected_run().cloned() else {
         ui.add_space(24.);
         ui.heading("Your results will appear here");
-        ui.label("Choose a procedure in Analyses, select your variables, and run it. Saved results retain their original data and settings.");
+        ui.label("Open Analyse, choose what you want to find out, select your variables, and run the analysis. Each result keeps its original data and settings.");
         if button(ui, state, "Go to Analyses").clicked() {
             state.act(UiAction::Navigate(super::Workspace::Analyses));
         }
@@ -223,7 +354,6 @@ fn output_contents(ui: &mut egui::Ui, state: &mut DesktopState) {
             for source in state.project().provenance(){ui.label(theme::caption(source));}
         });
         state.controls.insert("Run settings and provenance".into(),provenance.header_response.rect);
-        if button(ui,state,"Use this run in Analyses").clicked(){state.load_selected_request();state.act(UiAction::Navigate(super::Workspace::Analyses));}
     });
 }
 fn name(run: &AnalysisRun, id: crate::data::ColumnId) -> &str {
@@ -251,16 +381,27 @@ fn draw_plot(ui: &mut egui::Ui, plot: &PlotData, mean: Option<f64>) {
         );
         return;
     }
+    let stacks = match crate::charts::stacked_rows(
+        plot.points.iter().map(|point| point.value),
+        &crate::operation::JobControl::default(),
+    ) {
+        Ok(stacks) => stacks,
+        Err(_) => {
+            ui.label("Drawing unavailable · exact values remain in the observation table");
+            return;
+        }
+    };
+    let largest_stack = stacks.iter().map(|point| point[1]).fold(1.0, f64::max);
     let min = plot
         .points
         .iter()
         .map(|p| p.value)
-        .fold(f64::INFINITY, f64::min);
+        .fold(mean.unwrap_or(f64::INFINITY), f64::min);
     let max = plot
         .points
         .iter()
         .map(|p| p.value)
-        .fold(f64::NEG_INFINITY, f64::max);
+        .fold(mean.unwrap_or(f64::NEG_INFINITY), f64::max);
     let scale = min.abs().max(max.abs()).max(1.0);
     let lo = min / scale;
     let hi = max / scale;
@@ -299,25 +440,39 @@ fn draw_plot(ui: &mut egui::Ui, plot: &PlotData, mean: Option<f64>) {
             theme::text(ui),
         );
     }
-    for (index, point) in plot.points.iter().enumerate() {
-        let y = rect.top() + 30.0 + (index as f32 % 12.0) * 8.0;
-        painter.circle_filled(Pos2::new(x(point.value), y), 3.5, theme::accent(ui));
+    painter.text(
+        Pos2::new(rect.left() + 30.0, rect.top() + 10.0),
+        Align2::LEFT_CENTER,
+        format!(
+            "Retained source rows · largest stack {}",
+            largest_stack as usize
+        ),
+        egui::TextStyle::Small.resolve(ui.style()),
+        theme::text(ui),
+    );
+    let spacing = ((base - rect.top() - 32.0) / largest_stack as f32).min(9.0);
+    let radius = (spacing * 0.4).clamp(1.0, 3.5);
+    for point in &stacks {
+        let position = Pos2::new(x(point[0]), base - point[1] as f32 * spacing);
+        painter.circle_filled(position, radius, theme::accent(ui));
+        painter.circle_stroke(position, radius, egui::Stroke::new(0.5, theme::surface(ui)));
     }
     if let Some(mean) = mean {
         let marker = [
-            Pos2::new(x(mean), rect.top() + 22.0),
+            Pos2::new(x(mean), rect.top() + 35.0),
             Pos2::new(x(mean), base),
         ];
         painter.line_segment(marker, egui::Stroke::new(4.0, theme::text(ui)));
         painter.line_segment(marker, egui::Stroke::new(2.0, theme::GOLD));
         painter.text(
-            Pos2::new(x(mean), rect.top() + 10.0),
+            Pos2::new(x(mean), rect.top() + 25.0),
             Align2::CENTER_CENTER,
             format!("Mean {}", theme::compact_number(mean)),
             egui::TextStyle::Small.resolve(ui.style()),
             theme::text(ui),
         );
     }
+    ui.small("Each dot represents one retained source row; stack height counts rows, not frequency weights.");
 }
 
 #[cfg(test)]
@@ -329,6 +484,45 @@ mod tests {
         operation::JobControl,
         project::Project,
     };
+
+    #[test]
+    fn descriptive_dots_stack_equal_values_and_count_rows_not_weights() {
+        let plot = PlotData {
+            column: ColumnId(1),
+            points: [1., 1., 2.]
+                .into_iter()
+                .enumerate()
+                .map(|(row, value)| PlotPoint {
+                    row,
+                    value,
+                    frequency: 99,
+                })
+                .collect(),
+            source_rows: 3,
+            reduced: false,
+            label: "Retained observations".into(),
+        };
+        let ctx = egui::Context::default();
+        let mut output = ctx.run_ui(egui::RawInput::default(), |ui| draw_plot(ui, &plot, None));
+        output.textures_delta.clear();
+        let dots: Vec<_> = output
+            .shapes
+            .iter()
+            .filter_map(|shape| match &shape.shape {
+                egui::Shape::Circle(circle) if circle.fill != egui::Color32::TRANSPARENT => {
+                    Some(circle.center)
+                }
+                _ => None,
+            })
+            .collect();
+        assert_eq!(dots.len(), 3);
+        assert_eq!(dots[0].x, dots[1].x);
+        assert!(dots[1].y < dots[0].y);
+        assert_eq!(dots[0].y, dots[2].y);
+        assert!(dots[2].x > dots[0].x);
+        assert!(output.shapes.iter().any(|shape| matches!(&shape.shape,
+            egui::Shape::Text(text) if text.galley.text().contains("largest stack 2"))));
+    }
 
     #[test]
     fn new_family_history_uses_bounded_captured_unicode_names_and_stale_revision() {

@@ -19,7 +19,14 @@ class ReliabilitySchema(unittest.TestCase):
         self.validator.validate(self.document)
         old = json.loads((ROOT / 'docs/project-v5.schema.json').read_text())
         for key, value in old['$defs'].items():
-            if key != 'completed': self.assertEqual(value, self.schema['$defs'][key], key)
+            if key != 'completed':
+                current = copy.deepcopy(self.schema['$defs'][key])
+                additions = {'frequencies_request': {'group'}, 'frequencies_analysis': {'groups'}, 'boxplot_group': {'mean'}}.get(key, set())
+                self.assertEqual(set(current.get('properties', {})) - set(value.get('properties', {})), additions)
+                for field in additions:
+                    self.assertNotIn(field, current.get('required', []))
+                    del current['properties'][field]
+                self.assertEqual(value, current, key)
         self.assertEqual(old['$defs']['completed']['oneOf'], self.schema['$defs']['completed']['oneOf'][:-1])
     def test_closed_records_and_exact_tags(self):
         for field, value in [('method', {'exact_centered_interval_v1': None}), ('method', 'future'), ('total_energy', {'positive': None}), ('total_energy', 'future')]:

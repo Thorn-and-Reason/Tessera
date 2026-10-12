@@ -119,6 +119,10 @@ fn all_three_editable_designs_run_through_production_button_and_keyboard_with_fr
         assert_eq!(state.project().runs().len(), 2);
         assert_eq!(state.project().runs()[0].analysis, original);
         assert_eq!(state.project().runs()[1].analysis.request(), request);
+        assert_eq!(state.workspace(), Workspace::Results);
+        state = state
+            .apply_action(UiAction::Navigate(Workspace::Analyses))
+            .unwrap();
         frame(
             &mut state,
             &mut jobs,

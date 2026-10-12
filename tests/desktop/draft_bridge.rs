@@ -215,6 +215,26 @@ fn scrolled_pearson_cells_retain_pair_metric_and_exact_result() {
     let ctx = egui::Context::default();
     ctx.enable_accesskit();
     let mut jobs = JobRunner::default();
+    for _ in 0..3 {
+        frame(&ctx, &mut state, &mut jobs, Vec2::new(760., 520.), vec![]);
+    }
+    let snapshot = ctx.run_ui(
+        egui::RawInput {
+            screen_rect: Some(Rect::from_min_size(Pos2::ZERO, Vec2::new(760., 520.))),
+            ..Default::default()
+        },
+        |ui| render(ui, &mut state, &mut jobs),
+    );
+    let scroll_pos = snapshot
+        .shapes
+        .iter()
+        .find_map(|shape| match &shape.shape {
+            egui::Shape::Text(text) if text.galley.text() == "Variable 01" => {
+                Some(text.pos + egui::vec2(5., 5.))
+            }
+            _ => None,
+        })
+        .expect("visible Pearson result row");
     let before = super::review::access_labels(&ctx, &mut state, &mut jobs);
     for _ in 0..5 {
         frame(
@@ -223,7 +243,7 @@ fn scrolled_pearson_cells_retain_pair_metric_and_exact_result() {
             &mut jobs,
             Vec2::new(760., 520.),
             vec![
-                Event::PointerMoved(Pos2::new(580., 300.)),
+                Event::PointerMoved(scroll_pos),
                 Event::MouseWheel {
                     unit: egui::MouseWheelUnit::Point,
                     delta: Vec2::new(0., -900.),
@@ -432,7 +452,8 @@ fn selected_history_identifies_each_procedure() {
         assert!(
             labels
                 .iter()
-                .any(|s| s.starts_with(&format!("Run {id} · {method} ·"))
+                .any(|s| (s.starts_with(&format!("Run {id} · {method} ·"))
+                    || s.contains(&format!("{method} · Run {id} ·")))
                     && s.contains(&state.selected_run().unwrap().analysis.columns()[0].name)
                     && s.ends_with("Current data")),
             "{labels:?}"

@@ -93,3 +93,12 @@ fn empty_variables_guide_without_a_blank_inspector() {
         |label| label == "Select a variable to edit its name, description and value settings."
     ));
 }
+
+#[test]
+fn variables_show_editable_properties_without_a_discovery_toggle() {
+    let actual = labels(1180.0);
+    assert!(
+        actual.iter().any(|s| s == "Apply properties"),
+        "selected variable properties must be immediately editable: {actual:?}"
+    );
+}

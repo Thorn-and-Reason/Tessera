@@ -1,5 +1,5 @@
 use super::{
-    button, results, start,
+    button, start,
     state::{MAX_DRAFT_BYTES, TEXT_LIMIT},
     theme, DesktopState, Dialog, UiAction,
 };
@@ -28,34 +28,22 @@ pub fn statistic_label(statistic: Statistic) -> &'static str {
 }
 pub fn show(ui: &mut egui::Ui, state: &mut DesktopState, jobs: &mut JobRunner) {
     ui.horizontal_wrapped(|ui| {
-        ui.heading("Analyses");
-        let response = super::toggle(ui, state, "Settings");
-        if response.clicked() {
-            if theme::inspector_visible(ui.ctx()) {
-                state.settings_open = !state.settings_open;
-            } else {
-                state.dialog = Some(Dialog::Settings);
-                state.return_focus = Some(response.id);
-            }
-        }
-        results::history(ui, state);
+        ui.heading("Analysis");
+        super::experience::mode_switch(ui, state);
     });
     ui.separator();
-    if theme::inspector_visible(ui.ctx())
-        && state.settings_open
-        && state.dialog != Some(Dialog::Settings)
-    {
-        egui::Panel::left("analysis-settings")
-            .default_size(theme::inspector_width(ui.ctx()))
-            .size_range(248.0..=420.0)
-            .resizable(true)
-            .show(ui, |ui| settings(ui, state, jobs));
-    }
-    results::output(ui, state);
+    settings(ui, state, jobs);
 }
+
 pub fn settings(ui: &mut egui::Ui, state: &mut DesktopState, jobs: &mut JobRunner) {
-    theme::section(ui, "New analysis");
-    ui.label("Choose a procedure and its variables, then run it to save a result.");
+    egui::Panel::bottom("analysis-run-footer").show(ui, |ui| {
+        let label = if state.draft.procedure() == super::draft::Procedure::Describe {
+            "Run descriptives"
+        } else {
+            "Run analysis"
+        };
+        run_button(ui, state, jobs, label);
+    });
     if state.project().dataset().columns().is_empty() {
         ui.label("Import CSV, TSV or Excel (.xlsx), or add a variable to start your dataset.");
         ui.horizontal(|ui| {
@@ -68,18 +56,28 @@ pub fn settings(ui: &mut egui::Ui, state: &mut DesktopState, jobs: &mut JobRunne
             }
         });
     }
-    if state
-        .selected_run()
-        .is_some_and(|run| !state.draft.matches_saved(run.analysis.request()))
-    {
-        ui.label("Draft settings · output unchanged");
+    let split = ui.available_width() >= 850.;
+    if split {
+        egui::Panel::left("analysis-catalog-panel")
+            .exact_size(248.)
+            .show(ui, |ui| super::procedure_forms::chooser(ui, state, true));
+    } else {
+        super::procedure_forms::chooser(ui, state, false);
     }
-    if state.selected_run().is_some() && ui.button("Use selected run settings").clicked() {
-        state.load_selected_request();
-    }
+    egui::Frame::new()
+        .inner_margin(egui::Margin {
+            left: if split { 12 } else { 0 },
+            ..Default::default()
+        })
+        .show(ui, |ui| form(ui, state, jobs));
+}
+
+fn form(ui: &mut egui::Ui, state: &mut DesktopState, jobs: &mut JobRunner) {
     let project = Arc::clone(state.project());
     let columns = project.dataset().columns();
-    super::procedure_forms::chooser(ui, state);
+    ui.strong(state.draft.procedure().label());
+    ui.label(super::experience::description(state.draft.procedure()));
+    ui.separator();
     let super::draft::AnalysisDraft::Describe(_) = &state.draft else {
         super::procedure_forms::settings(ui, state, jobs);
         return;
@@ -94,26 +92,13 @@ pub fn settings(ui: &mut egui::Ui, state: &mut DesktopState, jobs: &mut JobRunne
     };
     egui::ScrollArea::vertical()
         .id_salt("analysis-settings-scroll")
-        .max_height(
-            (ui.available_height()
-                - if state.draft_requirement().is_some() {
-                    114.0
-                } else {
-                    54.0
-                })
-            .max(60.0),
-        )
+        .max_height(ui.available_height().max(0.))
         .show(ui, |ui| {
-            super::experience::summary(
-                ui,
-                state,
-                super::experience::describe_summary(&draft),
-                draft.frequency_weight,
-            );
             theme::section(ui, "Variables");
             if draft.columns.is_empty() {
                 ui.small("Select at least one numeric variable.");
             }
+            ui.small(format!("Selected ({})", draft.columns.len()));
             let mut remove = None;
             super::paged_rows::show_rows(
                 ui,
@@ -160,16 +145,15 @@ pub fn settings(ui: &mut egui::Ui, state: &mut DesktopState, jobs: &mut JobRunne
             if let Some(index) = remove {
                 draft.columns.remove(index);
             }
-            if button(ui, state, "Add variables…").clicked() {
-                state.picker = !state.picker;
-            }
-            if state.picker {
+            {
+                ui.small("Available numeric variables");
                 let response = ui.add(
                     egui::TextEdit::singleline(&mut state.search)
                         .id_salt("describe-variable-search")
                         .hint_text("Search variables")
                         .char_limit(TEXT_LIMIT),
                 );
+                super::procedure_forms::record(state, "Add variables…", &response);
                 response.widget_info(|| {
                     egui::WidgetInfo::labeled(egui::WidgetType::TextEdit, true, "Search variables")
                 });
@@ -180,6 +164,25 @@ pub fn settings(ui: &mut egui::Ui, state: &mut DesktopState, jobs: &mut JobRunne
                         return;
                     }
                 };
+                let heap = crate::analysis::AnalysisRequestRef::Describe(&draft)
+                    .heap_bytes()
+                    .unwrap_or(usize::MAX);
+                let label = if state.search.trim().is_empty() {
+                    "Select all"
+                } else {
+                    "Select all matching"
+                };
+                super::procedure_forms::select_all_columns(
+                    ui,
+                    state,
+                    &mut draft.columns,
+                    heap,
+                    label,
+                    columns
+                        .iter()
+                        .filter(|c| c.kind() == ColumnKind::Number && query.matches(c.name()))
+                        .map(|c| c.id()),
+                );
                 let candidates = || {
                     columns.iter().filter(|c| {
                         c.kind() == ColumnKind::Number
@@ -199,7 +202,12 @@ pub fn settings(ui: &mut egui::Ui, state: &mut DesktopState, jobs: &mut JobRunne
                         for column in candidates().skip(range.start).take(range.len()) {
                             let response = ui
                                 .push_id(("picker-column", column.id()), |ui| {
-                                    button(ui, state, &theme::caption_limit(column.name(), 128))
+                                    theme::list_row(
+                                        ui,
+                                        false,
+                                        &theme::caption_limit(column.name(), 128),
+                                        None,
+                                    )
                                 })
                                 .inner;
                             super::procedure_forms::record(
@@ -222,17 +230,31 @@ pub fn settings(ui: &mut egui::Ui, state: &mut DesktopState, jobs: &mut JobRunne
                 }
             }
             ui.separator();
+            super::experience::summary(
+                ui,
+                state,
+                super::experience::describe_summary(&draft),
+                draft.frequency_weight,
+            );
             theme::section(ui, "Statistics");
-            for (statistic, label) in STATISTICS {
-                let mut selected = draft.statistics.contains(&statistic);
-                if ui.checkbox(&mut selected, label).changed() {
-                    if selected {
-                        draft.statistics.push(statistic);
-                    } else {
-                        draft.statistics.retain(|s| *s != statistic);
+            egui::Grid::new("describe-statistics")
+                .num_columns(2)
+                .spacing(egui::vec2(18., 4.))
+                .show(ui, |ui| {
+                    for (index, (statistic, label)) in STATISTICS.into_iter().enumerate() {
+                        let mut selected = draft.statistics.contains(&statistic);
+                        if ui.checkbox(&mut selected, label).changed() {
+                            if selected {
+                                draft.statistics.push(statistic);
+                            } else {
+                                draft.statistics.retain(|s| *s != statistic);
+                            }
+                        }
+                        if index % 2 == 1 {
+                            ui.end_row();
+                        }
                     }
-                }
-            }
+                });
             let header = super::experience::detailed_settings(
                 ui,
                 state.analysis_mode(),
@@ -245,12 +267,14 @@ pub fn settings(ui: &mut egui::Ui, state: &mut DesktopState, jobs: &mut JobRunne
                             MissingPolicy::CompleteCase => "Complete cases",
                         })
                         .show_ui(ui, |ui| {
-                            ui.selectable_value(
+                            theme::selectable_value(
+                                ui,
                                 &mut draft.missing_policy,
                                 MissingPolicy::PerVariable,
                                 "Per variable",
                             );
-                            ui.selectable_value(
+                            theme::selectable_value(
+                                ui,
                                 &mut draft.missing_policy,
                                 MissingPolicy::CompleteCase,
                                 "Complete cases",
@@ -281,7 +305,6 @@ pub fn settings(ui: &mut egui::Ui, state: &mut DesktopState, jobs: &mut JobRunne
     {
         state.act(UiAction::SetDraft(draft.into()));
     }
-    run_button(ui, state, jobs, "Run descriptives");
 }
 pub(super) fn run_button(
     ui: &mut egui::Ui,
@@ -291,13 +314,28 @@ pub(super) fn run_button(
 ) {
     ui.separator();
     let requirement = state.draft_requirement();
-    if let Some(message) = requirement {
-        ui.label(egui::RichText::new(message).color(theme::muted(ui)));
-    }
-    let response = ui.add_enabled(
-        !state.active && requirement.is_none(),
-        theme::primary(ui, label).min_size(egui::vec2(ui.available_width(), 36.0)),
-    );
+    let response = ui
+        .horizontal(|ui| {
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                let response = ui.add_enabled(
+                    !state.active && requirement.is_none(),
+                    theme::primary(ui, label).min_size(egui::vec2(140., 28.)),
+                );
+                let message = requirement.unwrap_or(if state.active {
+                    "Analysis running…"
+                } else {
+                    "Ready to run"
+                });
+                ui.add(
+                    egui::Label::new(egui::RichText::new(message).color(theme::muted(ui)))
+                        .truncate(),
+                )
+                .on_hover_text(message);
+                response
+            })
+            .inner
+        })
+        .inner;
     super::procedure_forms::record(state, label, &response);
     if response.clicked() {
         match state.checked_draft_request() {
@@ -339,7 +377,7 @@ pub(super) fn common_settings_with_weight(
                     .map_or_else(|| "None".into(), |c| theme::caption(c.name())),
             )
             .show_ui(ui, |ui| {
-                ui.selectable_value(frequency_weight, None, "None");
+                theme::selectable_value(ui, frequency_weight, None, "None");
                 let count = columns
                     .iter()
                     .filter(|c| c.kind() == ColumnKind::Number)
@@ -360,7 +398,8 @@ pub(super) fn common_settings_with_weight(
                             .take(range.len())
                         {
                             ui.push_id(column.id(), |ui| {
-                                ui.selectable_value(
+                                theme::selectable_value(
+                                    ui,
                                     frequency_weight,
                                     Some(column.id()),
                                     theme::caption_limit(column.name(), 128),
@@ -532,7 +571,7 @@ fn edit_filter(ui: &mut egui::Ui, predicate: &mut RowPredicate, kind: ColumnKind
             .enumerate()
             {
                 if kind == ColumnKind::Number || !(2..6).contains(&index) {
-                    ui.selectable_value(&mut operator, index, *label);
+                    theme::selectable_value(ui, &mut operator, index, *label);
                 }
             }
         })

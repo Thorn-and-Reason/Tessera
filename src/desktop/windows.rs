@@ -60,9 +60,9 @@ pub(super) fn sync(frame: &eframe::Frame, ctx: &egui::Context) {
     let (caption, text) = if high_contrast {
         (u32::MAX, u32::MAX)
     } else if dark {
-        (colorref(27, 37, 52), colorref(242, 235, 220))
+        (colorref(32, 36, 43), colorref(232, 235, 240))
     } else {
-        (colorref(242, 235, 220), colorref(38, 52, 73))
+        (colorref(245, 246, 248), colorref(39, 45, 55))
     };
     let mut failure = None;
     for (attribute, color) in [

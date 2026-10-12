@@ -128,6 +128,7 @@ mod tests {
         let mut result = analyze_with_budget(
             &data,
             &AnalysisRequest::Frequencies(FrequenciesRequest {
+                group: None,
                 columns: vec![ColumnId(1), ColumnId(2)],
                 filter: RowFilter::default(),
                 frequency_weight: None,
@@ -244,6 +245,7 @@ mod headroom_tests {
         let result = analyze_with_budget(
             &data,
             &AnalysisRequest::Frequencies(FrequenciesRequest {
+                group: None,
                 columns: (1..=128).map(ColumnId).collect(),
                 filter: RowFilter::default(),
                 frequency_weight: None,

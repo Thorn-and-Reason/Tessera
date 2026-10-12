@@ -139,3 +139,95 @@ fn oversized_cell_copy_is_refused_before_clipboard_output() {
         .any(|command| matches!(command, egui::OutputCommand::CopyText(_))));
     assert!(state.error().is_some());
 }
+
+#[test]
+fn worksheet_exposes_preparation_and_analysis_next_steps() {
+    let project = Project::new(
+        "Workflow",
+        Dataset::new(vec![
+            Column::numeric(ColumnId(1), "Score", vec![Some(2.0)]).unwrap()
+        ])
+        .unwrap(),
+    )
+    .unwrap();
+    let mut state = DesktopState::from_project(project).unwrap();
+    let ctx = egui::Context::default();
+    tessera::desktop::configure_context(&ctx);
+    let mut jobs = JobRunner::default();
+    for _ in 0..3 {
+        frame(&ctx, &mut state, &mut jobs, vec![]);
+    }
+    assert!(state.control_rect("Prepare data").is_some());
+    assert!(state.control_rect("Analyse data").is_some());
+}
+
+#[test]
+fn worksheet_next_steps_navigate_without_changing_data() {
+    for (label, destination) in [
+        ("Prepare data", Workspace::Prepare),
+        ("Analyse data", Workspace::Analyses),
+    ] {
+        let project = Project::new(
+            "Workflow",
+            Dataset::new(vec![
+                Column::numeric(ColumnId(1), "Score", vec![Some(2.0)]).unwrap()
+            ])
+            .unwrap(),
+        )
+        .unwrap();
+        let mut state = DesktopState::from_project(project).unwrap();
+        let before = std::sync::Arc::clone(state.project());
+        let ctx = egui::Context::default();
+        tessera::desktop::configure_context(&ctx);
+        let mut jobs = JobRunner::default();
+        for _ in 0..3 {
+            frame(&ctx, &mut state, &mut jobs, vec![]);
+        }
+        let pos = state.control_rect(label).unwrap().center();
+        for pressed in [true, false] {
+            frame(
+                &ctx,
+                &mut state,
+                &mut jobs,
+                vec![
+                    Event::PointerMoved(pos),
+                    Event::PointerButton {
+                        pos,
+                        button: egui::PointerButton::Primary,
+                        pressed,
+                        modifiers: Modifiers::NONE,
+                    },
+                ],
+            );
+        }
+        assert_eq!(state.workspace(), destination);
+        assert!(std::sync::Arc::ptr_eq(&before, state.project()));
+    }
+}
+
+#[test]
+fn worksheet_rows_use_desktop_density() {
+    let project = Project::new(
+        "Density",
+        Dataset::new(vec![Column::numeric(
+            ColumnId(1),
+            "Score",
+            vec![Some(1.0); 40],
+        )
+        .unwrap()])
+        .unwrap(),
+    )
+    .unwrap();
+    let mut state = DesktopState::from_project(project).unwrap();
+    let ctx = egui::Context::default();
+    tessera::desktop::configure_context(&ctx);
+    let mut jobs = JobRunner::default();
+    for _ in 0..3 {
+        frame(&ctx, &mut state, &mut jobs, vec![]);
+    }
+    let cell = state.control_rect("Cell 1:0").unwrap();
+    assert!(
+        cell.height() <= 26.0,
+        "worksheet rows should fit desktop density: {cell:?}"
+    );
+}

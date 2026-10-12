@@ -252,7 +252,9 @@ fn mode_controls_are_reachable_in_small_large_and_scaled_windows() {
         (Vec2::new(1180., 780.), 1.),
         (Vec2::new(1180., 780.), 1.5),
     ] {
-        let mut state = saved();
+        let mut state = saved()
+            .apply_action(UiAction::Navigate(Workspace::Analyses))
+            .unwrap();
         let mut jobs = JobRunner::default();
         let ctx = egui::Context::default();
         ctx.enable_accesskit();
@@ -291,5 +293,118 @@ fn mode_controls_are_reachable_in_small_large_and_scaled_windows() {
             "size={size:?} zoom={zoom} mode={rect:?} choice={choice:?}"
         );
         assert!(!egui::Popup::is_any_open(&ctx));
+    }
+}
+
+#[test]
+fn analysis_setup_is_visible_without_opening_settings_at_minimum_size() {
+    let ctx = egui::Context::default();
+    let mut state = saved()
+        .apply_action(UiAction::Navigate(Workspace::Analyses))
+        .unwrap();
+    let mut jobs = JobRunner::default();
+    let size = Vec2::new(640., 440.);
+    frame(&ctx, &mut state, &mut jobs, size, vec![]);
+    frame(&ctx, &mut state, &mut jobs, size, vec![]);
+    assert!(state.control_rect("Search procedures").is_some());
+    let run = state
+        .control_rect("Run analysis")
+        .or_else(|| state.control_rect("Run descriptives"))
+        .expect("visible run action");
+    assert!(run.bottom() <= size.y && run.top() >= 0., "{run:?}");
+    assert!(state.control_rect("Settings").is_none());
+}
+
+#[test]
+fn wide_analysis_builder_shows_available_variables_beside_catalog() {
+    use tessera::analysis::{DescribeRequest, MissingPolicy, RowFilter, Statistic};
+    let ctx = egui::Context::default();
+    tessera::desktop::configure_context(&ctx);
+    let mut state = saved()
+        .apply_action(UiAction::Navigate(Workspace::Analyses))
+        .unwrap()
+        .apply_action(UiAction::SetDraft(
+            DescribeRequest {
+                columns: vec![],
+                statistics: vec![Statistic::Mean],
+                missing_policy: MissingPolicy::PerVariable,
+                filter: RowFilter::default(),
+                frequency_weight: None,
+            }
+            .into(),
+        ))
+        .unwrap();
+    let mut jobs = JobRunner::default();
+    let size = Vec2::new(1180., 780.);
+    for _ in 0..3 {
+        frame(&ctx, &mut state, &mut jobs, size, vec![]);
+    }
+    let search = state.control_rect("Search procedures").unwrap();
+    let variable = state
+        .control_rect("Variable 1")
+        .expect("available numeric variable");
+    assert!(
+        variable.min.y >= 0. && variable.max.y < size.y - 90.,
+        "variable must be visibly reachable above the run footer: {variable:?}"
+    );
+    assert!(
+        variable.min.x > search.max.x,
+        "catalog and variables should be beside one another: {search:?} {variable:?}"
+    );
+}
+
+#[test]
+fn desktop_analysis_catalog_is_compact_and_selects_a_real_method() {
+    let ctx = egui::Context::default();
+    tessera::desktop::configure_context(&ctx);
+    let mut state = saved()
+        .apply_action(UiAction::Navigate(Workspace::Analyses))
+        .unwrap();
+    let mut jobs = JobRunner::default();
+    let size = Vec2::new(1180., 780.);
+    for _ in 0..3 {
+        frame(&ctx, &mut state, &mut jobs, size, vec![]);
+    }
+    for procedure in Procedure::ALL {
+        let rect = state.control_rect(procedure.label()).unwrap();
+        assert!(
+            rect.height() <= 32.,
+            "compact method row: {procedure:?} {rect:?}"
+        );
+    }
+    let run = state
+        .control_rect("Run analysis")
+        .or_else(|| state.control_rect("Run descriptives"))
+        .unwrap();
+    assert!(
+        run.width() <= 170. && run.height() <= 32.,
+        "desktop-sized Run: {run:?}"
+    );
+    click(&ctx, &mut state, &mut jobs, Procedure::OneSampleT.label());
+    assert_eq!(state.draft().procedure(), Procedure::OneSampleT);
+}
+
+#[test]
+fn analysis_form_has_a_gutter_after_the_method_catalog() {
+    for procedure in [Procedure::Describe, Procedure::Pearson] {
+        let ctx = egui::Context::default();
+        tessera::desktop::configure_context(&ctx);
+        let base = saved();
+        let draft = base.draft().for_procedure(procedure);
+        let mut state = base
+            .apply_action(UiAction::SetDraft(draft))
+            .unwrap()
+            .apply_action(UiAction::Navigate(Workspace::Analyses))
+            .unwrap();
+        let mut jobs = JobRunner::default();
+        for _ in 0..3 {
+            frame(&ctx, &mut state, &mut jobs, Vec2::new(1180., 780.), vec![]);
+        }
+        let method = state.control_rect(procedure.label()).unwrap();
+        let form = state.control_rect("Add variables…").unwrap();
+        assert!(
+            form.left() - method.right() >= 20.,
+            "Form needs a gutter beside the catalog: {method:?}, {form:?}"
+        );
     }
 }

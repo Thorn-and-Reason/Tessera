@@ -9,6 +9,7 @@ use crate::{
 };
 use resvg::{tiny_skia, usvg};
 use std::fmt::Write;
+mod survey;
 const FONT: &[u8] = include_bytes!("../../assets/fonts/NotoSans-Regular.ttf");
 fn invalid(message: &str) -> AppError {
     AppError::invalid("figure", message)
@@ -61,7 +62,9 @@ fn wrap(s: &str, width: f64, size: f64, c: &JobControl) -> AppResult<Vec<String>
                 c.check_cancelled()?;
             }
             if lines.len() > 1000 {
-                return Err(invalid("This label is too long for a report figure; shorten it or increase the figure size."));
+                return Err(invalid(
+                    "This label is too long for a report figure; shorten it or increase the figure size.",
+                ));
             }
             let mut next = line.clone();
             next.push(ch);
@@ -76,7 +79,9 @@ fn wrap(s: &str, width: f64, size: f64, c: &JobControl) -> AppResult<Vec<String>
             line = String::new();
         }
         if lines.len() > 1000 {
-            return Err(invalid("This label is too long for a report figure; shorten it or increase the figure size."));
+            return Err(invalid(
+                "This label is too long for a report figure; shorten it or increase the figure size.",
+            ));
         }
     }
     if !line.is_empty() {
@@ -127,6 +132,15 @@ fn tick_values(bounds: [f64; 2], count: u8) -> AppResult<Vec<f64>> {
         })
         .collect()
 }
+fn count_ticks(bounds: [f64; 2], count: u8) -> AppResult<Vec<f64>> {
+    let mut values = tick_values(bounds, count)?;
+    for value in &mut values {
+        *value = value.round();
+    }
+    values.retain(|value| *value >= bounds[0] && *value <= bounds[1]);
+    values.dedup();
+    Ok(values)
+}
 fn tick_label(v: f64, decimals: u8, precise: bool) -> String {
     if precise {
         format!("{v:.17e}")
@@ -168,6 +182,9 @@ pub fn svg(
     s.validate()?;
     if key.run != run.id.0 {
         return Err(invalid("Choose a figure from the retained analysis run."));
+    }
+    if matches!(key.kind, FigureKind::Likert | FigureKind::GroupMeans) {
+        return survey::svg(run, key, s, stale, c);
     }
     let mut d = data::captured(run, &key.kind, s, c)?;
     if stale {
@@ -221,8 +238,23 @@ pub fn svg(
     let fs = s.font_size;
     let small = fs * 0.8;
     let pad = fs;
-    let xticks = tick_values(xb, s.ticks)?;
-    let yticks = tick_values(yb, s.ticks)?;
+    let counts = matches!(
+        key.kind,
+        FigureKind::Histogram | FigureKind::Distribution(_)
+    ) || matches!(key.kind, FigureKind::Frequency(_))
+        && s.metric == super::FrequencyMetric::Count;
+    let xcounts = horizontal && counts;
+    let ycounts = !horizontal && counts;
+    let xticks = if xcounts {
+        count_ticks(xb, s.ticks)?
+    } else {
+        tick_values(xb, s.ticks)?
+    };
+    let yticks = if ycounts {
+        count_ticks(yb, s.ticks)?
+    } else {
+        tick_values(yb, s.ticks)?
+    };
     let xprecise = xs.precise_ticks()
         || xticks
             .windows(2)
@@ -233,11 +265,11 @@ pub fn svg(
             .any(|v| tick_label(v[0], s.decimals, false) == tick_label(v[1], s.decimals, false));
     let xtick_labels: Vec<_> = xticks
         .iter()
-        .map(|v| tick_label(*v, s.decimals, xprecise))
+        .map(|v| tick_label(*v, if xcounts { 0 } else { s.decimals }, xprecise))
         .collect();
     let ytick_labels: Vec<_> = yticks
         .iter()
-        .map(|v| tick_label(*v, s.decimals, yprecise))
+        .map(|v| tick_label(*v, if ycounts { 0 } else { s.decimals }, yprecise))
         .collect();
     let titles = wrap(&title, width - 2. * pad, fs * 1.25, c)?;
     let subtitles = wrap(&s.subtitle, width - 2. * pad, small, c)?;
@@ -251,7 +283,14 @@ pub fn svg(
         + pad
         + (titles.len() as f64 * fs * 1.25 + subtitles.len() as f64 * small) * 1.3
         + pad * 0.4;
+    let ylines = wrap(
+        if horizontal { &xname } else { &yname },
+        height * 0.55,
+        fs,
+        c,
+    )?;
     let mut left = pad * 2.8
+        + ylines.len().saturating_sub(1) as f64 * fs * 1.3
         + ytick_labels
             .iter()
             .map(|s| measure(s, small))
@@ -292,12 +331,6 @@ pub fn svg(
         fs,
         c,
     )?;
-    let ylines = wrap(
-        if horizontal { &xname } else { &yname },
-        height * 0.55,
-        fs,
-        c,
-    )?;
     let bottom = height
         - pad
         - (notes.len() as f64 * small * 1.3)
@@ -306,7 +339,9 @@ pub fn svg(
         - category_height
         - small * 1.7;
     if right - left < fs * 5. || bottom - top < fs * 4. {
-        return Err(invalid("The labels leave too little room for the plot. Increase figure dimensions or reduce font size and caption length."));
+        return Err(invalid(
+            "The labels leave too little room for the plot. Increase figure dimensions or reduce font size and caption length.",
+        ));
     }
     if horizontal
         && categories.iter().any(|lines| {
@@ -314,10 +349,14 @@ pub fn svg(
                 > (bottom - top) / categories.len().max(1) as f64
         })
     {
-        return Err(invalid("The category labels overlap. Increase figure height, shorten labels, or reduce the font size."));
+        return Err(invalid(
+            "The category labels overlap. Increase figure height, shorten labels, or reduce the font size.",
+        ));
     }
     if ylines.len() > 2 {
-        return Err(invalid("The vertical axis title needs more space. Shorten it, reduce font size, or increase figure height."));
+        return Err(invalid(
+            "The vertical axis title needs more space. Shorten it, reduce font size, or increase figure height.",
+        ));
     }
     if !d.categorical || horizontal {
         let needed = xtick_labels
@@ -325,7 +364,9 @@ pub fn svg(
             .map(|s| measure(s, small))
             .fold(0., f64::max);
         if xticks.len() > 1 && needed > (right - left) / (xticks.len() - 1) as f64 {
-            return Err(invalid("Horizontal tick labels overlap. Increase figure width, reduce tick count, or reduce font size."));
+            return Err(invalid(
+                "Horizontal tick labels overlap. Increase figure width, reduce tick count, or reduce font size.",
+            ));
         }
     }
     let l = Layout {
@@ -345,7 +386,14 @@ pub fn svg(
     };
     let clip =
         format!("figure-{}-{:?}-{}", key.run, key.kind, key.variant).replace(['(', ')'], "_");
-    let mut out=format!("<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"{width}\" height=\"{height}\" viewBox=\"0 0 {width} {height}\" role=\"img\"><title>{}</title><desc>{} {} {} {}</desc>",escape(&title),escape(&s.subtitle),escape(&xname),escape(&yname),escape(&d.note));
+    let mut out = format!(
+        "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"{width}\" height=\"{height}\" viewBox=\"0 0 {width} {height}\" role=\"img\"><title>{}</title><desc>{} {} {} {}</desc>",
+        escape(&title),
+        escape(&s.subtitle),
+        escape(&xname),
+        escape(&yname),
+        escape(&d.note)
+    );
     if !s.transparent {
         write!(
             out,
@@ -392,6 +440,7 @@ pub fn svg(
     .unwrap();
     block(&mut out, &ylines, 0., 0., fs, "middle");
     out.push_str("</g>");
+    out.push_str("<g fill=\"#5E6775\">");
     block(
         &mut out,
         &notes,
@@ -400,14 +449,17 @@ pub fn svg(
         small,
         "start",
     );
-    write!(out,"<defs><clipPath id=\"{clip}\"><rect x=\"{left}\" y=\"{top}\" width=\"{}\" height=\"{}\"/></clipPath></defs><g clip-path=\"url(#{clip})\" fill=\"{colour}\" stroke=\"{colour}\" fill-opacity=\"{}\">",right-left,bottom-top,s.opacity).unwrap();
+    out.push_str("</g>");
+    // Keep complete markers on boundary ticks; centres outside the display limits are still excluded.
+    let edge = s.marker_size + 0.8;
+    write!(out,"<defs><clipPath id=\"{clip}\"><rect x=\"{}\" y=\"{}\" width=\"{}\" height=\"{}\"/></clipPath></defs><g clip-path=\"url(#{clip})\" fill=\"{colour}\" stroke=\"{colour}\" fill-opacity=\"{}\">",left-edge,top-edge,right-left+edge*2.,bottom-top+edge*2.,s.opacity).unwrap();
     marks(&mut out, &l, &d, horizontal, s, c)?;
     out.push_str("</g>");
     if s.value_labels {
         for mark in &d.marks {
             if let Mark::Bar(index, value) = mark {
                 let pos = category_position(*index, d.categories.len(), horizontal);
-                let label = tick_label(*value, s.decimals, false);
+                let label = tick_label(*value, if counts { 0 } else { s.decimals }, false);
                 if horizontal {
                     if pos >= l.yb[0] && pos <= l.yb[1] {
                         block(
@@ -441,7 +493,7 @@ pub fn svg(
         ..Default::default()
     });
     let metadata = format!(
-        "<title>{}</title><desc>{} {} {} {} {}</desc>",
+        "<title id=\"{clip}-title\">{}</title><desc id=\"{clip}-desc\">{} {} {} {} {}</desc>",
         escape(&title),
         escape(&s.subtitle),
         escape(&xname),
@@ -462,7 +514,7 @@ pub fn svg(
         outlined.insert_str(end + 1, &metadata);
         outlined.insert_str(
             4,
-            &format!(" role=\"img\" viewBox=\"0 0 {width} {height}\""),
+            &format!(" role=\"img\" aria-labelledby=\"{clip}-title {clip}-desc\" viewBox=\"0 0 {width} {height}\""),
         );
     }
     c.check_cancelled()?;
@@ -580,7 +632,7 @@ fn marks(
                 if l.contains(*x, *y) {
                     write!(
                         out,
-                        "<circle cx=\"{}\" cy=\"{}\" r=\"{}\" stroke=\"none\"/>",
+                        "<circle cx=\"{}\" cy=\"{}\" r=\"{}\" stroke-width=\"0.8\"/>",
                         l.x(*x)?,
                         l.y(*y)?,
                         s.marker_size
@@ -656,9 +708,21 @@ fn marks(
                     x + width * 0.5
                 )
                 .unwrap();
-                for value in whiskers.iter().flatten() {
+                for (lower, (quartile, value)) in [*q1, *q3].into_iter().zip(whiskers).enumerate() {
+                    let Some(value) = value else {
+                        continue;
+                    };
+                    let start = l.y(clamp(quartile))?;
                     let y = l.y(clamp(*value))?;
-                    write!(out,"<path d=\"M{x} {mid} V{y} M{} {y} H{}\" fill=\"none\" stroke-width=\"0.8\"/>",x-width*0.3,x+width*0.3).unwrap();
+                    // Observed whiskers inside interpolated quartiles need separate visible lanes.
+                    let stem = if lower == 0 && *value > quartile {
+                        x - width * 0.25
+                    } else if lower == 1 && *value < quartile {
+                        x + width * 0.25
+                    } else {
+                        x
+                    };
+                    write!(out,"<path d=\"M{stem} {start} V{y} M{} {y} H{}\" fill=\"none\" stroke-width=\"0.8\"/>",x-width*0.3,x+width*0.3).unwrap();
                 }
             }
         }
@@ -724,3 +788,6 @@ pub fn raster(
     }
     Ok((width, height, bytes))
 }
+
+#[cfg(test)]
+mod tests;

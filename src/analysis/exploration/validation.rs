@@ -34,6 +34,9 @@ pub(crate) fn request(
             for id in &r.columns {
                 role(*id, false)?;
             }
+            if let Some(id) = r.group {
+                role(id, false)?;
+            }
         }
         RequestRef::Histogram(r) => {
             if matches!(r.bins, HistogramBins::Count(n) if !(1..=128).contains(&n)) {
@@ -267,12 +270,99 @@ pub(super) fn frequencies(v: &ComputedFrequencies) -> AppResult<()> {
         v.source_rows,
         &v.diagnostics,
     )?;
-    if v.tables.len() != v.request.columns.len() {
+    let weighted = v.request.frequency_weight.is_some();
+    let rows = v
+        .source_rows
+        .checked_sub(excluded(&v.diagnostics)?)
+        .ok_or_else(invalid_analysis)?;
+    frequency_tables(&v.tables, &v.request.columns, &infos, rows, weighted)?;
+    let total = frequency_sum([v.tables[0].valid_n, v.tables[0].missing_n])?;
+    let Some(id) = v.request.group else {
+        return if v.groups.is_empty() {
+            Ok(())
+        } else {
+            Err(invalid_analysis())
+        };
+    };
+    let raw = RawMetadata::new(infos[&id])?;
+    let (mut group_rows, mut group_n) = (0, 0);
+    let mut previous = None;
+    let mut missing_seen = false;
+    for group in &v.groups {
+        count(group.rows, group.frequency, weighted)?;
+        if group.rows == 0 {
+            return Err(invalid_analysis());
+        }
+        if group.value == Cell::Missing {
+            if missing_seen || group.value_label_index.is_some() {
+                return Err(invalid_analysis());
+            }
+            missing_seen = true;
+        } else {
+            raw.category(&group.value, group.value_label_index)?;
+            if missing_seen
+                || previous.is_some_and(|p| compare(p, &group.value) != Some(Ordering::Less))
+            {
+                return Err(invalid_analysis());
+            }
+            previous = Some(&group.value);
+        }
+        frequency_tables(
+            &group.tables,
+            &v.request.columns,
+            &infos,
+            group.rows,
+            weighted,
+        )?;
+        if frequency_sum([group.tables[0].valid_n, group.tables[0].missing_n])? != group.frequency {
+            return Err(invalid_analysis());
+        }
+        group_rows = row_sum([group_rows, group.rows])?;
+        group_n = frequency_sum([group_n, group.frequency])?;
+    }
+    if group_rows != rows || group_n != total {
         return Err(invalid_analysis());
     }
-    let weighted = v.request.frequency_weight.is_some();
+    for (index, overall) in v.tables.iter().enumerate() {
+        if row_sum(v.groups.iter().map(|g| g.tables[index].missing_rows))? != overall.missing_rows
+            || frequency_sum(v.groups.iter().map(|g| g.tables[index].missing_n))?
+                != overall.missing_n
+        {
+            return Err(invalid_analysis());
+        }
+        let mut totals = vec![(0usize, 0u64); overall.categories.len()];
+        for category in v.groups.iter().flat_map(|g| &g.tables[index].categories) {
+            let position = overall
+                .categories
+                .binary_search_by(|c| compare(&c.value, &category.value).unwrap_or(Ordering::Equal))
+                .map_err(|_| invalid_analysis())?;
+            totals[position].0 = row_sum([totals[position].0, category.rows])?;
+            totals[position].1 = frequency_sum([totals[position].1, category.frequency])?;
+        }
+        if overall
+            .categories
+            .iter()
+            .zip(totals)
+            .any(|(c, (rows, n))| rows != c.rows || n != c.frequency)
+        {
+            return Err(invalid_analysis());
+        }
+    }
+    Ok(())
+}
+fn frequency_tables(
+    tables: &[FrequencyTable],
+    ids: &[ColumnId],
+    infos: &BTreeMap<ColumnId, &RunColumnInfo>,
+    cohort_rows: usize,
+    weighted: bool,
+) -> AppResult<()> {
+    if tables.len() != ids.len() {
+        return Err(invalid_analysis());
+    }
+
     let mut shared_total = None;
-    for (table, id) in v.tables.iter().zip(&v.request.columns) {
+    for (table, id) in tables.iter().zip(ids) {
         if table.column != *id {
             return Err(invalid_analysis());
         }
@@ -280,12 +370,9 @@ pub(super) fn frequencies(v: &ComputedFrequencies) -> AppResult<()> {
         let raw = RawMetadata::new(info)?;
         count(table.valid_rows, table.valid_n, weighted)?;
         count(table.missing_rows, table.missing_n, weighted)?;
-        partition(
-            v.source_rows,
-            &v.diagnostics,
-            table.valid_rows,
-            table.missing_rows,
-        )?;
+        if row_sum([table.valid_rows, table.missing_rows])? != cohort_rows {
+            return Err(invalid_analysis());
+        }
         let all = frequency_sum([table.valid_n, table.missing_n])?;
         if shared_total.is_some_and(|total| total != all) {
             return Err(invalid_analysis());
@@ -485,6 +572,12 @@ pub(super) fn scatter(v: &ComputedScatter) -> AppResult<()> {
     Ok(())
 }
 fn group(g: &BoxplotGroup, weighted: bool) -> AppResult<()> {
+    estimate(&g.mean)?;
+    if g.mean.value.is_some_and(|mean| {
+        g.n == 0 || Some(mean) < g.minimum.value || Some(mean) > g.maximum.value
+    }) {
+        return Err(invalid_analysis());
+    }
     count(g.rows, g.n, weighted)?;
     count(g.outlier_rows, g.outlier_n, weighted)?;
     if g.outlier_rows > g.rows || g.outlier_n > g.n {

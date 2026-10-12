@@ -15,7 +15,20 @@ impl Project {
             .iter()
             .find(|f| &f.key == key)
             .map(|f| f.settings.clone())
-            .unwrap_or_default()
+            .unwrap_or_else(|| match key.kind {
+                crate::figures::FigureKind::Likert => crate::figures::FigureSettings {
+                    width_mm: 280.,
+                    height_mm: 340.,
+                    font_size: 10.,
+                    ..Default::default()
+                },
+                crate::figures::FigureKind::GroupMeans => crate::figures::FigureSettings {
+                    width_mm: 240.,
+                    height_mm: 180.,
+                    ..Default::default()
+                },
+                _ => Default::default(),
+            })
     }
     fn validate_figure_key(&self, key: &crate::figures::FigureKey) -> AppResult<()> {
         use crate::figures::FigureKind;
@@ -25,8 +38,9 @@ impl Project {
             .ok()
             .map(|i| &self.runs[i]);
         if available.is_some_and(|run| match (&run.analysis, key.kind) {
-            (CompletedAnalysis::Histogram(_), FigureKind::Histogram) | (CompletedAnalysis::Scatter(_), FigureKind::Scatter) | (CompletedAnalysis::Boxplot(_), FigureKind::Boxplot) => true,
+            (CompletedAnalysis::Histogram(_), FigureKind::Histogram) | (CompletedAnalysis::Scatter(_), FigureKind::Scatter) | (CompletedAnalysis::Boxplot(_), FigureKind::Boxplot | FigureKind::GroupMeans) => true,
             (CompletedAnalysis::Describe(a), FigureKind::Distribution(id)) => a.plots.iter().any(|p|p.column.0==id),
+            (CompletedAnalysis::Frequencies(_), FigureKind::Likert) => true,
             (CompletedAnalysis::Frequencies(a), FigureKind::Frequency(id)) => a.tables.iter().any(|p|p.column.0==id),
             (CompletedAnalysis::Regression(a), FigureKind::Residual) => matches!(&a.outcome, crate::analysis::RegressionOutcome::Fitted(f) if !f.residual_diagnostics.residual_points.is_empty()),
             (CompletedAnalysis::Regression(a), FigureKind::Qq) => matches!(&a.outcome, crate::analysis::RegressionOutcome::Fitted(f) if !f.residual_diagnostics.qq_points.is_empty()),

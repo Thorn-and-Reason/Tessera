@@ -26,6 +26,7 @@ pub(super) enum NativeCommand {
     RunAnalysis,
     Undo,
     Redo,
+    Prepare,
 }
 impl NativeCommand {
     fn from_tag(tag: isize) -> Option<Self> {
@@ -47,6 +48,7 @@ impl NativeCommand {
             RunAnalysis,
             Undo,
             Redo,
+            Prepare,
         ]
         .into_iter()
         .find(|command| *command as isize == tag)
@@ -230,9 +232,10 @@ mod native {
                 "View",
                 &[
                     ("Data", Data, "1", false),
-                    ("Variables", Variables, "2", false),
-                    ("Analyses", Analyses, "3", false),
+                    ("Prepare", Prepare, "2", false),
+                    ("Analyse", Analyses, "3", false),
                     ("Results", Results, "4", false),
+                    ("Variable details", Variables, "5", false),
                 ],
             ),
             ("Analysis", &[("Run Analysis", RunAnalysis, "r", false)]),
@@ -382,6 +385,7 @@ mod tests {
         assert_eq!(queue.take(), None);
         assert_eq!(NativeCommand::from_tag(0), None);
         assert_eq!(NativeCommand::from_tag(99), None);
+        assert_eq!(NativeCommand::from_tag(17), Some(NativeCommand::Prepare));
         assert_eq!(
             NativeCommand::from_tag(14),
             Some(NativeCommand::RunAnalysis)

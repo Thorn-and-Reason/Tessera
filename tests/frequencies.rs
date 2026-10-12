@@ -2,6 +2,7 @@ use tessera::{analysis::*, data::*, error::AppError, operation::JobControl};
 
 fn request(columns: &[u64]) -> FrequenciesRequest {
     FrequenciesRequest {
+        group: None,
         columns: columns.iter().map(|id| ColumnId(*id)).collect(),
         filter: RowFilter::default(),
         frequency_weight: None,
@@ -370,4 +371,94 @@ fn missing_rules_request_validation_and_overflow_refuse_without_source_changes()
     r.frequency_weight = Some(ColumnId(2));
     assert!(frequencies_with_budget(&overflow, &r, &JobControl::default(), &[], 0).is_err());
     assert_eq!(overflow.cell(ColumnId(1), 1).unwrap(), Cell::Missing);
+}
+
+#[test]
+fn grouped_weighted_tables_capture_missing_groups_and_absent_categories() {
+    let dataset = Dataset::new(vec![
+        Column::numeric(
+            ColumnId(1),
+            "Outcome",
+            vec![Some(1.), None, Some(2.), Some(1.), None],
+        )
+        .unwrap(),
+        Column::text(
+            ColumnId(2),
+            "Group",
+            vec![
+                Some("A".into()),
+                Some("A".into()),
+                Some("B".into()),
+                None,
+                None,
+            ],
+        )
+        .unwrap(),
+        Column::numeric(
+            ColumnId(3),
+            "Weight",
+            vec![Some(2.), Some(3.), Some(4.), Some(5.), Some(6.)],
+        )
+        .unwrap(),
+    ])
+    .unwrap();
+    let mut r = request(&[1]);
+    r.group = Some(ColumnId(2));
+    r.frequency_weight = Some(ColumnId(3));
+    let result = compute(&dataset, &r);
+    result.validate().unwrap();
+    assert_eq!(
+        result
+            .groups
+            .iter()
+            .map(|g| (g.value.clone(), g.rows, g.frequency))
+            .collect::<Vec<_>>(),
+        vec![
+            (Cell::Text("A".into()), 2, 5),
+            (Cell::Text("B".into()), 1, 4),
+            (Cell::Missing, 2, 11)
+        ]
+    );
+    assert_eq!(result.groups[0].tables[0].categories.len(), 1);
+    assert_eq!(result.groups[0].tables[0].missing_n, 3);
+    assert_eq!(result.groups[2].tables[0].missing_n, 6);
+    let mut broken = result.clone();
+    broken.groups[0].frequency += 1;
+    assert!(broken.validate().is_err());
+    r.columns.push(ColumnId(2));
+    assert!(r.validate_current(&dataset, &[], 0).is_err());
+}
+
+#[test]
+fn numeric_group_labels_are_captured_and_empty_cohorts_have_no_groups() {
+    let group = Column::numeric(ColumnId(2), "Group", vec![Some(2.), Some(1.), None]).unwrap();
+    let group = group
+        .with_metadata(ColumnMetadata {
+            value_labels: vec![ValueLabel {
+                value: Cell::Number(1.),
+                label: "First".into(),
+            }],
+            ..group.metadata().clone()
+        })
+        .unwrap();
+    let dataset = Dataset::new(vec![
+        Column::numeric(ColumnId(1), "Outcome", vec![Some(1.), Some(2.), None]).unwrap(),
+        group,
+    ])
+    .unwrap();
+    let mut r = request(&[1]);
+    r.group = Some(ColumnId(2));
+    let result = compute(&dataset, &r);
+    result.validate().unwrap();
+    assert_eq!(result.groups[0].value, Cell::Number(1.));
+    assert_eq!(result.groups[0].value_label_index, Some(0));
+    assert_eq!(result.groups[2].value, Cell::Missing);
+    r.filter.predicates.push(RowPredicate::Number {
+        column: ColumnId(1),
+        comparison: NumericComparison::Greater,
+        value: 99.,
+    });
+    let result = compute(&dataset, &r);
+    result.validate().unwrap();
+    assert!(result.groups.is_empty());
 }

@@ -1,7 +1,7 @@
 //! Historical ANOVA tables consume captured values and never consult current data.
 use super::{
     report::text,
-    report_analyses::{cell, confidence, estimate},
+    report_analyses::{cell, confidence, estimate, p_value},
 };
 use crate::{
     analysis::*,
@@ -31,7 +31,11 @@ fn row(w: &mut dyn Write, name: &str, e: &Estimate) -> AppResult<()> {
     w.write_all(b"<tr><th scope=\"row\">")?;
     text(w, name)?;
     w.write_all(b"</th><td>")?;
-    estimate(w, e)?;
+    if name.ends_with(" p") {
+        p_value(w, e)?;
+    } else {
+        estimate(w, e)?;
+    }
     w.write_all(b"</td></tr>")?;
     Ok(())
 }

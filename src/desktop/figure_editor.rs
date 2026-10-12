@@ -1,5 +1,5 @@
 //! Report figures use the exported SVG for their preview as well as PNG output.
-use super::{button, procedure_forms::record, start, DesktopState};
+use super::{button, procedure_forms::record, start, theme, DesktopState};
 use crate::{
     error::AppResult,
     export::figures::FigureFormat,
@@ -43,7 +43,7 @@ impl FigureEditor {
             previous_applied: false,
             previous_saved: false,
             preset_name: String::new(),
-            format: FigureFormat::Svg,
+            format: FigureFormat::Png,
             texture: None,
             rendered: None,
             error: String::new(),
@@ -64,6 +64,8 @@ fn label(key: &FigureKey) -> String {
         FigureKind::Histogram => "Histogram".into(),
         FigureKind::Scatter => "Scatterplot".into(),
         FigureKind::Boxplot => "Boxplot".into(),
+        FigureKind::GroupMeans => "Group means".into(),
+        FigureKind::Likert => "Combined Likert chart".into(),
         FigureKind::Residual => "Residual plot".into(),
         FigureKind::Qq => "Normal Q–Q plot".into(),
         FigureKind::Distribution(c) => format!("Distribution · variable {c}"),
@@ -106,41 +108,46 @@ pub(super) fn toolbar(ui: &mut egui::Ui, state: &mut DesktopState, jobs: &mut Jo
         .selected_figure
         .filter(|k| available.contains(k))
         .unwrap_or_else(|| available[0]);
-    ui.horizontal_wrapped(|ui| {
-        ui.strong("Report figures");
-        let combo = egui::ComboBox::from_id_salt("report-figure")
-            .selected_text(label(&selected))
-            .show_ui(ui, |ui| {
-                for key in &available {
-                    ui.selectable_value(&mut selected, *key, label(key));
+    let section = egui::CollapsingHeader::new("Figures")
+        .id_salt("result-figure-tools")
+        .show(ui, |ui| {
+            ui.horizontal_wrapped(|ui| {
+                let combo = egui::ComboBox::from_id_salt("report-figure")
+                    .width(ui.available_width().min(220.))
+                    .truncate()
+                    .selected_text(label(&selected))
+                    .show_ui(ui, |ui| {
+                        for key in &available {
+                            theme::selectable_value(ui, &mut selected, *key, label(key));
+                        }
+                    });
+                record(state, "Report figure", &combo.response);
+                if button(ui, state, "Edit figure").clicked() && state.figure_editor.is_none() {
+                    state.figure_editor = Some(FigureEditor::new(
+                        selected,
+                        state.project().figure_settings(&selected),
+                    ));
+                }
+                let export = ui.add_enabled(!state.active, egui::Button::new("Export figure…"));
+                record(state, "Export figure…", &export);
+                if export.clicked() {
+                    export_one(state, jobs, &selected, FigureFormat::Png);
+                }
+                if ui
+                    .add_enabled(!state.active, egui::Button::new("Duplicate figure"))
+                    .clicked()
+                {
+                    if let Err(e) = state.duplicate_report_figure(&selected) {
+                        state.fail(e);
+                    } else if let Some(k) = state.selected_figure {
+                        selected = k;
+                    }
                 }
             });
-        record(state, "Report figure", &combo.response);
-        if button(ui, state, "Edit figure").clicked() && state.figure_editor.is_none() {
-            state.figure_editor = Some(FigureEditor::new(
-                selected,
-                state.project().figure_settings(&selected),
-            ));
-        }
-        let export = ui.add_enabled(!state.active, egui::Button::new("Export figure…"));
-        record(state, "Export figure…", &export);
-        if export.clicked() {
-            export_one(state, jobs, &selected, FigureFormat::Svg);
-        }
-        if ui
-            .add_enabled(!state.active, egui::Button::new("Duplicate figure"))
-            .clicked()
-        {
-            if let Err(e) = state.duplicate_report_figure(&selected) {
-                state.fail(e);
-            } else if let Some(k) = state.selected_figure {
-                selected = k;
-            }
-        }
-    });
+        });
+    record(state, "Figures", &section.header_response);
     state.selected_figure = Some(selected);
     editor(ui, state, jobs);
-    ui.separator();
 }
 fn export_one(
     state: &mut DesktopState,
@@ -190,51 +197,127 @@ fn editor(ui: &mut egui::Ui, state: &mut DesktopState, jobs: &mut JobRunner) {
     };
     let stale = run.analysis.revision() != state.project().dataset().revision();
     let available = ui.ctx().content_rect().shrink(8.0);
-    egui::Window::new("Edit report figure").id(egui::Id::new("figure-editor")).open(&mut open).default_size([1020.,650.]).max_size(available.size()).constrain_to(available).resizable(true).show(ui.ctx(),|ui|{
-        ui.label(label(&edit.key));
-        ui.small("Apply saves presentation in the project. Captured data and calculations stay attached to the original run.");
-        ui.add_enabled_ui(!state.active,|ui|{
-            egui::ScrollArea::vertical().id_salt("figure-properties-scroll").max_height((available.height()-320.).clamp(80.,500.)).show(ui,|ui|{
-                ui.columns(2,|columns|{
-                    properties(&mut columns[0],state,jobs,&mut edit);
-                    preview(&mut columns[1],state,&run,stale,&mut edit);
+    egui::Window::new("Edit report figure")
+        .id(egui::Id::new("figure-editor"))
+        .open(&mut open)
+        .default_size([960., 680.])
+        .max_size(available.size())
+        .constrain_to(available)
+        .resizable(true)
+        .show(ui.ctx(), |ui| {
+            ui.label(label(&edit.key));
+            ui.small(
+                "Edit labels and appearance, then apply the changes to save them in your project.",
+            );
+            ui.add_enabled_ui(!state.active, |ui| {
+                egui::ScrollArea::vertical()
+                    .id_salt("figure-properties-scroll")
+                    .max_height((available.height() - 210.).clamp(140., 560.))
+                    .show(ui, |ui| {
+                        if ui.available_width() >= 700. {
+                            ui.columns(2, |columns| {
+                                properties(&mut columns[0], state, jobs, &mut edit);
+                                preview(&mut columns[1], state, &run, stale, &mut edit);
+                            });
+                        } else {
+                            preview(ui, state, &run, stale, &mut edit);
+                            ui.separator();
+                            properties(ui, state, jobs, &mut edit);
+                        }
+                    });
+                ui.separator();
+                ui.horizontal_wrapped(|ui| {
+                    if button(ui, state, "Apply figure").clicked() {
+                        if let Err(e) = apply_edit(state, &mut edit) {
+                            edit.error = e.to_string();
+                        }
+                    }
+                    if button(ui, state, "Reset style").clicked() {
+                        edit.previous = Some(edit.settings.clone());
+                        edit.previous_applied = false;
+                        edit.settings = edit.settings.copy_style_from(&FigureSettings::default());
+                    }
+                    let undo = ui.add_enabled(
+                        edit.previous.is_some(),
+                        egui::Button::new("Undo figure edit"),
+                    );
+                    record(state, "Undo figure edit", &undo);
+                    if undo.clicked() {
+                        if let Err(e) = undo_edit(state, &mut edit) {
+                            edit.error = e.to_string();
+                        }
+                    }
+                    if button(ui, state, "Cancel figure edit").clicked() {
+                        cancel = true;
+                    }
+                    egui::ComboBox::from_id_salt("figure-format")
+                        .selected_text(if edit.format == FigureFormat::Svg {
+                            "SVG"
+                        } else {
+                            "PNG"
+                        })
+                        .show_ui(ui, |ui| {
+                            theme::selectable_value(
+                                ui,
+                                &mut edit.format,
+                                FigureFormat::Png,
+                                "PNG · image",
+                            );
+                            theme::selectable_value(
+                                ui,
+                                &mut edit.format,
+                                FigureFormat::Svg,
+                                "SVG · vector",
+                            );
+                        });
+                    if button(ui, state, "Apply and export…").clicked() {
+                        match apply_edit(state, &mut edit) {
+                            Ok(()) => export_one(state, jobs, &edit.key, edit.format),
+                            Err(e) => edit.error = e.to_string(),
+                        }
+                    }
+                    if button(ui, state, "Copy figure image").clicked() {
+                        let control = JobControl::default();
+                        let copied = (|| {
+                            state.check_ui_copy(figures::SVG_WORK_BYTES)?;
+                            let svg = figures::render::svg(
+                                &run,
+                                &edit.key,
+                                &edit.settings,
+                                stale,
+                                &control,
+                            )?;
+                            let (w, h) = edit.settings.pixel_size()?;
+                            state.check_ui_copy(
+                                (w as usize).saturating_mul(h as usize).saturating_mul(12)
+                                    + svg.len(),
+                            )?;
+                            let (w, h, rgba) = figures::render::raster(&svg, w, h, &control)?;
+                            ui.ctx().copy_image(ColorImage::from_rgba_unmultiplied(
+                                [w as usize, h as usize],
+                                &rgba,
+                            ));
+                            Ok::<_, crate::error::AppError>(())
+                        })();
+                        match copied {
+                            Ok(()) => {
+                                state.status =
+                                    "Figure image copied at the selected resolution.".into()
+                            }
+                            Err(e) => edit.error = e.to_string(),
+                        }
+                    }
                 });
             });
-            ui.separator();
-            ui.horizontal_wrapped(|ui|{
-                if button(ui,state,"Apply figure").clicked() {
-                    if let Err(e)=apply_edit(state,&mut edit){edit.error=e.to_string();}
-                }
-                if button(ui,state,"Reset style").clicked() {edit.previous=Some(edit.settings.clone());edit.previous_applied=false;edit.settings=edit.settings.copy_style_from(&FigureSettings::default());}
-                let undo=ui.add_enabled(edit.previous.is_some(),egui::Button::new("Undo figure edit"));
-                record(state,"Undo figure edit",&undo);
-                if undo.clicked() {
-                    if let Err(e)=undo_edit(state,&mut edit){edit.error=e.to_string();}
-                }
-                if button(ui,state,"Cancel figure edit").clicked(){cancel=true;}
-                egui::ComboBox::from_id_salt("figure-format").selected_text(if edit.format==FigureFormat::Svg{"SVG"}else{"PNG"}).show_ui(ui,|ui|{
-                    ui.selectable_value(&mut edit.format,FigureFormat::Svg,"SVG · vector");ui.selectable_value(&mut edit.format,FigureFormat::Png,"PNG · image");
-                });
-                if button(ui,state,"Apply and export…").clicked() {
-                    match apply_edit(state,&mut edit) {Ok(())=>export_one(state,jobs,&edit.key,edit.format),Err(e)=>edit.error=e.to_string()}
-                }
-                if button(ui,state,"Copy figure image").clicked() {
-                    let control=JobControl::default();
-                    let copied=(||{
-                        state.check_ui_copy(figures::SVG_WORK_BYTES)?;
-                        let svg=figures::render::svg(&run,&edit.key,&edit.settings,stale,&control)?;
-                        let (w,h)=edit.settings.pixel_size()?;
-                        state.check_ui_copy((w as usize).saturating_mul(h as usize).saturating_mul(12)+svg.len())?;
-                        let (w,h,rgba)=figures::render::raster(&svg,w,h,&control)?;
-                        ui.ctx().copy_image(ColorImage::from_rgba_unmultiplied([w as usize,h as usize],&rgba));
-                        Ok::<_,crate::error::AppError>(())
-                    })();
-                    match copied {Ok(())=>state.status="Figure image copied at the selected resolution.".into(),Err(e)=>edit.error=e.to_string()}
-                }
-            });
+            if !edit.error.is_empty() {
+                ui.colored_label(ui.visuals().error_fg_color, &edit.error);
+            }
         });
-        if !edit.error.is_empty(){ui.colored_label(ui.visuals().error_fg_color,&edit.error);}
-    });
+    if state.dialog.is_none() && !egui::Popup::is_any_open(ui.ctx()) {
+        cancel |= ui
+            .ctx()
+            .input_mut(|input| input.consume_key(egui::Modifiers::NONE, egui::Key::Escape));
+    }
     if open && !cancel {
         state.figure_editor = Some(edit);
     }
@@ -297,45 +380,41 @@ fn properties(
                 text_field(ui, state, label, text);
             }
         });
-    egui::CollapsingHeader::new("Appearance")
-        .default_open(true)
-        .show(ui, |ui| {
-            egui::ComboBox::from_id_salt("figure-palette")
-                .selected_text(format!("{:?}", s.palette))
-                .show_ui(ui, |ui| {
-                    for (v, name) in [
-                        (FigurePalette::Report, "Report"),
-                        (FigurePalette::Monochrome, "Monochrome"),
-                        (FigurePalette::Accessible, "Colour-accessible"),
-                    ] {
-                        ui.selectable_value(&mut s.palette, v, name);
-                    }
-                });
-            number(ui, state, "Text size (pt)", &mut s.font_size, 6., 36.);
-            number(ui, state, "Marker size", &mut s.marker_size, 0.5, 20.);
-            number(ui, state, "Opacity", &mut s.opacity, 0., 1.);
-            for (label, v) in [
-                ("Gridlines", &mut s.grid),
-                ("Transparent background", &mut s.transparent),
-            ] {
-                let r = ui.checkbox(v, label);
-                record(state, label, &r);
-            }
-        });
-    egui::CollapsingHeader::new("Size")
-        .default_open(true)
-        .show(ui, |ui| {
-            number(ui, state, "Width (mm)", &mut s.width_mm, 40., 500.);
-            number(ui, state, "Height (mm)", &mut s.height_mm, 40., 500.);
-            ui.horizontal(|ui| {
-                ui.label("PNG resolution (dpi)");
-                let r = ui.add(egui::DragValue::new(&mut s.dpi).range(72..=600));
-                record(state, "PNG resolution (dpi)", &r);
+    egui::CollapsingHeader::new("Appearance").show(ui, |ui| {
+        egui::ComboBox::from_id_salt("figure-palette")
+            .selected_text(format!("{:?}", s.palette))
+            .show_ui(ui, |ui| {
+                for (v, name) in [
+                    (FigurePalette::Report, "Report"),
+                    (FigurePalette::Monochrome, "Monochrome"),
+                    (FigurePalette::Accessible, "Colour-accessible"),
+                ] {
+                    theme::selectable_value(ui, &mut s.palette, v, name);
+                }
             });
-            if let Ok((w, h)) = s.pixel_size() {
-                ui.small(format!("PNG: {w} × {h} pixels"));
-            }
+        number(ui, state, "Text size (pt)", &mut s.font_size, 6., 36.);
+        number(ui, state, "Marker size", &mut s.marker_size, 0.5, 20.);
+        number(ui, state, "Opacity", &mut s.opacity, 0., 1.);
+        for (label, v) in [
+            ("Gridlines", &mut s.grid),
+            ("Transparent background", &mut s.transparent),
+        ] {
+            let r = ui.checkbox(v, label);
+            record(state, label, &r);
+        }
+    });
+    egui::CollapsingHeader::new("Size").show(ui, |ui| {
+        number(ui, state, "Width (mm)", &mut s.width_mm, 40., 500.);
+        number(ui, state, "Height (mm)", &mut s.height_mm, 40., 500.);
+        ui.horizontal(|ui| {
+            ui.label("PNG resolution (dpi)");
+            let r = ui.add(egui::DragValue::new(&mut s.dpi).range(72..=600));
+            record(state, "PNG resolution (dpi)", &r);
         });
+        if let Ok((w, h)) = s.pixel_size() {
+            ui.small(format!("PNG: {w} × {h} pixels"));
+        }
+    });
     egui::CollapsingHeader::new("Axes").show(ui, |ui| {
         bounds(ui, state, "X axis limits", &mut s.x_bounds);
         bounds(ui, state, "Y axis limits", &mut s.y_bounds);
@@ -356,6 +435,7 @@ fn properties(
             .show(ui, |ui| {
                 let r = ui.checkbox(&mut s.horizontal, "Horizontal bars");
                 record(state, "Horizontal bars", &r);
+                ui.label("Values to display");
                 egui::ComboBox::from_id_salt("figure-metric")
                     .selected_text(format!("{:?}", s.metric))
                     .show_ui(ui, |ui| {
@@ -364,9 +444,10 @@ fn properties(
                             (FrequencyMetric::ValidPercent, "Percent of valid responses"),
                             (FrequencyMetric::AllPercent, "Percent of all responses"),
                         ] {
-                            ui.selectable_value(&mut s.metric, v, n);
+                            theme::selectable_value(ui, &mut s.metric, v, n);
                         }
                     });
+                ui.label("Category order");
                 egui::ComboBox::from_id_salt("figure-order")
                     .selected_text(format!("{:?}", s.order))
                     .show_ui(ui, |ui| {
@@ -375,12 +456,24 @@ fn properties(
                             (CategoryOrder::Value, "Category value"),
                             (CategoryOrder::Frequency, "Frequency descending"),
                         ] {
-                            ui.selectable_value(&mut s.order, v, n);
+                            theme::selectable_value(ui, &mut s.order, v, n);
                         }
                     });
                 let r = ui.checkbox(&mut s.value_labels, "Show values");
                 record(state, "Show values", &r);
             });
+    }
+    if matches!(edit.key.kind, FigureKind::Likert) {
+        egui::CollapsingHeader::new("Ordered response scale").default_open(true).show(ui, |ui| {
+            ui.label("Confirm the questionnaire coding before drawing agreement bars. Codes must run from 1 (most negative) to the highest code (most positive), with the middle code neutral.");
+            egui::ComboBox::from_id_salt("likert-scale").selected_text(s.likert_points.map_or("Setup required".into(), |n| format!("{n} categories"))).show_ui(ui, |ui| {
+                theme::selectable_value(ui, &mut s.likert_points, None, "Setup required");
+                for n in [3, 5, 7] { theme::selectable_value(ui, &mut s.likert_points, Some(n), format!("I confirm codes 1–{n}; neutral = {}", n / 2 + 1)); }
+            });
+            let r = ui.checkbox(&mut s.likert_counts, "Show counts with percentages");
+            record(state, "Show counts with percentages", &r);
+            ui.small("Percentages use each item's valid frequency. Missing answers stay missing. Every category count remains in the captured frequency tables.");
+        });
     }
     // Styles preserve titles, axes and the figure's statistical display choices.
     egui::CollapsingHeader::new("Reuse styles / batch export").show(ui, |ui| {
@@ -389,7 +482,7 @@ fn properties(
             .selected_text("Choose a saved style")
             .show_ui(ui, |ui| {
                 for preset in presets {
-                    if ui.selectable_label(false, &preset.name).clicked() {
+                    if theme::selectable_label(ui, false, &preset.name).clicked() {
                         edit.settings = edit.settings.copy_style_from(&preset.settings);
                         ui.close();
                     }
@@ -507,7 +600,7 @@ fn preview(
     edit: &mut FigureEditor,
 ) {
     ui.strong("Report preview");
-    ui.small("The preview uses the same SVG as the exported figure.");
+    ui.small("This is how the figure will appear in your report.");
     if edit.rendered.as_ref() != Some(&(edit.settings.clone(), stale)) {
         let control = JobControl::default();
         let result = (|| {
@@ -552,5 +645,23 @@ fn preview(
     }
     if stale {
         ui.small("Data changed since this run. This figure uses its original captured results.");
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn new_editor_defaults_single_and_batch_exports_to_png() {
+        let editor = FigureEditor::new(
+            FigureKey {
+                run: 1,
+                kind: FigureKind::Histogram,
+                variant: 0,
+            },
+            FigureSettings::default(),
+        );
+        assert_eq!(editor.format, FigureFormat::Png);
     }
 }

@@ -268,3 +268,56 @@ fn reliability_accessibility_preserves_checked_unchecked_and_disabled_reversal_s
         assert_eq!(f.draft, before);
     }
 }
+
+#[test]
+fn bulk_items_preserve_order_and_refuse_over_64() {
+    let mut f = Form::new();
+    f.frame(vec![]);
+    f.click("Add item");
+    f.click("Select all items");
+    assert_eq!(
+        f.draft.items,
+        [ColumnId(2), ColumnId(1), ColumnId(3), ColumnId(4)]
+    );
+    let data = Dataset::new(
+        (1..=65)
+            .map(|id| Column::numeric(ColumnId(id), &format!("Item {id}"), vec![]).unwrap())
+            .collect(),
+    )
+    .unwrap();
+    f.state = DesktopState::from_project(Project::new("Wide", data).unwrap()).unwrap();
+    f.state.picker = true;
+    f.frame(vec![]);
+    f.click("Select all items");
+    assert_eq!(f.draft.items.len(), 4);
+}
+
+#[test]
+fn bulk_items_cover_all_pages_filter_numeric_columns_and_refuse_memory_growth() {
+    let mut f = Form::new();
+    let mut columns = (1..=64)
+        .map(|id| Column::numeric(ColumnId(id), &format!("Item {id}"), vec![]).unwrap())
+        .collect::<Vec<_>>();
+    columns.push(Column::text(ColumnId(65), "Item text", vec![]).unwrap());
+    f.state =
+        DesktopState::from_project(Project::new("Wide", Dataset::new(columns).unwrap()).unwrap())
+            .unwrap();
+    f.state.picker = true;
+    f.frame(vec![]);
+    f.click("Select all items");
+    assert_eq!(f.draft.items.len(), 64);
+    assert_eq!(f.draft.items[63], ColumnId(64));
+    let mut f = Form::new();
+    f.state.picker = true;
+    f.state.search = "Item 4".into();
+    f.frame(vec![]);
+    f.click("Select all items");
+    assert_eq!(f.draft.items, [ColumnId(2), ColumnId(1), ColumnId(4)]);
+    let mut f = Form::new();
+    f.state.picker = true;
+    f.frame(vec![]);
+    f.state.active_recipe_bytes = crate::data::MAX_OWNED_BYTES;
+    f.click("Select all items");
+    assert_eq!(f.draft.items, [ColumnId(2), ColumnId(1)]);
+    assert!(f.state.error().is_some());
+}

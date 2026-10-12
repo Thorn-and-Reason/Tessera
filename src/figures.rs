@@ -11,6 +11,8 @@ pub enum FigureKind {
     Histogram,
     Scatter,
     Boxplot,
+    GroupMeans,
+    Likert,
     Residual,
     Qq,
     Distribution(u64),
@@ -69,6 +71,9 @@ pub struct FigureSettings {
     pub metric: FrequencyMetric,
     pub order: CategoryOrder,
     pub value_labels: bool,
+    /// Explicit confirmation: consecutive numeric codes 1..N, middle code neutral.
+    pub likert_points: Option<u8>,
+    pub likert_counts: bool,
 }
 impl Default for FigureSettings {
     fn default() -> Self {
@@ -95,6 +100,8 @@ impl Default for FigureSettings {
             metric: FrequencyMetric::Count,
             order: CategoryOrder::Original,
             value_labels: true,
+            likert_points: None,
+            likert_counts: true,
         }
     }
 }
@@ -143,6 +150,12 @@ impl FigureSettings {
                 ));
             }
         }
+        if self.likert_points.is_some_and(|n| ![3, 5, 7].contains(&n)) {
+            return Err(AppError::invalid(
+                "Likert scale",
+                "Choose three, five or seven ordered categories.",
+            ));
+        }
         self.checked_pixels().map(|_| ())
     }
     fn checked_pixels(&self) -> AppResult<(u32, u32)> {
@@ -172,6 +185,8 @@ impl FigureSettings {
             metric: self.metric,
             order: self.order,
             horizontal: self.horizontal,
+            likert_points: self.likert_points,
+            likert_counts: self.likert_counts,
             ..other.clone()
         }
     }
@@ -204,16 +219,14 @@ pub fn figure_keys(run: &AnalysisRun) -> Vec<FigureKey> {
     let kinds = match &run.analysis {
         CompletedAnalysis::Histogram(_) => vec![FigureKind::Histogram],
         CompletedAnalysis::Scatter(_) => vec![FigureKind::Scatter],
-        CompletedAnalysis::Boxplot(_) => vec![FigureKind::Boxplot],
+        CompletedAnalysis::Boxplot(_) => vec![FigureKind::Boxplot, FigureKind::GroupMeans],
         CompletedAnalysis::Describe(a) => a
             .plots
             .iter()
             .map(|p| FigureKind::Distribution(p.column.0))
             .collect(),
-        CompletedAnalysis::Frequencies(a) => a
-            .tables
-            .iter()
-            .map(|p| FigureKind::Frequency(p.column.0))
+        CompletedAnalysis::Frequencies(a) => std::iter::once(FigureKind::Likert)
+            .chain(a.tables.iter().map(|p| FigureKind::Frequency(p.column.0)))
             .collect(),
         CompletedAnalysis::Regression(a) => match &a.outcome {
             RegressionOutcome::Fitted(f) => {

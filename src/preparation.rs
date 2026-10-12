@@ -12,6 +12,7 @@ use std::mem::size_of;
 mod transform;
 pub const MAX_STEPS: usize = 256;
 pub const MAX_RECODE_RULES: usize = 256;
+pub const MAX_MEAN_ITEMS: usize = 64;
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Arithmetic {
@@ -61,6 +62,11 @@ pub enum Step {
         operator: Arithmetic,
         right: Operand,
     },
+    Mean {
+        name: String,
+        #[serde(with = "wire::column_ids")]
+        columns: Vec<ColumnId>,
+    },
     Recode {
         #[serde(with = "wire::column_id")]
         source: ColumnId,
@@ -87,6 +93,7 @@ impl Step {
     pub fn label(&self) -> &'static str {
         match self {
             Self::Compute { .. } => "Compute variable",
+            Self::Mean { .. } => "Domain average",
             Self::Recode { .. } => "Recode variable",
             Self::Sort { .. } => "Sort rows",
             Self::Filter { .. } => "Keep rows",
@@ -98,6 +105,10 @@ impl Step {
         n.add(size_of::<Self>())?;
         match self {
             Self::Compute { name, .. } => n.add(name.capacity())?,
+            Self::Mean { name, columns } => {
+                n.add(name.capacity())?;
+                n.array::<ColumnId>(columns.capacity())?;
+            }
             Self::Recode { name, rules, .. } => {
                 n.add(name.capacity())?;
                 n.array::<RecodeRule>(rules.capacity())?;
@@ -115,7 +126,9 @@ impl Step {
     }
     pub(crate) fn validate_shape(&self) -> AppResult<()> {
         let name = match self {
-            Self::Compute { name, .. } | Self::Recode { name, .. } => Some(name),
+            Self::Compute { name, .. } | Self::Mean { name, .. } | Self::Recode { name, .. } => {
+                Some(name)
+            }
             _ => None,
         };
         if let Some(n) = name {
@@ -126,6 +139,16 @@ impl Step {
         }
         match self {
             Self::Compute { left, right, .. } => validate_operands(left, right)?,
+            Self::Mean { columns, .. } => {
+                if !(2..=MAX_MEAN_ITEMS).contains(&columns.len())
+                    || columns
+                        .iter()
+                        .enumerate()
+                        .any(|(i, id)| id.0 == 0 || columns[..i].contains(id))
+                {
+                    return Err(invalid("Choose between 2 and 64 distinct numeric items."));
+                }
+            }
             Self::Recode {
                 source,
                 rules,
@@ -165,9 +188,13 @@ impl Step {
             Self::Recode { source, .. }
             | Self::Sort { source, .. }
             | Self::Filter { source, .. } => (Some(*source), None),
-            Self::DatasetEdit => (None, None),
+            Self::Mean { .. } | Self::DatasetEdit => (None, None),
         };
-        a.into_iter().chain(b)
+        let columns = match self {
+            Self::Mean { columns, .. } => columns.as_slice(),
+            _ => &[],
+        };
+        a.into_iter().chain(b).chain(columns.iter().copied())
     }
     fn validate_current(&self, d: &Dataset) -> AppResult<()> {
         self.validate_shape()?;
@@ -175,10 +202,12 @@ impl Step {
             d.column(id)?;
         }
         match self {
-            Self::Compute { .. } => {
+            Self::Compute { .. } | Self::Mean { .. } => {
                 for id in self.source_ids() {
                     if d.column(id)?.kind() != ColumnKind::Number {
-                        return Err(invalid("Compute requires numeric source variables."));
+                        return Err(invalid(
+                            "Compute and domain averages require numeric source variables.",
+                        ));
                     }
                 }
             }
