@@ -87,14 +87,19 @@ fn absent(error: &AppError) -> bool {
     matches!(error,AppError::Io(error) if error.kind()==io::ErrorKind::NotFound)
 }
 fn stamp_file(file: &mut File, control: &JobControl) -> AppResult<FileStamp> {
+    stamp_file_with_limit(file, control, MAX_PROJECT_BYTES)
+}
+fn stamp_file_with_limit(
+    file: &mut File,
+    control: &JobControl,
+    limit: usize,
+) -> AppResult<FileStamp> {
     let before = file.metadata()?;
     if !before.is_file() {
         return Err(AppError::invalid("path", "Choose a regular file."));
     }
-    if before.len() > MAX_PROJECT_BYTES as u64 {
-        return Err(AppError::SizeLimit {
-            limit: MAX_PROJECT_BYTES,
-        });
+    if before.len() > limit as u64 {
+        return Err(AppError::SizeLimit { limit });
     }
     let identity = native::identity(file)?;
     file.seek(SeekFrom::Start(0))?;
@@ -108,10 +113,8 @@ fn stamp_file(file: &mut File, control: &JobControl) -> AppResult<FileStamp> {
             break;
         }
         size += count as u64;
-        if size > MAX_PROJECT_BYTES as u64 {
-            return Err(AppError::SizeLimit {
-                limit: MAX_PROJECT_BYTES,
-            });
+        if size > limit as u64 {
+            return Err(AppError::SizeLimit { limit });
         }
         digest.update(&buffer[..count]);
     }
@@ -143,6 +146,16 @@ fn optional_stamp(
 }
 pub fn stamp(path: &Path) -> AppResult<FileStamp> {
     stamp_with_control(path, &JobControl::default())
+}
+pub(crate) fn stamp_with_limit(
+    path: &Path,
+    control: &JobControl,
+    limit: usize,
+) -> AppResult<FileStamp> {
+    let (parent, leaf) = split(path)?;
+    let stamp = stamp_file_with_limit(&mut parent.read(&leaf)?, control, limit)?;
+    parent.verify_path(&parent.path)?;
+    Ok(stamp)
 }
 pub(crate) fn stamp_with_control(path: &Path, control: &JobControl) -> AppResult<FileStamp> {
     let (parent, leaf) = split(path)?;

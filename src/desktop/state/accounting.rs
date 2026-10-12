@@ -58,6 +58,7 @@ impl DesktopState {
     }
     pub(super) fn retained_ui_bytes(&self) -> usize {
         let mut bytes = self.draft.heap_bytes().unwrap_or(usize::MAX);
+        bytes = bytes.saturating_add(self.survey_owned_bytes());
         bytes = bytes.saturating_add(self.preparation.owned_bytes());
         if let Some(entries) = &self.recovery_entries {
             bytes = bytes.saturating_add(
@@ -148,6 +149,7 @@ impl DesktopState {
     pub(super) fn copied_ui_bytes(&self) -> usize {
         self.retained_ui_bytes()
             .saturating_sub(self.recovery_owner_bytes())
+            .saturating_sub(self.survey_review_bytes())
     }
     pub(crate) fn extra(&self) -> usize {
         self.frequency_search

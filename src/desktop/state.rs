@@ -8,6 +8,8 @@ mod frequency_search;
 mod group_lookup;
 mod operations;
 mod property_drafts;
+mod survey;
+mod survey_improvements;
 mod undo;
 mod worksheet;
 use crate::{
@@ -142,6 +144,7 @@ pub struct MetadataEditor {
 #[derive(Debug, Clone)]
 pub struct DesktopState {
     project: Arc<Project>,
+    survey: survey::SurveyState,
     undo: Vec<Arc<crate::project::DataSnapshot>>,
     redo: Vec<Arc<crate::project::DataSnapshot>>,
     budget_memo: std::cell::RefCell<Option<accounting::ProjectBaseline>>,
@@ -220,6 +223,7 @@ impl DesktopState {
         let selected_column = project.dataset().columns().first().map(|c| c.id());
         Ok(Self {
             project: Arc::new(project),
+            survey: Default::default(),
             undo: Vec::new(),
             redo: Vec::new(),
             budget_memo: Default::default(),
@@ -377,7 +381,7 @@ impl DesktopState {
             return self.restore_history(matches!(action, UiAction::Redo));
         }
         self.check_ui_copy(
-            self.retained_ui_bytes().saturating_mul(3).saturating_add(
+            self.copied_ui_bytes().saturating_mul(3).saturating_add(
                 (self.undo.len() + self.redo.len())
                     .saturating_mul(std::mem::size_of::<Arc<crate::project::DataSnapshot>>()),
             ),
@@ -615,6 +619,7 @@ impl DesktopState {
             }
             UiAction::ResolveUnsaved(choice) => match choice {
                 UnsavedChoice::Cancel => {
+                    next.cancel_survey_import();
                     next.pending = None;
                     next.pending_ready = false;
                     next.save_requested = false;
@@ -681,6 +686,7 @@ impl DesktopState {
             .checked_add(1)
             .ok_or(AppError::IdentityExhausted)?;
         self.project = project;
+        self.survey = Default::default();
         self.preparation = Default::default();
         self.recovery_entries = None;
         self.undo.clear();

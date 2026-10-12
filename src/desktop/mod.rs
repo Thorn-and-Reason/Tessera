@@ -8,6 +8,7 @@ pub mod draft;
 mod experience;
 mod exploration_forms;
 mod exploration_results;
+pub(super) mod guidance;
 pub use experience::AnalysisMode;
 mod figure_editor;
 #[cfg(any(target_os = "macos", test))]
@@ -23,6 +24,7 @@ mod result_tables;
 mod results;
 mod shell;
 mod state;
+mod survey;
 mod theme;
 mod variables;
 #[cfg(target_os = "windows")]
@@ -270,6 +272,9 @@ fn render_with_recovery(
             Workspace::Analyses => analyses::show(ui, state, jobs),
             Workspace::Results => results::show(ui, state, jobs),
         });
+    if state.take_survey_import_picker() {
+        dialogs::import(state);
+    }
     dialogs::show(ui.ctx(), state, jobs);
     if let Some(save_as) = state.take_property_save_requested() {
         dialogs::save(state, jobs, save_as);
@@ -356,6 +361,15 @@ fn shortcuts(ctx: &egui::Context, state: &mut DesktopState, jobs: &mut JobRunner
 }
 fn run_analysis(state: &mut DesktopState, jobs: &mut JobRunner) {
     if state.active || state.dialog.is_some() || state.workspace() != Workspace::Analyses {
+        return;
+    }
+    if state.survey_review().is_some() {
+        if !state.survey_ready() {
+            return;
+        }
+        if let Err(error) = state.submit_survey(jobs) {
+            state.fail(error);
+        }
         return;
     }
     let project = Arc::clone(state.project());

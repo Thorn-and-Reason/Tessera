@@ -49,6 +49,7 @@ pub fn show(ui: &mut egui::Ui, state: &mut DesktopState, jobs: &mut JobRunner) {
             }
         });
     });
+    super::survey::entry(ui, state);
     ui.separator();
     if let Some(edit) = &mut state.cell_editor {
         ui.horizontal(|ui| {

@@ -1,4 +1,8 @@
 #![cfg(feature = "desktop")]
+#[path = "desktop/guidance.rs"]
+mod guidance;
+#[path = "desktop/survey_improvements.rs"]
+mod survey_improvements;
 use eframe::egui::{self, Event, Key, Modifiers, Pos2, Rect, Vec2};
 use std::{
     sync::Arc,
@@ -629,3 +633,6 @@ mod regression;
 
 #[path = "desktop/anova.rs"]
 mod anova;
+
+#[path = "desktop/survey.rs"]
+mod survey;

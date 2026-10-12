@@ -8,6 +8,10 @@
 - [Installation instructions](INSTALLING.md): unsigned Mac packages and platform limits.
 - [Production-readiness requirements](production-readiness.md): release gates and
   the native acceptance checklist.
+- [Instant survey report](design/instant-survey-report.md): reporting rules,
+  data-preservation guarantees and local verification limits.
+- [Survey workflow improvements](design/survey-improvements.md): reversible
+  response preparation, portable recipes, presentation and analysis guidance.
 
 The numbered `project-v1.schema.json` through `project-v6.schema.json` files are
 reference schemas used by rejection tests. They describe foreign contracts;

@@ -584,3 +584,8 @@ fn mixed_failures_preserve_history_and_destination() {
 
 #[path = "workflow/exploration.rs"]
 mod exploration;
+
+#[path = "workflow/survey.rs"]
+mod survey;
+#[path = "workflow/survey_improvements.rs"]
+mod survey_improvements;

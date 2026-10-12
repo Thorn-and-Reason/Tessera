@@ -18,7 +18,8 @@ class PreparationSchema(unittest.TestCase):
         value['preparation'] = [{'source_revision': '1', 'result_revision': '2', 'step': step}]
         return value
     def test_closed_steps_and_bounds(self):
-        steps = [{'compute': {'name':'y','left':{'column':'1'},'operator':'add','right':{'constant':2}}},
+        steps = [{'clean_text': {'source':'1','name':'cleaned','trim_whitespace':True,'rules':[{'from':'NA','to':None}]}},
+                 {'compute': {'name':'y','left':{'column':'1'},'operator':'add','right':{'constant':2}}},
                  {'recode': {'source':'1','name':'label','kind':'text','rules':[{'from':2,'to':'two'}],'unmatched':'missing'}},
                  {'sort': {'source':'1','descending':False}},
                  {'filter': {'source':'1','predicate':{'compare':{'comparison':'greater','value':2}}}},
