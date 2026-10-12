@@ -17,3 +17,5 @@ mod search;
 pub mod charts;
 
 pub mod figures;
+
+pub mod survey;

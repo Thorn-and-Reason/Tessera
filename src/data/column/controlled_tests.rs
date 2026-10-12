@@ -1,5 +1,20 @@
 use super::*;
 use crate::{error::AppError, operation::CHECKPOINT_HOOK};
+#[test]
+fn shared_values_distinguish_clones_from_equal_copies() {
+    for original in [
+        Column::numeric(ColumnId(1), "n", vec![Some(2.), None]).unwrap(),
+        Column::text(ColumnId(2), "t", vec![Some("raw".into()), None]).unwrap(),
+    ] {
+        assert!(original.shares_values_with(&original.clone()));
+        let copied = if original.kind() == ColumnKind::Number {
+            Column::numeric(ColumnId(1), "n", vec![Some(2.), None]).unwrap()
+        } else {
+            Column::text(ColumnId(2), "t", vec![Some("raw".into()), None]).unwrap()
+        };
+        assert!(!original.shares_values_with(&copied));
+    }
+}
 fn ruled(column: Column, rules: MissingRules) -> Column {
     column
         .with_metadata(ColumnMetadata {

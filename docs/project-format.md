@@ -1,5 +1,12 @@
 # Tessera project format, version 3
 
+Survey cleaning records use `clean_text` with a source column, new column name,
+whitespace choice and explicit replacement pairs. Trimming runs before exact
+replacement; unmatched values remain unchanged and missing responses stay
+missing. The original column is retained. Earlier readers that do not recognise
+`clean_text` reject projects containing these records, even though the project
+version remains 3. Keep the original project when sharing with an older reader.
+
 A `.tessera` file is one UTF-8 JSON object with `format: "tessera-project"`. The writer and reader use only integer `version: 3`. Foreign project headers and other versions are rejected.
 
 The authoritative [JSON Schema](project.schema.json) defines the current structure. [sample.tessera](../examples/sample.tessera), [mixed-analysis.tessera](../examples/mixed-analysis.tessera), [exploration.tessera](../examples/exploration.tessera) and [regression-analysis.tessera](../examples/regression-analysis.tessera) demonstrate datasets and captured histories. Numbered reference schemas are structural test fixtures; they do not describe accepted project headers.

@@ -101,6 +101,102 @@ impl JobTask {
                 path: path.clone(),
                 stamp,
             }),
+            JobOperation::InspectSurvey { project } => {
+                crate::survey::inspect_with_budget(project.dataset(), control, &datasets, extra)
+                    .map(|review| JobOutput::SurveyReview(Arc::new(review)))
+            }
+            JobOperation::SurveyPresented {
+                project,
+                request,
+                presentation,
+            } => crate::survey::generate_presented_with_budget(
+                project,
+                request,
+                *presentation,
+                control,
+                &datasets,
+                extra - project.owned_bytes_controlled(control)? - request.owned_bytes()?,
+            )
+            .map(|p| JobOutput::SurveyReport(Arc::new(p))),
+            JobOperation::PreviewSurveyCleaning { project, request } => {
+                crate::survey::cleaning::preview_with_budget(
+                    project.dataset(),
+                    request,
+                    control,
+                    &datasets,
+                    extra,
+                )
+                .map(|p| JobOutput::SurveyCleaningPreview(Arc::new(p)))
+            }
+            JobOperation::ApplySurveyCleaning { project, request } => {
+                let p = preparation::prepare_with_budget(
+                    project,
+                    &request.step()?,
+                    control,
+                    &datasets,
+                    extra - project.owned_bytes_controlled(control)?,
+                )?;
+                let mut retained = datasets.clone();
+                retained.push(p.dataset());
+                let review = crate::survey::inspect_with_budget(
+                    p.dataset(),
+                    control,
+                    &retained,
+                    extra.saturating_add(p.owned_bytes_controlled(control)?),
+                )?;
+                Ok(JobOutput::SurveyCleaned {
+                    project: Arc::new(p),
+                    request: request.clone(),
+                    review: Arc::new(review),
+                })
+            }
+            JobOperation::SaveSurveyRecipe {
+                source,
+                choices,
+                cleanings,
+                presentation,
+                path,
+                ..
+            } => {
+                let recipe = crate::survey::recipe::SurveyRecipe::capture(
+                    source.dataset(),
+                    choices,
+                    cleanings,
+                    *presentation,
+                    "Survey report",
+                    control,
+                    &datasets,
+                    extra,
+                )?;
+                crate::survey::recipe::save_with_budget(
+                    path, &recipe, None, control, &datasets, extra,
+                )
+                .map(JobOutput::SurveyRecipeSaved)
+            }
+            JobOperation::LoadSurveyRecipe { project, path } => {
+                let (recipe, _) =
+                    crate::survey::recipe::load_with_budget(path, control, &datasets, extra)?;
+                recipe.bind(project.dataset(), control)?;
+                Ok(JobOutput::SurveyRecipe(Arc::new(recipe)))
+            }
+            JobOperation::ReplaySurveyRecipe { project, recipe } => {
+                crate::survey::recipe::replay_with_budget(
+                    project,
+                    recipe,
+                    control,
+                    &datasets,
+                    extra - project.owned_bytes_controlled(control)?,
+                )
+                .map(|p| JobOutput::SurveyRecipeReport(Arc::new(p)))
+            }
+            JobOperation::SurveyReport { project, request } => crate::survey::generate_with_budget(
+                project,
+                request,
+                control,
+                &datasets,
+                extra - project.owned_bytes_controlled(control)? - request.owned_bytes()?,
+            )
+            .map(|project| JobOutput::SurveyReport(Arc::new(project))),
             JobOperation::Analyze { project, request } => {
                 analysis::analyze_with_budget(project.dataset(), request, control, &datasets, extra)
                     .map(JobOutput::Analyzed)

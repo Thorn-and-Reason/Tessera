@@ -135,6 +135,10 @@ impl ColumnMetadata {
         Ok(counter.bytes)
     }
     pub(crate) fn heap_bytes(&self) -> AppResult<usize> {
+        self.heap_bytes_controlled(None)
+    }
+    pub(crate) fn heap_bytes_controlled(&self, control: Option<&JobControl>) -> AppResult<usize> {
+        missing_checkpoint(control, 0)?;
         let mut counter = AllocationCounter::default();
         counter.add(self.name.capacity())?;
         counter.add(self.description.capacity())?;
@@ -146,13 +150,19 @@ impl ColumnMetadata {
             }
             MissingRules::Text(values) => {
                 counter.array::<String>(values.capacity())?;
-                for value in values {
+                for (index, value) in values.iter().enumerate() {
+                    if index.is_multiple_of(256) {
+                        missing_checkpoint(control, index)?;
+                    }
                     counter.add(value.capacity())?;
                 }
             }
         }
         counter.array::<ValueLabel>(self.value_labels.capacity())?;
-        for label in &self.value_labels {
+        for (index, label) in self.value_labels.iter().enumerate() {
+            if index.is_multiple_of(256) {
+                missing_checkpoint(control, index)?;
+            }
             counter.add(label.label.capacity())?;
             if let Cell::Text(value) = &label.value {
                 counter.add(value.capacity())?;
@@ -174,6 +184,20 @@ pub struct Column {
     pub(crate) len: usize,
 }
 impl Column {
+    pub(crate) fn shares_values_with(&self, other: &Self) -> bool {
+        if self.len != other.len {
+            return false;
+        }
+        match (&self.chunks, &other.chunks) {
+            (Chunks::Number(a), Chunks::Number(b)) => {
+                a.len() == b.len() && a.iter().zip(b).all(|(a, b)| Arc::ptr_eq(a, b))
+            }
+            (Chunks::Text(a), Chunks::Text(b)) => {
+                a.len() == b.len() && a.iter().zip(b).all(|(a, b)| Arc::ptr_eq(a, b))
+            }
+            _ => false,
+        }
+    }
     pub fn numeric(id: ColumnId, name: &str, values: Vec<Option<f64>>) -> AppResult<Self> {
         Self::check_input(
             id,

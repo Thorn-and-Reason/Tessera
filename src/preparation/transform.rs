@@ -11,6 +11,31 @@ pub(super) fn apply(
     admit_output(p, s, c, retained, extra)?;
     let d = p.dataset();
     let result = match s {
+        Step::CleanText {
+            source,
+            name,
+            trim_whitespace,
+            rules,
+        } => {
+            let col = d.column(*source)?;
+            let mut cells = Vec::with_capacity(col.len());
+            for row in 0..col.len() {
+                c.checkpoint(row, Some(col.len()))?;
+                cells.push(crate::survey::cleaning::clean_cell(
+                    col,
+                    row,
+                    *trim_whitespace,
+                    rules,
+                    c,
+                )?);
+            }
+            let output = column_from_cells(p.next_column_id(), name, col.kind(), cells)?;
+            d.append_column_with_budget(
+                output,
+                retained,
+                extra + p.owned_bytes()? + s.owned_bytes()?,
+            )?
+        }
         Step::Compute {
             name,
             left,
@@ -77,7 +102,7 @@ fn admit_output(
     let d = p.dataset();
     let creates = matches!(
         s,
-        Step::Compute { .. } | Step::Mean { .. } | Step::Recode { .. }
+        Step::Compute { .. } | Step::Mean { .. } | Step::Recode { .. } | Step::CleanText { .. }
     );
     let count = d
         .column_count()
@@ -103,6 +128,7 @@ fn admit_output(
         let (name, kind) = match s {
             Step::Compute { name, .. } | Step::Mean { name, .. } => (name, ColumnKind::Number),
             Step::Recode { name, kind, .. } => (name, *kind),
+            Step::CleanText { source, name, .. } => (name, d.column(*source)?.kind()),
             _ => unreachable!(),
         };
         if d.columns().iter().any(|col| col.name() == name) {
@@ -145,6 +171,27 @@ fn column_text_bytes(col: &Column, c: &JobControl) -> AppResult<usize> {
     Ok(bytes.bytes)
 }
 fn recode_text_bytes(d: &Dataset, s: &Step, c: &JobControl) -> AppResult<usize> {
+    if let Step::CleanText {
+        source,
+        trim_whitespace,
+        rules,
+        ..
+    } = s
+    {
+        let col = d.column(*source)?;
+        let mut bytes = AllocationCounter::default();
+        for row in 0..col.len() {
+            c.checkpoint(row, Some(col.len()))?;
+            bytes.add(crate::survey::cleaning::clean_text_len(
+                col,
+                row,
+                *trim_whitespace,
+                rules,
+                c,
+            )?)?;
+        }
+        return Ok(bytes.bytes);
+    }
     let Step::Recode {
         source,
         rules,

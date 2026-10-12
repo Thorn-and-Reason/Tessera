@@ -673,3 +673,5 @@ fn reliability_worker_precharge_forwards_supplied_control_before_request_capacit
     assert!(matches!(result, Err(AppError::Cancelled)), "{result:?}");
     assert!(calls.get() > 1);
 }
+
+mod survey;

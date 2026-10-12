@@ -37,6 +37,7 @@ impl DesktopState {
         undo.push(snapshot);
         next.undo = undo;
         next.project = project;
+        next.invalidate_survey();
         // Old and new states coexist until immutable adoption completes.
         self.check_history_transition(&next)?;
         next.selected_cell = next.selected_cell.filter(|(id, row)| {
@@ -103,6 +104,7 @@ impl DesktopState {
             next.redo = restored;
         }
         next.project = Arc::new(project);
+        next.invalidate_survey();
         self.check_history_transition(&next)?;
         next.error = None;
         next.cell_editor = None;
@@ -169,7 +171,8 @@ impl DesktopState {
             .saturating_add(
                 next.extra()
                     .saturating_sub(next.history_bytes()?)
-                    .saturating_sub(next.recovery_owner_bytes()),
+                    .saturating_sub(next.recovery_owner_bytes())
+                    .saturating_sub(self.shared_survey_review_bytes(next)),
             )
             .saturating_add(
                 (self.undo.capacity()

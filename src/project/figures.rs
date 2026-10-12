@@ -69,6 +69,19 @@ impl Project {
         retained: &[&Dataset],
         extra: usize,
     ) -> AppResult<Self> {
+        self.with_figure_with_budget_controlled(key, settings, retained, extra, None)
+    }
+    pub(crate) fn with_figure_with_budget_controlled(
+        &self,
+        key: &crate::figures::FigureKey,
+        settings: crate::figures::FigureSettings,
+        retained: &[&Dataset],
+        extra: usize,
+        control: Option<&crate::operation::JobControl>,
+    ) -> AppResult<Self> {
+        if let Some(control) = control {
+            control.check_cancelled()?;
+        }
         if self.figures.len() >= 1024 && !self.figures.iter().any(|f| f.key == *key) {
             return Err(AppError::invalid(
                 "figures",
@@ -77,7 +90,7 @@ impl Project {
         }
         self.validate_figure_key(key)?;
         settings.validate()?;
-        self.check_update_budget(
+        self.check_update_budget_controlled(
             None,
             retained,
             extra,
@@ -86,25 +99,39 @@ impl Project {
                 + size_of::<crate::figures::FigureRecord>()
                 + settings.heap_bytes(),
             0,
+            control,
         )?;
         let mut figures = Vec::with_capacity(self.figures.len() + 1);
-        figures.extend(self.figures.iter().filter(|f| &f.key != key).cloned());
+        for record in self.figures.iter().filter(|f| &f.key != key) {
+            if let Some(control) = control {
+                control.check_cancelled()?;
+            }
+            figures.push(record.clone());
+        }
         figures.push(crate::figures::FigureRecord {
             key: *key,
             settings,
         });
+        let mut provenance = Vec::with_capacity(self.provenance.len());
+        for entry in &self.provenance {
+            provenance.push(copy_string(entry, control)?);
+        }
         let next = Self {
             figures,
-            title: self.title.clone(),
+            title: copy_string(&self.title, control)?,
             dataset: Arc::clone(&self.dataset),
             runs: self.runs.clone(),
             steps: self.steps.clone(),
             next_column: self.next_column,
             next_run: self.next_run,
-            provenance: self.provenance.clone(),
+            provenance,
             presets: self.presets.clone(),
         };
-        Budget::check_datasets(&[self.dataset()], next.owned_bytes()?)?;
+        let bytes = match control {
+            Some(c) => next.owned_bytes_controlled(c)?,
+            None => next.owned_bytes()?,
+        };
+        Budget::dataset_bytes_iter_controlled(std::iter::once(self.dataset()), bytes, control)?;
         Ok(next)
     }
     pub fn without_figure_with_budget(

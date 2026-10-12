@@ -7,6 +7,26 @@ impl DesktopState {
         operation: JobOperation,
     ) -> AppResult<()> {
         self.idle()?;
+        if let JobOperation::InspectSurvey { project }
+        | JobOperation::SurveyReport { project, .. }
+        | JobOperation::SurveyPresented { project, .. }
+        | JobOperation::PreviewSurveyCleaning { project, .. }
+        | JobOperation::ApplySurveyCleaning { project, .. }
+        | JobOperation::SaveSurveyRecipe { project, .. }
+        | JobOperation::LoadSurveyRecipe { project, .. }
+        | JobOperation::ReplaySurveyRecipe { project, .. } = &operation
+        {
+            if !Arc::ptr_eq(project, &self.project) {
+                return Err(AppError::Conflict(
+                    "Review the current project only.".into(),
+                ));
+            }
+            if self.metadata_has_changes() || self.cell_editor.is_some() {
+                return Err(AppError::Conflict(
+                    "Apply or discard pending edits before reviewing the survey.".into(),
+                ));
+            }
+        }
         if let JobOperation::Prepare { project, .. } = &operation {
             if !Arc::ptr_eq(project, &self.project) {
                 return Err(AppError::Conflict(
@@ -40,6 +60,8 @@ impl DesktopState {
         let recipe_bytes = match &operation {
             JobOperation::Prepare { step, .. } => step.owned_bytes()?,
             JobOperation::CommitExcel { choices, .. } => crate::import::choice_bytes(choices)?,
+            JobOperation::SurveyReport { request, .. } => request.owned_bytes()?,
+            JobOperation::SurveyPresented { request, .. } => request.owned_bytes()?,
             JobOperation::Analyze { request, .. } => request.heap_bytes()?,
             JobOperation::FrequencySearch { request, .. } => request.heap_bytes()?,
             JobOperation::GroupLookup { request, .. } => request.heap_bytes()?,
@@ -58,6 +80,14 @@ impl DesktopState {
             JobOperation::PreviewPath { .. } => "Import preview",
             JobOperation::CommitImport { .. } => "Import",
             JobOperation::Open { .. } => "Open",
+            JobOperation::InspectSurvey { .. } => "Review survey",
+            JobOperation::SurveyReport { .. } => "Create survey report",
+            JobOperation::SurveyPresented { .. } => "Create survey report",
+            JobOperation::PreviewSurveyCleaning { .. } => "Preview survey cleaning",
+            JobOperation::ApplySurveyCleaning { .. } => "Apply survey cleaning",
+            JobOperation::SaveSurveyRecipe { .. } => "Save survey recipe",
+            JobOperation::LoadSurveyRecipe { .. } => "Load survey recipe",
+            JobOperation::ReplaySurveyRecipe { .. } => "Apply recipe and create report",
             JobOperation::Analyze { .. } => "Analysis",
             JobOperation::GroupLookup { .. } => "Group values",
             JobOperation::FrequencySearch { .. } => "Frequency rows",
@@ -121,6 +151,9 @@ impl DesktopState {
                 self.fail(error);
             }
         }
+        if let Err(error) = self.service_survey(jobs) {
+            self.fail(error);
+        }
         self.service_frequency_search(jobs);
         self.service_lookup(jobs);
         if !self.active
@@ -136,6 +169,22 @@ impl DesktopState {
         self.handle_event_controlled(event, &crate::operation::JobControl::default())
     }
     fn handle_event_controlled(
+        &mut self,
+        event: JobEvent,
+        control: &crate::operation::JobControl,
+    ) -> AppResult<()> {
+        let current_import = event.token() == self.token()
+            && matches!(
+                self.operation_name,
+                "Inspect Excel" | "Excel preview" | "Excel import" | "Import preview" | "Import"
+            );
+        let result = self.handle_event_inner_controlled(event, control);
+        if result.is_err() && current_import {
+            self.cancel_survey_import();
+        }
+        result
+    }
+    fn handle_event_inner_controlled(
         &mut self,
         event: JobEvent,
         control: &crate::operation::JobControl,
@@ -197,6 +246,18 @@ impl DesktopState {
                         if token == self.token() && matches!(error, AppError::Cancelled) {
                             self.status.clear();
                         }
+                        if token == self.token()
+                            && matches!(
+                                self.operation_name,
+                                "Inspect Excel"
+                                    | "Excel preview"
+                                    | "Excel import"
+                                    | "Import preview"
+                                    | "Import"
+                            )
+                        {
+                            self.cancel_survey_import();
+                        }
                         self.save_requested = false;
                         self.import_delimiter = self.preview_delimiter;
                         return Err(error);
@@ -205,7 +266,10 @@ impl DesktopState {
                 if let Some(outcome) = output.file_outcome() {
                     let verb = match outcome.publication {
                         crate::files::Publication::Committed
-                            if matches!(output, JobOutput::Saved(_)) =>
+                            if matches!(
+                                output,
+                                JobOutput::Saved(_) | JobOutput::SurveyRecipeSaved(_)
+                            ) =>
                         {
                             "Saved"
                         }
@@ -242,6 +306,23 @@ impl DesktopState {
                     return Ok(());
                 }
                 match output {
+                    JobOutput::SurveyCleaningPreview(preview) => {
+                        self.accept_survey_cleaning_preview(preview)?
+                    }
+                    JobOutput::SurveyCleaned {
+                        project,
+                        request,
+                        review,
+                    } => self.accept_survey_cleaned(project, request, review, control)?,
+                    JobOutput::SurveyRecipe(recipe) => self.accept_survey_recipe(recipe)?,
+                    JobOutput::SurveyRecipeSaved(_) => {}
+                    JobOutput::SurveyRecipeReport(project) => {
+                        self.accept_survey_recipe_report(project, control)?
+                    }
+                    JobOutput::SurveyReview(review) => self.accept_survey_review(review)?,
+                    JobOutput::SurveyReport(project) => {
+                        self.accept_survey_report(project, control)?
+                    }
                     JobOutput::Prepared(project) => {
                         self.adopt_prepared_project_arc(project)?;
                         self.metadata_editor = None;
@@ -312,7 +393,9 @@ impl DesktopState {
                             &[self.project.dataset()],
                             self.project.owned_bytes()? + self.extra(),
                         )?;
+                        let survey_import = self.survey.import_requested;
                         self.adopt(Arc::new(project), None, None)?;
+                        self.survey.entry_pending = survey_import;
                     }
                     JobOutput::Opened {
                         project,

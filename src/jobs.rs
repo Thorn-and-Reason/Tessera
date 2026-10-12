@@ -118,6 +118,42 @@ pub enum JobOperation {
     Open {
         path: PathBuf,
     },
+    InspectSurvey {
+        project: Arc<Project>,
+    },
+    SurveyReport {
+        project: Arc<Project>,
+        request: crate::survey::SurveyRequest,
+    },
+    SurveyPresented {
+        project: Arc<Project>,
+        request: crate::survey::SurveyRequest,
+        presentation: crate::survey::SurveyPresentation,
+    },
+    PreviewSurveyCleaning {
+        project: Arc<Project>,
+        request: crate::survey::cleaning::CleaningRequest,
+    },
+    ApplySurveyCleaning {
+        project: Arc<Project>,
+        request: crate::survey::cleaning::CleaningRequest,
+    },
+    SaveSurveyRecipe {
+        project: Arc<Project>,
+        source: Arc<Project>,
+        choices: Vec<crate::survey::SurveyChoice>,
+        cleanings: Vec<(ColumnId, crate::survey::cleaning::CleaningSpec)>,
+        presentation: crate::survey::SurveyPresentation,
+        path: PathBuf,
+    },
+    LoadSurveyRecipe {
+        project: Arc<Project>,
+        path: PathBuf,
+    },
+    ReplaySurveyRecipe {
+        project: Arc<Project>,
+        recipe: Arc<crate::survey::recipe::SurveyRecipe>,
+    },
     Analyze {
         project: Arc<Project>,
         request: AnalysisRequest,
@@ -182,6 +218,17 @@ pub enum JobOutput {
         path: PathBuf,
         stamp: FileStamp,
     },
+    SurveyReview(Arc<crate::survey::SurveyReview>),
+    SurveyReport(Arc<Project>),
+    SurveyCleaningPreview(Arc<crate::survey::cleaning::CleaningPreview>),
+    SurveyCleaned {
+        project: Arc<Project>,
+        request: crate::survey::cleaning::CleaningRequest,
+        review: Arc<crate::survey::SurveyReview>,
+    },
+    SurveyRecipe(Arc<crate::survey::recipe::SurveyRecipe>),
+    SurveyRecipeSaved(SaveOutcome),
+    SurveyRecipeReport(Arc<Project>),
     Analyzed(CompletedAnalysis),
     GroupValues(Arc<GroupLookupResult>),
     FrequencyRows(FrequencyRowsOutput),
@@ -195,7 +242,9 @@ pub enum JobOutput {
 impl JobOutput {
     pub fn file_outcome(&self) -> Option<&SaveOutcome> {
         match self {
-            Self::Saved(outcome) | Self::Exported(outcome) => Some(outcome),
+            Self::Saved(outcome) | Self::Exported(outcome) | Self::SurveyRecipeSaved(outcome) => {
+                Some(outcome)
+            }
             _ => None,
         }
     }
@@ -448,6 +497,14 @@ impl JobOperation {
             | Self::Checkpoint { project, .. }
             | Self::FrequencySearch { project, .. }
             | Self::GroupLookup { project, .. }
+            | Self::InspectSurvey { project }
+            | Self::SurveyReport { project, .. }
+            | Self::SurveyPresented { project, .. }
+            | Self::PreviewSurveyCleaning { project, .. }
+            | Self::ApplySurveyCleaning { project, .. }
+            | Self::SaveSurveyRecipe { project, .. }
+            | Self::LoadSurveyRecipe { project, .. }
+            | Self::ReplaySurveyRecipe { project, .. }
             | Self::Analyze { project, .. }
             | Self::ConvertColumn { project, .. }
             | Self::Save { project, .. }
@@ -474,6 +531,35 @@ impl JobOperation {
                 Some(c) => request.heap_bytes_controlled(c)?,
                 None => request.heap_bytes()?,
             },
+            Self::SurveyReport { request, .. } => request.owned_bytes()?,
+            Self::SurveyPresented { request, .. } => request.owned_bytes()?,
+            Self::PreviewSurveyCleaning { request, .. }
+            | Self::ApplySurveyCleaning { request, .. } => request
+                .spec
+                .owned_bytes()?
+                .saturating_add(request.name.capacity())
+                .saturating_add(size_of::<crate::survey::cleaning::CleaningRequest>()),
+            Self::SaveSurveyRecipe {
+                path,
+                choices,
+                cleanings,
+                source,
+                ..
+            } => path
+                .capacity()
+                .saturating_add(choices.capacity() * size_of::<crate::survey::SurveyChoice>())
+                .saturating_add(
+                    cleanings.capacity()
+                        * size_of::<(ColumnId, crate::survey::cleaning::CleaningSpec)>(),
+                )
+                .saturating_add(cleanings.iter().try_fold(0usize, |n, (_, s)| {
+                    s.owned_bytes().map(|b| n.saturating_add(b))
+                })?)
+                .saturating_add(source.owned_bytes()?)
+                .saturating_add(Budget::dataset_bytes(&[source.dataset()], 0)?)
+                .saturating_add(2 * size_of::<usize>()),
+            Self::LoadSurveyRecipe { path, .. } => path.capacity(),
+            Self::ReplaySurveyRecipe { recipe, .. } => recipe.owned_bytes()?,
             Self::GroupLookup { request, .. } => request.heap_bytes()?,
             Self::FrequencySearch { request, .. } => request.heap_bytes()?,
             Self::ExportFigures {
@@ -492,7 +578,10 @@ impl JobOperation {
             Self::Recover { store, entry } | Self::DiscardRecovery { store, entry } => {
                 add(store.owned_bytes(), entry.owned_bytes())?
             }
-            Self::Prepare { .. } | Self::ConvertColumn { .. } | Self::PreviewExcel { .. } => 0,
+            Self::InspectSurvey { .. }
+            | Self::Prepare { .. }
+            | Self::ConvertColumn { .. }
+            | Self::PreviewExcel { .. } => 0,
         })
     }
 }

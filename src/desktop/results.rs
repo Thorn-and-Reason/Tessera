@@ -207,7 +207,13 @@ pub fn show(ui: &mut egui::Ui, state: &mut DesktopState, jobs: &mut JobRunner) {
         if wide {
             ui.heading("Results");
         }
+        if !state.survey_run_ids().is_empty() {
+            ui.add_enabled_ui(!state.active, |ui| {
+                if button(ui, state, "Export survey report").clicked() { dialogs::export_survey_report(state, jobs); }
+            });
+        }
         if button(ui, state, "New analysis").clicked() {
+            state.leave_survey_review();
             state.act(UiAction::Navigate(super::Workspace::Analyses));
         }
         let edit = ui.add_enabled(
@@ -217,6 +223,7 @@ pub fn show(ui: &mut egui::Ui, state: &mut DesktopState, jobs: &mut JobRunner) {
         super::procedure_forms::record(state, "Edit selected analysis", &edit);
         super::procedure_forms::record(state, "Use this run in Analyses", &edit);
         if edit.clicked() {
+            state.leave_survey_review();
             state.load_selected_request();
             if state.error().is_none() {
                 state.act(UiAction::Navigate(super::Workspace::Analyses));

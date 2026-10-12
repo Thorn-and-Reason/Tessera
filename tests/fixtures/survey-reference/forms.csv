@@ -1,0 +1,9 @@
+ID,Start time,Email,Satisfaction,Hours studied,Preferred activity,Comments,Interests
+1,2026-10-12T09:00:00,a@example.invalid,Agree,1,Reading,Useful session,Red;Blue
+2,2026-10-12T09:01:00,b@example.invalid,Disagree,2,Walking,More time needed,Blue
+3,2026-10-12T09:02:00,c@example.invalid,Agree,3,Reading,Useful session,Red;Blue
+4,2026-10-12T09:03:00,d@example.invalid,Neutral,4,Walking,No comment,Red
+5,2026-10-12T09:04:00,e@example.invalid,N/A,5,Reading,No comment,Blue
+6,2026-10-12T09:05:00,f@example.invalid,Disagree,3,Walking,More time needed,Blue;Red
+7,2026-10-12T09:06:00,g@example.invalid,Agree,3,Reading,Useful session,Red;Blue
+8,2026-10-12T09:07:00,h@example.invalid,, , reading ,No comment,

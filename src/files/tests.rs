@@ -1,4 +1,14 @@
 use super::*;
+#[test]
+fn bounded_stamp_refuses_payload_above_its_own_limit() {
+    let t = Temp::new();
+    std::fs::write(t.dest(), b"12345").unwrap();
+    assert!(stamp_with_limit(&t.dest(), &JobControl::default(), 5).is_ok());
+    assert!(matches!(
+        stamp_with_limit(&t.dest(), &JobControl::default(), 4),
+        Err(AppError::SizeLimit { limit: 4 })
+    ));
+}
 struct Temp(PathBuf);
 impl Temp {
     fn new() -> Self {
