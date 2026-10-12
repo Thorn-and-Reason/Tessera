@@ -190,6 +190,19 @@ pub(super) fn settings(ui: &mut egui::Ui, state: &mut DesktopState, draft: &mut 
             })
         };
         let count = candidates().count();
+        let label = if state.search.trim().is_empty() {
+            "Select all"
+        } else {
+            "Select all matching"
+        };
+        let enabled = count > 0 && draft.items.len() + count <= 64;
+        let r = ui.add_enabled(enabled, egui::Button::new(label))
+            .on_disabled_hover_text(if count == 0 { "All matching eligible items are selected." } else { "Select all would exceed the 64-item limit. Narrow the search or select items individually." });
+        r.widget_info(|| {
+            egui::WidgetInfo::labeled(egui::WidgetType::Button, r.enabled(), "Select all items")
+        });
+        record(state, "Select all items", &r);
+        let bulk = r.clicked();
         let mut selected = None;
         let pages = paged_rows::show_rows(
             ui,
@@ -217,6 +230,27 @@ pub(super) fn settings(ui: &mut egui::Ui, state: &mut DesktopState, draft: &mut 
             },
         );
         pages.record(state);
+        if bulk {
+            let growth = (draft.items.len() + count).saturating_sub(draft.items.capacity())
+                * size_of::<ColumnId>();
+            let overlap = if growth > 0 {
+                draft.items.capacity() * size_of::<ColumnId>()
+            } else {
+                0
+            };
+            if admit(state, draft, growth, overlap) {
+                draft.items.reserve_exact(count);
+                for c in data.columns() {
+                    if c.kind() == ColumnKind::Number
+                        && query.matches(c.name())
+                        && !draft.items.contains(&c.id())
+                    {
+                        draft.items.push(c.id());
+                    }
+                }
+                state.picker = false;
+            }
+        }
         if let Some(id) = selected {
             let overlap = draft.items.capacity() * size_of::<ColumnId>();
             if admit(state, draft, size_of::<ColumnId>(), overlap) {

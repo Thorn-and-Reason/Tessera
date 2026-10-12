@@ -182,3 +182,123 @@ fn numeric_variable_choices_are_visible_without_opening_a_picker() {
     output.textures_delta.clear();
     assert!(state.control_rect("Variable 1").is_some());
 }
+
+#[test]
+fn select_all_describe_includes_every_page_without_duplicates_or_text() {
+    for search in ["", "Variable 29"] {
+        let data = Dataset::new(
+            (1..=300)
+                .map(|id| {
+                    Column::numeric(ColumnId(id), &format!("Variable {id}"), vec![Some(1.)])
+                        .unwrap()
+                })
+                .chain([Column::text(ColumnId(301), "Text", vec![Some("hello".into())]).unwrap()])
+                .collect(),
+        )
+        .unwrap();
+        let mut state =
+            DesktopState::from_project(Project::new("Bulk selection", data).unwrap()).unwrap();
+        state.search = search.into();
+        let label = if search.is_empty() {
+            "Select all"
+        } else {
+            "Select all matching"
+        };
+        let ctx = egui::Context::default();
+        let mut jobs = JobRunner::default();
+        for frame in 0..4 {
+            if frame == 2 {
+                ctx.memory_mut(|m| m.request_focus(state.control_id(label).expect("bulk action")));
+            }
+            let mut output = ctx.run_ui(
+                egui::RawInput {
+                    screen_rect: Some(egui::Rect::from_min_size(
+                        egui::Pos2::ZERO,
+                        egui::vec2(1000., 1000.),
+                    )),
+                    events: if frame == 2 {
+                        vec![egui::Event::Key {
+                            key: egui::Key::Enter,
+                            physical_key: None,
+                            pressed: true,
+                            repeat: false,
+                            modifiers: egui::Modifiers::NONE,
+                        }]
+                    } else {
+                        vec![]
+                    },
+                    ..Default::default()
+                },
+                |ui| {
+                    settings(ui, &mut state, &mut jobs);
+                },
+            );
+            output.textures_delta.clear();
+        }
+        let super::super::draft::AnalysisDraft::Describe(request) = &state.draft else {
+            panic!()
+        };
+        assert_eq!(
+            request.columns,
+            (1..=300)
+                .filter(|id| format!("Variable {id}").contains(search))
+                .map(ColumnId)
+                .collect::<Vec<_>>()
+        );
+    }
+}
+
+#[test]
+fn bulk_selection_preserves_order_and_refuses_both_budgets_atomically() {
+    for budget in 0..3 {
+        let mut state = DesktopState::new().unwrap();
+        state.search = "match".into();
+        if budget == 2 {
+            state.active_recipe_bytes = crate::data::MAX_OWNED_BYTES;
+        }
+        let mut columns = vec![ColumnId(3)];
+        let original_capacity = columns.capacity();
+        let ctx = egui::Context::default();
+        for frame in 0..4 {
+            if frame == 2 {
+                ctx.memory_mut(|m| {
+                    m.request_focus(state.control_id("Select all matching").unwrap())
+                });
+            }
+            let mut output = ctx.run_ui(
+                egui::RawInput {
+                    events: if frame == 2 {
+                        vec![egui::Event::Key {
+                            key: egui::Key::Enter,
+                            physical_key: None,
+                            pressed: true,
+                            repeat: false,
+                            modifiers: egui::Modifiers::NONE,
+                        }]
+                    } else {
+                        vec![]
+                    },
+                    ..Default::default()
+                },
+                |ui| {
+                    super::super::procedure_forms::select_all_columns(
+                        ui,
+                        &mut state,
+                        &mut columns,
+                        if budget == 1 { MAX_DRAFT_BYTES } else { 8 },
+                        "Select all matching",
+                        [ColumnId(1), ColumnId(3), ColumnId(4)].into_iter(),
+                    );
+                },
+            );
+            output.textures_delta.clear();
+        }
+        if budget == 0 {
+            assert_eq!(columns, vec![ColumnId(3), ColumnId(1), ColumnId(4)]);
+        } else {
+            assert_eq!(columns, vec![ColumnId(3)]);
+            assert_eq!(columns.capacity(), original_capacity);
+            assert!(state.error().is_some());
+        }
+    }
+}

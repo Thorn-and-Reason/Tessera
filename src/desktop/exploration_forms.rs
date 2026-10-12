@@ -52,6 +52,17 @@ pub(super) fn show(
             if let Some(i) = remove {
                 r.columns.remove(i);
             }
+            let heap = crate::analysis::AnalysisRequestRef::Frequencies(r)
+                .heap_bytes()
+                .unwrap_or(usize::MAX);
+            super::procedure_forms::select_all_columns(
+                ui,
+                state,
+                &mut r.columns,
+                heap,
+                "Select all",
+                data.columns().iter().map(|c| c.id()),
+            );
             let mut added = None;
             scalar(
                 ui,

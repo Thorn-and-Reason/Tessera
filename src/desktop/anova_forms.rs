@@ -176,6 +176,49 @@ pub(super) fn settings(
                 factors.remove(i);
                 roles_changed = true;
             }
+            let count = data
+                .columns()
+                .iter()
+                .filter(|c| Some(c.id()) != *outcome && !factors.contains(&c.id()))
+                .count();
+            let enabled = count > 0 && factors.len() + count <= 6;
+            let r = ui
+                .add_enabled(enabled, egui::Button::new("Select all"))
+                .on_disabled_hover_text(if count == 0 {
+                    "All eligible factors are selected."
+                } else {
+                    "Select all would exceed the six-factor limit. Select factors individually."
+                });
+            r.widget_info(|| {
+                egui::WidgetInfo::labeled(
+                    egui::WidgetType::Button,
+                    r.enabled(),
+                    "Select all ANOVA factors",
+                )
+            });
+            record(state, "Select all ANOVA factors", &r);
+            if r.clicked() {
+                let growth = (factors.len() + count).saturating_sub(factors.capacity())
+                    * size_of::<ColumnId>();
+                let overlap = if growth > 0 {
+                    factors.capacity() * size_of::<ColumnId>()
+                } else {
+                    0
+                };
+                match admit(state, heap, growth, overlap) {
+                    Ok(()) => {
+                        factors.reserve_exact(count);
+                        for c in data.columns() {
+                            if Some(c.id()) != *outcome && !factors.contains(&c.id()) {
+                                factors.push(c.id());
+                            }
+                        }
+                        heap += growth;
+                        roles_changed = true;
+                    }
+                    Err(error) => state.fail(error),
+                }
+            }
             if factors.len() < 6 {
                 let mut selected = None;
                 scalar(

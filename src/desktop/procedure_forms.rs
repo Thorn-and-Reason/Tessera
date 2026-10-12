@@ -47,6 +47,53 @@ pub(super) fn append_column(
     }
     columns.push(id);
 }
+pub(super) fn select_all_columns(
+    ui: &mut egui::Ui,
+    state: &mut DesktopState,
+    columns: &mut Vec<ColumnId>,
+    heap: usize,
+    label: &str,
+    candidates: impl Iterator<Item = ColumnId> + Clone,
+) {
+    let count = candidates
+        .clone()
+        .filter(|id| !columns.contains(id))
+        .count();
+    let response = ui.add_enabled(count > 0, egui::Button::new(label).small());
+    record(state, label, &response);
+    if !response.clicked() {
+        return;
+    }
+    let size = std::mem::size_of::<ColumnId>();
+    let growth = columns
+        .len()
+        .checked_add(count)
+        .and_then(|len| len.saturating_sub(columns.capacity()).checked_mul(size));
+    let admitted = growth
+        .and_then(|growth| heap.checked_add(growth))
+        .filter(|bytes| *bytes <= super::state::MAX_DRAFT_BYTES)
+        .and_then(|bytes| {
+            bytes.checked_add(if growth == Some(0) {
+                0
+            } else {
+                columns.capacity().saturating_mul(size)
+            })
+        })
+        .ok_or(crate::error::AppError::SizeLimit {
+            limit: super::state::MAX_DRAFT_BYTES,
+        })
+        .and_then(|bytes| state.check_ui_copy(bytes));
+    if let Err(error) = admitted {
+        state.fail(error);
+        return;
+    }
+    columns.reserve_exact(count);
+    for id in candidates {
+        if !columns.contains(&id) {
+            columns.push(id);
+        }
+    }
+}
 pub(super) fn chooser(ui: &mut egui::Ui, state: &mut DesktopState, full_height: bool) {
     theme::section(ui, "Methods");
     let mut procedure = state.draft.procedure();
@@ -303,6 +350,25 @@ fn pearson_roles(
             egui::WidgetInfo::labeled(egui::WidgetType::TextEdit, true, "Search variables")
         });
         if let Ok(query) = theme::NameQuery::new(&state.search) {
+            let heap = AnalysisRequestRef::Pearson(request)
+                .heap_bytes()
+                .unwrap_or(usize::MAX);
+            let label = if state.search.trim().is_empty() {
+                "Select all"
+            } else {
+                "Select all matching"
+            };
+            select_all_columns(
+                ui,
+                state,
+                &mut request.columns,
+                heap,
+                label,
+                data.columns()
+                    .iter()
+                    .filter(|c| c.kind() == ColumnKind::Number && query.matches(c.name()))
+                    .map(|c| c.id()),
+            );
             let candidates = || {
                 data.columns().iter().filter(|c| {
                     c.kind() == ColumnKind::Number

@@ -342,3 +342,65 @@ fn bounded_predictor_menu_search_reaches_later_columns_through_real_input() {
         }]
     );
 }
+
+#[test]
+fn bulk_predictors_exclude_outcome_preserve_existing_order_and_roles() {
+    let mut f = Form::new();
+    f.draft.outcome = Some(ColumnId(1));
+    f.draft.predictors.push(RegressionPredictorDraft {
+        column: ColumnId(3),
+        role: RegressionDraftRole::Categorical { reference: None },
+    });
+    f.frame(vec![]);
+    f.click("Add predictor");
+    f.click("Select all predictors");
+    assert_eq!(
+        f.draft
+            .predictors
+            .iter()
+            .map(|p| p.column.0)
+            .collect::<Vec<_>>(),
+        [3, 2, 4]
+    );
+    assert_eq!(
+        f.draft.predictors[0].role,
+        RegressionDraftRole::Categorical { reference: None }
+    );
+    assert_eq!(f.draft.predictors[1].role, RegressionDraftRole::Numeric);
+    assert_eq!(
+        f.draft.predictors[2].role,
+        RegressionDraftRole::Categorical { reference: None }
+    );
+}
+
+#[test]
+fn bulk_predictors_cover_all_pages_filter_and_refuse_memory_growth() {
+    let mut f = Form::new();
+    let data = Dataset::new(
+        (1..=270)
+            .map(|id| Column::numeric(ColumnId(id), &format!("Field {id}"), vec![]).unwrap())
+            .collect(),
+    )
+    .unwrap();
+    f.state = DesktopState::from_project(Project::new("Wide", data).unwrap()).unwrap();
+    f.frame(vec![]);
+    f.click("Add predictor");
+    f.click("Select all predictors");
+    assert_eq!(f.draft.predictors.len(), 270);
+    assert_eq!(f.draft.predictors[269].column, ColumnId(270));
+    let mut f = Form::new();
+    f.state.search = "Text".into();
+    f.frame(vec![]);
+    f.click("Add predictor");
+    f.click("Select all predictors");
+    assert_eq!(f.draft.predictors.len(), 1);
+    assert_eq!(f.draft.predictors[0].column, ColumnId(4));
+    let mut f = Form::new();
+    f.frame(vec![]);
+    f.click("Add predictor");
+    f.state.active_recipe_bytes = crate::data::MAX_OWNED_BYTES;
+    f.click("Select all predictors");
+    assert!(f.draft.predictors.is_empty());
+    assert_eq!(f.draft.predictors.capacity(), 0);
+    assert!(f.state.error().is_some());
+}

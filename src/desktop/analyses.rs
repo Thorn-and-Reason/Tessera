@@ -164,6 +164,25 @@ fn form(ui: &mut egui::Ui, state: &mut DesktopState, jobs: &mut JobRunner) {
                         return;
                     }
                 };
+                let heap = crate::analysis::AnalysisRequestRef::Describe(&draft)
+                    .heap_bytes()
+                    .unwrap_or(usize::MAX);
+                let label = if state.search.trim().is_empty() {
+                    "Select all"
+                } else {
+                    "Select all matching"
+                };
+                super::procedure_forms::select_all_columns(
+                    ui,
+                    state,
+                    &mut draft.columns,
+                    heap,
+                    label,
+                    columns
+                        .iter()
+                        .filter(|c| c.kind() == ColumnKind::Number && query.matches(c.name()))
+                        .map(|c| c.id()),
+                );
                 let candidates = || {
                     columns.iter().filter(|c| {
                         c.kind() == ColumnKind::Number

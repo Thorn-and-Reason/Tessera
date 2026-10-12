@@ -62,3 +62,11 @@ Button borders keep the same width when idle, hovered or pressed. Selectable con
 Regression tests compare control rectangles before hover, during hover and after the pointer leaves in light/dark themes, wide/compact layouts and at 150% UI scaling. Shared-control tests also cover pressing, changing a selection and visible keyboard focus.
 
 Fresh all-features macOS verification passed 1,090 application tests and 18 workbook-worker tests, with one ignored application test. Production line coverage was 88.50% (33,857/38,257 lines). Formatting, Clippy, desktop build and diff checks passed; existing warnings remain. Independent review found no issues.
+
+## Bulk variable selection
+
+Descriptives, Correlation and Frequencies offer Select all. Descriptives and Correlation select numeric variables; their search fields change the action to Select all matching across every candidate page. Frequencies selects all column types. Regression offers the same action in its predictor picker, excluding the outcome and preserving numeric/categorical roles. Reliability selects numeric items, and factorial ANOVA selects factors excluding its outcome. Bulk selection preserves the existing order and appends eligible variables in dataset order without duplicates.
+
+Reliability's 64-item and ANOVA's six-factor limits disable an oversized bulk action with an explanation. Memory admission precedes allocation and edits, so refusal retains the original selection. Individual role selectors and repeated-measures cell mappings retain their specific assignments.
+
+Bulk-selection verification passed all 569 library tests and 19 focused UI integration tests, including the hover regression. Formatting, diff checks, Clippy and the desktop build passed with existing warnings. Independent review found no actionable issues. Fresh coverage measurement and a native pointer walkthrough were not repeated for this follow-up.

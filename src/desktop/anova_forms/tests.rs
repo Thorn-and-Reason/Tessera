@@ -739,3 +739,62 @@ fn anova_text_identity_survives_status_and_preceding_layout_changes() {
         "Typing must continue in the admitted buffer across layout changes"
     );
 }
+
+#[test]
+fn bulk_anova_factors_exclude_outcome_and_preserve_order() {
+    let mut f = Form::new();
+    f.draft.design = AnovaDesignDraft::Factorial {
+        outcome: Some(ColumnId(1)),
+        factors: vec![ColumnId(3)],
+    };
+    f.frame(vec![]);
+    f.click("Select all ANOVA factors");
+    assert_eq!(
+        f.draft.design,
+        AnovaDesignDraft::Factorial {
+            outcome: Some(ColumnId(1)),
+            factors: vec![ColumnId(3), ColumnId(2), ColumnId(4)]
+        }
+    );
+}
+
+#[test]
+fn bulk_anova_factors_obey_factor_limit_and_memory_guard() {
+    let mut f = Form::new();
+    let data = Dataset::new(
+        (1..=8)
+            .map(|id| Column::numeric(ColumnId(id), &format!("Column {id}"), vec![]).unwrap())
+            .collect(),
+    )
+    .unwrap();
+    f.state = DesktopState::from_project(Project::new("Wide", data).unwrap()).unwrap();
+    f.draft.design = AnovaDesignDraft::Factorial {
+        outcome: Some(ColumnId(1)),
+        factors: vec![],
+    };
+    f.frame(vec![]);
+    f.click("Select all ANOVA factors");
+    assert_eq!(
+        f.draft.design,
+        AnovaDesignDraft::Factorial {
+            outcome: Some(ColumnId(1)),
+            factors: vec![]
+        }
+    );
+    let mut f = Form::new();
+    f.draft.design = AnovaDesignDraft::Factorial {
+        outcome: Some(ColumnId(1)),
+        factors: vec![],
+    };
+    f.frame(vec![]);
+    f.state.active_recipe_bytes = crate::data::MAX_OWNED_BYTES;
+    f.click("Select all ANOVA factors");
+    assert_eq!(
+        f.draft.design,
+        AnovaDesignDraft::Factorial {
+            outcome: Some(ColumnId(1)),
+            factors: vec![]
+        }
+    );
+    assert!(f.state.error().is_some());
+}
