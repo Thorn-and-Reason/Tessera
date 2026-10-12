@@ -36,6 +36,16 @@ python3 -m unittest discover -s scripts -p 'test_*.py'
 python3 -m unittest discover -s tests/project_io -p 'test_*.py'
 ```
 
+For Rust formatting and lint checks:
+
+```sh
+cargo fmt --all -- --check
+cargo clippy --locked --all-targets --all-features
+```
+
+The desktop feature is enabled by default. Core checks and development
+benchmarks can use `--no-default-features`.
+
 ## Build distributable packages
 
 The existing `scripts/package.py` prepares a ZIP containing the application,
