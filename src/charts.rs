@@ -1,5 +1,26 @@
 //! Finite full-cohort axis transformations shared by SVG and native drawings.
 use crate::{analysis::validation::invalid_analysis, error::AppResult};
+/// Stack retained source rows at their exact values; frequency weights do not create dots.
+pub(crate) fn stacked_rows(
+    values: impl ExactSizeIterator<Item = f64>,
+    control: &crate::operation::JobControl,
+) -> AppResult<Vec<[f64; 2]>> {
+    control.check_cancelled()?;
+    let mut counts = std::collections::BTreeMap::<u64, usize>::new();
+    let mut points = Vec::with_capacity(values.len());
+    for (i, value) in values.enumerate() {
+        control.checkpoint(i, None)?;
+        if !value.is_finite() {
+            return Err(invalid_analysis());
+        }
+        let key = if value == 0. { 0 } else { value.to_bits() };
+        let count = counts.entry(key).or_default();
+        *count += 1;
+        points.push([value, *count as f64]);
+    }
+    Ok(points)
+}
+
 pub struct ChartScale {
     lo: f64,
     hi: f64,
@@ -119,5 +140,21 @@ impl std::fmt::Display for CategoryCaption<'_> {
                 f.write_char('"')
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod stacking_tests {
+    use super::*;
+    use crate::operation::JobControl;
+    #[test]
+    fn retained_row_stacking_checks_cancellation_and_finite_values() {
+        let cancelled = JobControl::default();
+        cancelled.cancel();
+        assert!(stacked_rows([].into_iter(), &cancelled).is_err());
+        let c = JobControl::default();
+        assert!(stacked_rows([f64::NAN].into_iter(), &c).is_err());
+        assert!(stacked_rows([f64::INFINITY].into_iter(), &c).is_err());
+        assert!(stacked_rows([].into_iter(), &c).unwrap().is_empty());
     }
 }

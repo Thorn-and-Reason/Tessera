@@ -86,6 +86,11 @@ fn export_is_physical_sized_accessible_and_atomic() {
     let svg = render::svg(&p.runs()[0], &key, &FigureSettings::default(), true, &c).unwrap();
     assert!(svg.contains("width=\"160mm\""));
     assert!(svg.contains("role=\"img\""));
+    assert!(
+        svg.contains("aria-labelledby=\"figure-1-Histogram-0-title figure-1-Histogram-0-desc\"")
+    );
+    assert!(svg.contains("<title id=\"figure-1-Histogram-0-title\">"));
+    assert!(svg.contains("<desc id=\"figure-1-Histogram-0-desc\">"));
     assert!(svg.contains("Stale result"));
     assert!(!svg.contains("<text"));
     let path = std::env::temp_dir()

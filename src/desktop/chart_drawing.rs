@@ -79,7 +79,7 @@ pub(super) fn axes(
     xname: &str,
     yname: &str,
 ) -> AppResult<()> {
-    let stroke = Stroke::new(1., theme::text(ui));
+    let stroke = Stroke::new(1., theme::line(ui));
     ui.painter()
         .line_segment([rect.left_bottom(), rect.right_bottom()], stroke);
     let name_left = rect.left().max(ui.clip_rect().left());
@@ -99,7 +99,7 @@ pub(super) fn axes(
         if p > 0. && p < 1. {
             ui.painter().line_segment(
                 [Pos2::new(pos.x, rect.top()), pos],
-                Stroke::new(1., theme::line(ui)),
+                Stroke::new(0.5, theme::line(ui).gamma_multiply(0.65)),
             );
         }
         ui.painter()
@@ -128,7 +128,7 @@ pub(super) fn axes(
             if p > 0. && p < 1. {
                 ui.painter().line_segment(
                     [pos, Pos2::new(rect.right(), pos.y)],
-                    Stroke::new(1., theme::line(ui)),
+                    Stroke::new(0.5, theme::line(ui).gamma_multiply(0.65)),
                 );
             }
             ui.painter()

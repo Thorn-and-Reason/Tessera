@@ -43,7 +43,7 @@ impl FigureEditor {
             previous_applied: false,
             previous_saved: false,
             preset_name: String::new(),
-            format: FigureFormat::Svg,
+            format: FigureFormat::Png,
             texture: None,
             rendered: None,
             error: String::new(),
@@ -129,7 +129,7 @@ pub(super) fn toolbar(ui: &mut egui::Ui, state: &mut DesktopState, jobs: &mut Jo
                 let export = ui.add_enabled(!state.active, egui::Button::new("Export figure…"));
                 record(state, "Export figure…", &export);
                 if export.clicked() {
-                    export_one(state, jobs, &selected, FigureFormat::Svg);
+                    export_one(state, jobs, &selected, FigureFormat::Png);
                 }
                 if ui
                     .add_enabled(!state.active, egui::Button::new("Duplicate figure"))
@@ -255,12 +255,12 @@ fn editor(ui: &mut egui::Ui, state: &mut DesktopState, jobs: &mut JobRunner) {
                             "PNG"
                         })
                         .show_ui(ui, |ui| {
+                            ui.selectable_value(&mut edit.format, FigureFormat::Png, "PNG · image");
                             ui.selectable_value(
                                 &mut edit.format,
                                 FigureFormat::Svg,
                                 "SVG · vector",
                             );
-                            ui.selectable_value(&mut edit.format, FigureFormat::Png, "PNG · image");
                         });
                     if button(ui, state, "Apply and export…").clicked() {
                         match apply_edit(state, &mut edit) {
@@ -625,5 +625,23 @@ fn preview(
     }
     if stale {
         ui.small("Data changed since this run. This figure uses its original captured results.");
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn new_editor_defaults_single_and_batch_exports_to_png() {
+        let editor = FigureEditor::new(
+            FigureKey {
+                run: 1,
+                kind: FigureKind::Histogram,
+                variant: 0,
+            },
+            FigureSettings::default(),
+        );
+        assert_eq!(editor.format, FigureFormat::Png);
     }
 }

@@ -381,16 +381,27 @@ fn draw_plot(ui: &mut egui::Ui, plot: &PlotData, mean: Option<f64>) {
         );
         return;
     }
+    let stacks = match crate::charts::stacked_rows(
+        plot.points.iter().map(|point| point.value),
+        &crate::operation::JobControl::default(),
+    ) {
+        Ok(stacks) => stacks,
+        Err(_) => {
+            ui.label("Drawing unavailable · exact values remain in the observation table");
+            return;
+        }
+    };
+    let largest_stack = stacks.iter().map(|point| point[1]).fold(1.0, f64::max);
     let min = plot
         .points
         .iter()
         .map(|p| p.value)
-        .fold(f64::INFINITY, f64::min);
+        .fold(mean.unwrap_or(f64::INFINITY), f64::min);
     let max = plot
         .points
         .iter()
         .map(|p| p.value)
-        .fold(f64::NEG_INFINITY, f64::max);
+        .fold(mean.unwrap_or(f64::NEG_INFINITY), f64::max);
     let scale = min.abs().max(max.abs()).max(1.0);
     let lo = min / scale;
     let hi = max / scale;
@@ -429,25 +440,39 @@ fn draw_plot(ui: &mut egui::Ui, plot: &PlotData, mean: Option<f64>) {
             theme::text(ui),
         );
     }
-    for (index, point) in plot.points.iter().enumerate() {
-        let y = rect.top() + 30.0 + (index as f32 % 12.0) * 8.0;
-        painter.circle_filled(Pos2::new(x(point.value), y), 3.5, theme::accent(ui));
+    painter.text(
+        Pos2::new(rect.left() + 30.0, rect.top() + 10.0),
+        Align2::LEFT_CENTER,
+        format!(
+            "Retained source rows · largest stack {}",
+            largest_stack as usize
+        ),
+        egui::TextStyle::Small.resolve(ui.style()),
+        theme::text(ui),
+    );
+    let spacing = ((base - rect.top() - 32.0) / largest_stack as f32).min(9.0);
+    let radius = (spacing * 0.4).clamp(1.0, 3.5);
+    for point in &stacks {
+        let position = Pos2::new(x(point[0]), base - point[1] as f32 * spacing);
+        painter.circle_filled(position, radius, theme::accent(ui));
+        painter.circle_stroke(position, radius, egui::Stroke::new(0.5, theme::surface(ui)));
     }
     if let Some(mean) = mean {
         let marker = [
-            Pos2::new(x(mean), rect.top() + 22.0),
+            Pos2::new(x(mean), rect.top() + 35.0),
             Pos2::new(x(mean), base),
         ];
         painter.line_segment(marker, egui::Stroke::new(4.0, theme::text(ui)));
         painter.line_segment(marker, egui::Stroke::new(2.0, theme::GOLD));
         painter.text(
-            Pos2::new(x(mean), rect.top() + 10.0),
+            Pos2::new(x(mean), rect.top() + 25.0),
             Align2::CENTER_CENTER,
             format!("Mean {}", theme::compact_number(mean)),
             egui::TextStyle::Small.resolve(ui.style()),
             theme::text(ui),
         );
     }
+    ui.small("Each dot represents one retained source row; stack height counts rows, not frequency weights.");
 }
 
 #[cfg(test)]
@@ -459,6 +484,45 @@ mod tests {
         operation::JobControl,
         project::Project,
     };
+
+    #[test]
+    fn descriptive_dots_stack_equal_values_and_count_rows_not_weights() {
+        let plot = PlotData {
+            column: ColumnId(1),
+            points: [1., 1., 2.]
+                .into_iter()
+                .enumerate()
+                .map(|(row, value)| PlotPoint {
+                    row,
+                    value,
+                    frequency: 99,
+                })
+                .collect(),
+            source_rows: 3,
+            reduced: false,
+            label: "Retained observations".into(),
+        };
+        let ctx = egui::Context::default();
+        let mut output = ctx.run_ui(egui::RawInput::default(), |ui| draw_plot(ui, &plot, None));
+        output.textures_delta.clear();
+        let dots: Vec<_> = output
+            .shapes
+            .iter()
+            .filter_map(|shape| match &shape.shape {
+                egui::Shape::Circle(circle) if circle.fill != egui::Color32::TRANSPARENT => {
+                    Some(circle.center)
+                }
+                _ => None,
+            })
+            .collect();
+        assert_eq!(dots.len(), 3);
+        assert_eq!(dots[0].x, dots[1].x);
+        assert!(dots[1].y < dots[0].y);
+        assert_eq!(dots[0].y, dots[2].y);
+        assert!(dots[2].x > dots[0].x);
+        assert!(output.shapes.iter().any(|shape| matches!(&shape.shape,
+            egui::Shape::Text(text) if text.galley.text().contains("largest stack 2"))));
+    }
 
     #[test]
     fn new_family_history_uses_bounded_captured_unicode_names_and_stale_revision() {

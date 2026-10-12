@@ -339,12 +339,12 @@ pub(super) fn captured(
             let bounds=match(lo,hi){(Some(lo),Some(hi))=>[lo,hi],_ if !p.reduced=>[p.points.iter().map(|p|p.value).reduce(f64::min).ok_or_else(unavailable)?,p.points.iter().map(|p|p.value).reduce(f64::max).ok_or_else(unavailable)?],_=>return Err(AppError::invalid("figure","Rerun descriptives with minimum and maximum to retain full-cohort drawing bounds."))};
             d.title = "Observed distribution".into();
             d.x = name(run, p.column)?;
-            d.y = "Observation rows".into();
-            d.bounds = [bounds, [0., 1.]];
-            for point in &p.points {
-                c.check_cancelled()?;
-                d.marks.push(Mark::Point(point.value, 0.5));
-            }
+            d.y = "Retained rows".into();
+            let points = crate::charts::stacked_rows(p.points.iter().map(|point| point.value), c)?;
+            let max_stack = points.iter().map(|point| point[1]).fold(0., f64::max);
+            d.bounds = [bounds, [0., max_stack + 1.]];
+            d.marks
+                .extend(points.into_iter().map(|[x, y]| Mark::Point(x, y)));
             d.note=format!("{} Showing {} of {} eligible source rows. Valid frequency {}; missing frequency {}.{}",p.label,p.points.len(),p.source_rows,row.valid_n,row.missing_n,if p.reduced{" Drawing reduced."}else{""});
         }
         _ => {
@@ -353,6 +353,10 @@ pub(super) fn captured(
                 "The figure does not belong to this captured analysis.",
             ))
         }
+    }
+    if matches!(kind, FigureKind::Distribution(_)) {
+        d.note
+            .push_str(" Each dot is one retained source row; equal values stack vertically.");
     }
     d.visible_note = match (&run.analysis, kind) {
         (CompletedAnalysis::Histogram(v), _) => concise(v.valid_rows, v.n, v.missing_rows, None),
@@ -422,6 +426,7 @@ pub(super) fn captured(
             if row.missing_n > 0 {
                 note.push_str(&format!(" Missing frequency: {}.", row.missing_n));
             }
+            note.push_str(" Each dot is one retained source row; equal values stack vertically.");
             note
         }
         _ => String::new(),
@@ -520,6 +525,70 @@ mod caption_tests {
             .contains("Full-cohort quartiles and observed whiskers"));
         assert!(d.note.contains("0 filtered"));
         assert!(d.note.contains("Missing group: 0"));
+    }
+    #[test]
+    fn distribution_stacks_equal_values_without_moving_the_data_axis() {
+        let values = vec![
+            Some(-0.),
+            Some(0.),
+            Some(1.),
+            Some(1. + f64::EPSILON),
+            Some(1.),
+        ];
+        let dataset = crate::data::Dataset::new(vec![crate::data::Column::numeric(
+            ColumnId(1),
+            "Score",
+            values.clone(),
+        )
+        .unwrap()])
+        .unwrap();
+        let c = JobControl::default();
+        let result = analyze_with_budget(
+            &dataset,
+            &AnalysisRequest::Describe(DescribeRequest {
+                columns: vec![ColumnId(1)],
+                statistics: vec![Statistic::Minimum, Statistic::Maximum],
+                missing_policy: MissingPolicy::PerVariable,
+                filter: RowFilter::default(),
+                frequency_weight: None,
+            }),
+            &c,
+            &[],
+            4096,
+        )
+        .unwrap();
+        let run = AnalysisRun {
+            id: crate::operation::RunId(1),
+            analysis: result,
+        };
+        let d = captured(
+            &run,
+            &FigureKind::Distribution(1),
+            &FigureSettings::default(),
+            &c,
+        )
+        .unwrap();
+        let points: Vec<_> = d
+            .marks
+            .iter()
+            .filter_map(|mark| match mark {
+                Mark::Point(x, y) => Some([*x, *y]),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(
+            points,
+            vec![
+                [-0., 1.],
+                [0., 2.],
+                [1., 1.],
+                [1. + f64::EPSILON, 1.],
+                [1., 2.]
+            ]
+        );
+        assert_eq!(d.bounds[1], [0., 3.]);
+        assert!(d.y.contains("Retained"));
+        assert!(d.visible_note.contains("Each dot"));
     }
     #[test]
     fn weighted_missing_and_reduced_disclosures_are_never_hidden() {
