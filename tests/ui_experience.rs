@@ -383,3 +383,28 @@ fn desktop_analysis_catalog_is_compact_and_selects_a_real_method() {
     click(&ctx, &mut state, &mut jobs, Procedure::OneSampleT.label());
     assert_eq!(state.draft().procedure(), Procedure::OneSampleT);
 }
+
+#[test]
+fn analysis_form_has_a_gutter_after_the_method_catalog() {
+    for procedure in [Procedure::Describe, Procedure::Pearson] {
+        let ctx = egui::Context::default();
+        tessera::desktop::configure_context(&ctx);
+        let base = saved();
+        let draft = base.draft().for_procedure(procedure);
+        let mut state = base
+            .apply_action(UiAction::SetDraft(draft))
+            .unwrap()
+            .apply_action(UiAction::Navigate(Workspace::Analyses))
+            .unwrap();
+        let mut jobs = JobRunner::default();
+        for _ in 0..3 {
+            frame(&ctx, &mut state, &mut jobs, Vec2::new(1180., 780.), vec![]);
+        }
+        let method = state.control_rect(procedure.label()).unwrap();
+        let form = state.control_rect("Add variables…").unwrap();
+        assert!(
+            form.left() - method.right() >= 20.,
+            "Form needs a gutter beside the catalog: {method:?}, {form:?}"
+        );
+    }
+}

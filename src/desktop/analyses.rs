@@ -56,15 +56,25 @@ pub fn settings(ui: &mut egui::Ui, state: &mut DesktopState, jobs: &mut JobRunne
             }
         });
     }
-    let project = Arc::clone(state.project());
-    let columns = project.dataset().columns();
-    if ui.available_width() >= 850. {
+    let split = ui.available_width() >= 850.;
+    if split {
         egui::Panel::left("analysis-catalog-panel")
             .exact_size(248.)
             .show(ui, |ui| super::procedure_forms::chooser(ui, state, true));
     } else {
         super::procedure_forms::chooser(ui, state, false);
     }
+    egui::Frame::new()
+        .inner_margin(egui::Margin {
+            left: if split { 12 } else { 0 },
+            ..Default::default()
+        })
+        .show(ui, |ui| form(ui, state, jobs));
+}
+
+fn form(ui: &mut egui::Ui, state: &mut DesktopState, jobs: &mut JobRunner) {
+    let project = Arc::clone(state.project());
+    let columns = project.dataset().columns();
     ui.strong(state.draft.procedure().label());
     ui.label(super::experience::description(state.draft.procedure()));
     ui.separator();
