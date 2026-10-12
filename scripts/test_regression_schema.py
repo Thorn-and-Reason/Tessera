@@ -107,9 +107,23 @@ class RegressionSchemaTests(unittest.TestCase):
 
     def test_earlier_definitions_keep_their_contract(self):
         previous = json.loads((ROOT / "docs/project-v3.schema.json").read_text())
+        optional_additions = {
+            "frequencies_request": {
+                "group": {"oneOf": [{"$ref": "#/$defs/id"}, {"type": "null"}]},
+            },
+            "frequencies_analysis": {
+                "groups": {"type": "array", "items": {"$ref": "#/$defs/frequency_group"},
+                           "maxItems": 2000000},
+            },
+            "boxplot_group": {"mean": {"$ref": "#/$defs/estimate"}},
+        }
         for name, definition in previous["$defs"].items():
             if name != "completed":
-                self.assertEqual(definition, self.schema["$defs"][name], name)
+                # Only these optional additions may extend the historical closed maps.
+                expected = {**definition, "properties": {
+                    **definition["properties"], **optional_additions[name],
+                }} if name in optional_additions else definition
+                self.assertEqual(expected, self.schema["$defs"][name], name)
         self.assertEqual(previous["$defs"]["completed"]["oneOf"],
                          self.schema["$defs"]["completed"]["oneOf"][:9])
 
