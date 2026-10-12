@@ -33,10 +33,10 @@ The user authorised proceeding with the complete redesign in this chat. This pla
 
 ## Verification
 
-The final all-features macOS run passed 1,073 application tests and 18 workbook-worker tests, with one existing ignored application test. Production-source line coverage was 88.63% (33,685 of 38,006 instrumented lines). Formatting and diff checks passed. Clippy completed with existing repository warnings; this change introduced no dependency.
+The final macOS run passed 1,080 application tests and 18 workbook-worker tests, with one ignored application test. Production-source line coverage was 88.49% (33,749 of 38,139 instrumented lines). Formatting, Clippy and diff checks passed; existing dead-code and test-helper warnings remain. This change introduced no dependency.
 
 The native Apple Silicon preview imported the supplied survey workbook (75 rows, 12 variables), accepted the explicit grouped stored-number acknowledgement, ran Descriptives, sorted and undid the data, ran Pearson, saved a separate project, and exported both results. Every imported column and value in the saved native test project matched the independent workbook probe after Undo. Native View-menu navigation also opened Prepare. Private workbook contents and generated projects/reports remain in ignored local build outputs.
 
 Layout/input tests cover compact and large windows, zoom, all twelve procedure footers, catalog/variable reachability, result scrolling, and macOS header dragging. Native review exposed and fixed the compact Results overflow and the analysis form's hidden variable choices.
 
-The preview is an ad hoc signed Apple Silicon development build. It has not been notarised, promoted as a release, or tested natively on Windows/Linux. The existing macOS archive script's icon-generation step failed during preview packaging; the local preview reused the icon from the existing development candidate. That packaging issue remains outside the workflow change.
+The preview is an ad hoc signed Apple Silicon development build. It has not been notarised, promoted as a release, or tested natively on Windows/Linux. Native Windows/Linux visual checks, clean-machine installation and screen-reader acceptance remain open. The existing macOS archive script's icon-generation step failed during preview packaging; the local preview reused the icon from the existing development candidate. That packaging issue remains outside the workflow change.
