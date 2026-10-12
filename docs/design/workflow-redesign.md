@@ -39,4 +39,4 @@ The native Apple Silicon preview imported the supplied survey workbook (75 rows,
 
 Layout/input tests cover compact and large windows, zoom, all twelve procedure footers, catalog/variable reachability, result scrolling, and macOS header dragging. Native review exposed and fixed the compact Results overflow and the analysis form's hidden variable choices.
 
-The preview is an ad hoc signed Apple Silicon development build. It has not been notarised, promoted as a release, or tested natively on Windows/Linux. Native Windows/Linux visual checks, clean-machine installation and screen-reader acceptance remain open. The existing macOS archive script's icon-generation step failed during preview packaging; the local preview reused the icon from the existing development candidate. That packaging issue remains outside the workflow change.
+The preview is an ad hoc signed Apple Silicon development build. It has not been notarised, promoted as a release, or tested natively on Windows/Linux. Native Windows/Linux visual checks, clean-machine installation and screen-reader acceptance remain open.
