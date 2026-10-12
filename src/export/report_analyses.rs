@@ -11,15 +11,40 @@ use std::io::Write;
 pub(crate) const PEARSON_METHOD: &str = "Pearson r measures linear association. The two-sided test of zero population correlation assumes independent observations and a bivariate normal distribution. P-values are unadjusted across pairs.";
 pub(super) fn estimate(w: &mut dyn Write, e: &Estimate) -> AppResult<()> {
     if let Some(v) = e.value {
-        super::number(w, v)?
+        numeric(w, v, &display_number(v))?
     } else {
         text(w, e.reason.as_deref().unwrap_or("Unavailable"))?
     }
     Ok(())
 }
-fn p_value(w: &mut dyn Write, e: &Estimate) -> AppResult<()> {
-    if e.value.is_some_and(|v| v < 0.001) {
-        text(w, "<0.001")?;
+/// Display precision never changes the retained Float64 value.
+fn display_number(value: f64) -> String {
+    if value != 0.0 && (value.abs() < 0.005 || value.abs() >= 1e9) {
+        format!("{value:.2e}")
+    } else {
+        format!("{value:.2}")
+    }
+}
+fn numeric(w: &mut dyn Write, value: f64, shown: &str) -> AppResult<()> {
+    write!(w, "<span class=\"numeric\" tabindex=\"0\" title=\"Exact captured value: {value}\" aria-label=\"Exact captured value: {value}\">")?;
+    text(w, shown)?;
+    w.write_all(b"</span>")?;
+    Ok(())
+}
+pub(crate) fn display_p(value: f64) -> String {
+    if value < 0.001 {
+        return "<0.001".into();
+    }
+    let rounded = format!("{value:.3}");
+    if ["0.050", "0.010", "0.001"].contains(&rounded.as_str()) {
+        value.to_string()
+    } else {
+        rounded
+    }
+}
+pub(super) fn p_value(w: &mut dyn Write, e: &Estimate) -> AppResult<()> {
+    if let Some(value) = e.value {
+        numeric(w, value, &display_p(value))?;
     } else {
         estimate(w, e)?;
     }
@@ -315,6 +340,80 @@ pub(super) fn write(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn p_display_keeps_three_decimals_in_visible_text() {
+        for (value, shown) in [
+            (0.049, "0.049"),
+            (0.005, "0.005"),
+            (0.001, "0.001"),
+            (0.0499, "0.0499"),
+        ] {
+            let mut out = Vec::new();
+            p_value(
+                &mut out,
+                &Estimate {
+                    value: Some(value),
+                    reason: None,
+                },
+            )
+            .unwrap();
+            let html = String::from_utf8(out).unwrap();
+            assert!(
+                html.contains(&format!(">{shown}</span>")),
+                "wrong visible p: {html}"
+            );
+        }
+    }
+    #[test]
+    fn compact_estimates_keep_focusable_exact_values_and_escaped_reasons() {
+        for (value, display) in [
+            (23.333333333333332, "23.33"),
+            (1e-280, "1.00e-280"),
+            (1e280, "1.00e280"),
+        ] {
+            let mut out = Vec::new();
+            estimate(
+                &mut out,
+                &Estimate {
+                    value: Some(value),
+                    reason: None,
+                },
+            )
+            .unwrap();
+            let html = String::from_utf8(out).unwrap();
+            assert!(html.contains("tabindex=\"0\""));
+            assert!(html.contains(&format!("title=\"Exact captured value: {value}\"")));
+            assert!(html.contains(&format!(">{display}</span>")));
+        }
+        let mut out = Vec::new();
+        p_value(
+            &mut out,
+            &Estimate {
+                value: Some(1e-280),
+                reason: None,
+            },
+        )
+        .unwrap();
+        assert!(String::from_utf8(out)
+            .unwrap()
+            .contains("Exact captured value: 0.000"));
+        let mut out = Vec::new();
+        estimate(
+            &mut out,
+            &Estimate {
+                value: None,
+                reason: Some("Tail < limit & unresolved".into()),
+            },
+        )
+        .unwrap();
+        assert_eq!(
+            String::from_utf8(out).unwrap(),
+            "Tail &lt; limit &amp; unresolved"
+        );
+        let css = include_str!("report.css");
+        assert!(css.contains("thead{display:table-header-group}"));
+        assert!(css.contains("tbody tr:nth-child(even){background:#eef5fb}"));
+    }
     #[test]
     fn report_p_threshold_does_not_change_other_estimates() {
         for (value, shown) in [(0.0005, "&lt;0.001"), (0.001, "0.001"), (0.01, "0.01")] {

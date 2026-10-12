@@ -659,3 +659,59 @@ fn legacy_descriptives_keep_monotonic_public_progress() {
     assert!(progress.iter().all(|p| p.total == Some(35_000)));
     assert_eq!(progress.last().unwrap().done, 35_000);
 }
+
+#[test]
+fn grouped_means_use_complete_scores_and_frequency_weights() {
+    let d = Dataset::new(vec![
+        Column::numeric(
+            ColumnId(1),
+            "Score",
+            vec![Some(1.), Some(5.), None, Some(3.), Some(5.)],
+        )
+        .unwrap(),
+        Column::text(
+            ColumnId(2),
+            "School",
+            vec![
+                Some("A".into()),
+                Some("A".into()),
+                Some("A".into()),
+                Some("B".into()),
+                None,
+            ],
+        )
+        .unwrap(),
+        Column::numeric(
+            ColumnId(3),
+            "Weight",
+            vec![Some(1.), Some(3.), Some(8.), Some(2.), Some(9.)],
+        )
+        .unwrap(),
+    ])
+    .unwrap();
+    let r = BoxplotRequest {
+        frequency_weight: Some(ColumnId(3)),
+        ..request(Some(ColumnId(2)))
+    };
+    let result = compute(&d, &r);
+    assert_eq!(result.groups[0].mean.value, Some(4.));
+    assert_eq!(result.groups[0].n, 4);
+    assert_eq!(result.groups[1].mean.value, Some(3.));
+    assert_eq!(result.missing_outcome_n, 8);
+    assert_eq!(result.missing_group_n, 9);
+}
+
+#[test]
+fn captured_mean_uses_exact_sum_for_cancellation_and_extreme_values() {
+    for (values, expected) in [
+        (vec![Some(f64::MAX), Some(f64::MAX)], f64::MAX),
+        (vec![Some(-f64::MAX), Some(3.), Some(f64::MAX)], 1.),
+    ] {
+        let result = compute(&dataset(values), &request(None));
+        assert_eq!(result.groups[0].mean.value, Some(expected));
+    }
+    assert!(compute(&dataset(vec![None]), &request(None)).groups[0]
+        .mean
+        .value
+        .is_none());
+}

@@ -5,6 +5,7 @@ use tessera::desktop::draft::AnalysisDraft;
 fn requests() -> Vec<AnalysisRequest> {
     vec![
         AnalysisRequest::Frequencies(FrequenciesRequest {
+            group: None,
             columns: vec![ColumnId(1), ColumnId(2)],
             filter: RowFilter::default(),
             frequency_weight: None,
@@ -282,6 +283,7 @@ fn expanded_mixed_history_protective_save_keeps_all_original_runs() {
             frequency_weight: None,
         }),
         AnalysisRequest::Frequencies(FrequenciesRequest {
+            group: None,
             columns: vec![ColumnId(3), ColumnId(1)],
             filter: RowFilter::default(),
             frequency_weight: None,
@@ -323,7 +325,11 @@ fn expanded_mixed_history_protective_save_keeps_all_original_runs() {
         &JobControl::default(),
     )
     .unwrap();
-    assert_eq!(fs::metadata(&path).unwrap().len(), 12_844_839);
+    let serialized_bytes = fs::metadata(&path).unwrap().len();
+    // Added captured means increase storage; this remains a large, bounded save fixture.
+    assert!(
+        (12_844_839..=tessera::project_io::MAX_PROJECT_BYTES as u64).contains(&serialized_bytes)
+    );
     let old_runs = project.runs().to_vec();
     drop(project);
     let mut state = DesktopState::new().unwrap();

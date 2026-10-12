@@ -62,8 +62,11 @@ fn captured_values_and_distinct_accessible_plots_are_reported() {
         "N: 10",
         "Expanded terms p: 2",
         "Residual df: 8",
-        "<td>1.25</td>",
-        "<td>0.125</td>",
+        "title=\"Exact captured value: 1.25\"",
+        "title=\"Exact captured value: 0.125\"",
+        ">1.25</span>",
+        ">0.12</span>",
+        ">&lt;0.001</span>",
         "Source row (starting at 1)",
         "Cohort ordinal (starting at 1)",
         "Replicated rank (starting at 1)",
@@ -148,7 +151,7 @@ fn independent_unavailable_scalars_do_not_hide_other_retained_values() {
     let out = html(&result);
     assert!(out.contains("A nonzero estimate is below Float64 range."));
     assert!(out.contains("Residual &lt; range"));
-    assert!(out.contains("<td>1.25</td>"));
+    assert!(out.contains("title=\"Exact captured value: 1.25\""));
     assert!(!out.contains("Zero residual variance:"));
     assert_eq!(out.matches("<circle ").count(), 5);
 }

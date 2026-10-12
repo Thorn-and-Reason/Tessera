@@ -2028,6 +2028,16 @@
               "type": "null"
             }
           ]
+        },
+        "group": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/id"
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       },
       "required": [
@@ -2354,6 +2364,9 @@
         "n": {
           "$ref": "#/$defs/frequency"
         },
+        "mean": {
+          "$ref": "#/$defs/estimate"
+        },
         "minimum": {
           "$ref": "#/$defs/estimate"
         },
@@ -2461,6 +2474,13 @@
           "type": "array",
           "items": {
             "$ref": "#/$defs/frequency_table"
+          },
+          "maxItems": 2000000
+        },
+        "groups": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/frequency_group"
           },
           "maxItems": 2000000
         }
@@ -5238,6 +5258,17 @@
               "maxItems": 2
             }
           ]
+        },
+        "likert_points": {
+          "enum": [
+            null,
+            3,
+            5,
+            7
+          ]
+        },
+        "likert_counts": {
+          "type": "boolean"
         }
       }
     },
@@ -5249,7 +5280,9 @@
             "Scatter",
             "Boxplot",
             "Residual",
-            "Qq"
+            "Qq",
+            "Likert",
+            "GroupMeans"
           ]
         },
         {
@@ -5383,6 +5416,39 @@
     },
     "preparationStep": {
       "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "mean": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 1024
+                },
+                "columns": {
+                  "type": "array",
+                  "minItems": 2,
+                  "maxItems": 64,
+                  "uniqueItems": true,
+                  "items": {
+                    "$ref": "#/$defs/id"
+                  }
+                }
+              },
+              "required": [
+                "name",
+                "columns"
+              ]
+            }
+          },
+          "required": [
+            "mean"
+          ]
+        },
         {
           "type": "object",
           "additionalProperties": false,
@@ -5579,6 +5645,52 @@
         "result_revision",
         "step"
       ]
+    },
+    "frequency_group": {
+      "type": "object",
+      "properties": {
+        "value": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/group_value"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "value_label_index": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/count"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "rows": {
+          "$ref": "#/$defs/count"
+        },
+        "frequency": {
+          "$ref": "#/$defs/frequency"
+        },
+        "tables": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/frequency_table"
+          },
+          "maxItems": 2000000
+        }
+      },
+      "required": [
+        "value",
+        "value_label_index",
+        "rows",
+        "frequency",
+        "tables"
+      ],
+      "additionalProperties": false
     }
   }
 }

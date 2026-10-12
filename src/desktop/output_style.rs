@@ -13,6 +13,13 @@ pub(super) fn blue(ui: &egui::Ui) -> Color32 {
 pub(super) fn apply(ui: &mut egui::Ui) {
     let heading = TextStyle::Heading.resolve(ui.style());
     let style = ui.style_mut();
+    style.spacing.item_spacing = egui::vec2(12., 8.);
+    style.visuals.striped = true;
+    style.visuals.faint_bg_color = if style.visuals.dark_mode {
+        Color32::from_rgb(38, 51, 68)
+    } else {
+        Color32::from_rgb(238, 245, 251)
+    };
     style
         .text_styles
         .insert(TextStyle::Heading, FontId::new(19., heading.family));

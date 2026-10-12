@@ -1,17 +1,20 @@
 /* Thorn & Reason palette. Reports stay self-contained for offline use. */
-body{font:15px/1.55 "DejaVu Sans","Noto Sans",Arial,sans-serif;color:#263449;background:#F2EBDC;max-width:72rem;margin:2rem auto;padding:0 1.5rem}
-h1,h2,h3{font-family:Georgia,"Times New Roman",serif;line-height:1.25;font-weight:400}
+body{font:15px/1.55 "DejaVu Sans","Noto Sans",Arial,sans-serif;color:#263449;background:#fff;max-width:72rem;margin:2rem auto;padding:0 1.5rem}
+h1,h2,h3{font-family:inherit;line-height:1.25;font-weight:700;color:#173451}
 h1{font-size:1.9rem;margin-bottom:.5rem}
 h2{font-size:1.45rem;margin:2.5rem 0 .75rem}
 h3{font-size:1.1rem;margin:1.5rem 0 .5rem}
 p,figcaption,dt,summary{color:#4E5A66}
 section{border-top:1px solid #D1C9B9;padding-top:.5rem}
-table{border-collapse:collapse;background:#F2EBDC;margin:1rem 0 1.75rem;width:100%;font-size:.875rem;font-variant-numeric:tabular-nums}
+table{border-collapse:collapse;background:#fff;margin:1rem 0 1.75rem;width:100%;font-size:.875rem;font-variant-numeric:tabular-nums}
 caption{text-align:left;font-weight:700;color:#263449;padding:0 0 .6rem}
-th,td{padding:.55rem .7rem;border-bottom:1px solid #D1C9B9;text-align:left;vertical-align:top;overflow-wrap:anywhere}
-thead th{background:#EEE6D6;border-top:2px solid #C59B43;border-bottom:1px solid #F2EBDC}
-tbody th{font-weight:400}
-tbody tr:nth-child(even){background:#EEE6D6}
+th,td{padding:.7rem .85rem;border-bottom:1px solid #dce6ef;text-align:right;vertical-align:top;overflow-wrap:anywhere}
+thead th{background:#173451;color:#fff;border-top:0;border-bottom:2px solid #173451;font-weight:700}
+tbody th,th:first-child,td:first-child{text-align:left}
+tbody th{font-weight:400;min-width:10rem;max-width:24rem}
+.numeric{white-space:nowrap;font-variant-numeric:tabular-nums}
+.numeric:focus-visible{outline:2px solid #256a9b;outline-offset:3px}
+tbody tr:nth-child(even){background:#eef5fb}
 figure{margin:1.5rem 0}
 svg{display:block;width:100%;max-width:48rem;background:#F2EBDC;font-family:inherit;font-size:12px}
 figure:not(.report-figure) svg text{fill:#263449}
@@ -31,12 +34,13 @@ a:focus-visible,summary:focus-visible{outline:3px solid #263449;outline-offset:3
   body{margin:0;padding:0;max-width:none;font-size:10pt;print-color-adjust:exact;-webkit-print-color-adjust:exact}
   h1,h2,h3,caption{break-after:avoid}
   /* Oversized tables can continue; fitting outputs and individual rows stay whole. */
-  figure,table,svg,tr{break-inside:avoid;page-break-inside:avoid}
+  figure,svg,tr{break-inside:avoid;page-break-inside:avoid}
+  table{break-inside:avoid;page-break-inside:avoid}
   figcaption{break-before:avoid;page-break-before:avoid}
   table{font-size:9pt}
   th,td{padding:4pt 3pt}
   td{min-width:4ch}
-  th{overflow-wrap:normal}
+  th{overflow-wrap:anywhere;min-width:0}
   thead{display:table-header-group}
   svg{max-width:100%;break-after:avoid;page-break-after:avoid}
 }

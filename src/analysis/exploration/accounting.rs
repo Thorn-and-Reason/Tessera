@@ -138,7 +138,19 @@ macro_rules! result_api {
 result_api!(
     ComputedFrequencies,
     frequencies,
-    |_: &ComputedFrequencies| -> AppResult<usize> { Ok(0) }
+    |r: &ComputedFrequencies| -> AppResult<usize> {
+        if r.request.group.is_none() {
+            return Ok(0);
+        }
+        checked_product(
+            r.tables
+                .iter()
+                .map(|t| t.categories.len())
+                .max()
+                .unwrap_or(0),
+            size_of::<(usize, u64)>(),
+        )
+    }
 );
 result_api!(
     ComputedHistogram,
@@ -160,8 +172,20 @@ impl ComputedFrequencies {
         let mut bytes = checked_sum([
             self.base_bytes()?,
             checked_product(self.tables.capacity(), size_of::<FrequencyTable>())?,
+            checked_product(self.groups.capacity(), size_of::<FrequencyGroup>())?,
         ])?;
-        for table in &self.tables {
+        for group in &self.groups {
+            bytes = checked_sum([
+                bytes,
+                text(&group.value),
+                checked_product(group.tables.capacity(), size_of::<FrequencyTable>())?,
+            ])?;
+        }
+        for table in self
+            .tables
+            .iter()
+            .chain(self.groups.iter().flat_map(|g| &g.tables))
+        {
             bytes = checked_sum([
                 bytes,
                 reason(&table.missing_percent),
@@ -214,6 +238,7 @@ impl ComputedBoxplot {
         for group in &self.groups {
             bytes = checked_sum([bytes, group.value.as_ref().map_or(0, text)])?;
             for estimate in [
+                &group.mean,
                 &group.minimum,
                 &group.q1,
                 &group.median,

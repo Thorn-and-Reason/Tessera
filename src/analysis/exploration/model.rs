@@ -5,6 +5,7 @@ use crate::{
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct FrequenciesRequest {
+    pub group: Option<ColumnId>,
     pub columns: Vec<ColumnId>,
     pub filter: RowFilter,
     pub frequency_weight: Option<ColumnId>,
@@ -77,6 +78,7 @@ pub struct BoxplotGroup {
     pub value_label_index: Option<usize>,
     pub rows: usize,
     pub n: u64,
+    pub mean: Estimate,
     pub minimum: Estimate,
     pub q1: Estimate,
     pub median: Estimate,
@@ -95,6 +97,7 @@ pub struct BoxplotPoint {
 }
 #[derive(Debug, Clone, PartialEq)]
 pub struct ComputedFrequencies {
+    pub groups: Vec<FrequencyGroup>,
     pub revision: RevisionId,
     pub request: FrequenciesRequest,
     pub columns: Vec<RunColumnInfo>,
@@ -175,10 +178,19 @@ impl<'a> RequestRef<'a> {
     }
     pub(super) fn role_count(self) -> usize {
         match self {
-            Self::Frequencies(r) => r.columns.len(),
+            Self::Frequencies(r) => r.columns.len() + usize::from(r.group.is_some()),
             Self::Histogram(_) => 1,
             Self::Scatter(_) => 2,
             Self::Boxplot(r) => 1 + usize::from(r.group.is_some()),
         }
     }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct FrequencyGroup {
+    pub value: Cell,
+    pub value_label_index: Option<usize>,
+    pub rows: usize,
+    pub frequency: u64,
+    pub tables: Vec<FrequencyTable>,
 }

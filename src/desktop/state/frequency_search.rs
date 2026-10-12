@@ -413,6 +413,7 @@ mod tests {
         let result = analyze_with_budget(
             &data,
             &AnalysisRequest::Frequencies(FrequenciesRequest {
+                group: None,
                 columns: vec![ColumnId(1)],
                 filter: RowFilter::default(),
                 frequency_weight: None,
@@ -456,6 +457,7 @@ mod tests {
                 JobOperation::Analyze {
                     project: Arc::clone(&state.project),
                     request: AnalysisRequest::Frequencies(FrequenciesRequest {
+                        group: None,
                         columns: vec![],
                         filter: RowFilter::default(),
                         frequency_weight: None,
@@ -545,6 +547,7 @@ mod tests {
                 JobOperation::Analyze {
                     project: Arc::clone(&state.project),
                     request: AnalysisRequest::Frequencies(FrequenciesRequest {
+                        group: None,
                         columns: vec![ColumnId(1)],
                         filter: RowFilter::default(),
                         frequency_weight: None,

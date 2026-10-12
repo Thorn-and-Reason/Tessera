@@ -246,6 +246,7 @@ impl AnalysisDraft {
                 ..Default::default()
             }),
             Procedure::Frequencies => Self::Frequencies(FrequenciesRequest {
+                group: None,
                 columns: vec![],
                 filter,
                 frequency_weight,

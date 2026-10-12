@@ -37,8 +37,8 @@ pub(super) fn contextual_value(ui: &mut egui::Ui, label: &str, e: &Estimate, pai
     let shown = e.value.map_or_else(
         || "Unavailable".into(),
         |v| {
-            if label == "Two-sided p" && v < 0.001 {
-                "<0.001".into()
+            if label == "p" || label.ends_with(" p") {
+                crate::export::report_analyses::display_p(v)
             } else {
                 theme::compact_number(v)
             }
@@ -46,6 +46,7 @@ pub(super) fn contextual_value(ui: &mut egui::Ui, label: &str, e: &Estimate, pai
     );
     let response = ui.add(
         egui::Label::new(egui::RichText::new(shown).monospace())
+            .halign(egui::Align::Max)
             .sense(egui::Sense::focusable_noninteractive()),
     );
     response.widget_info(|| {
@@ -390,5 +391,48 @@ fn comparison_label(c: NumericComparison) -> &'static str {
         NumericComparison::LessOrEqual => "<=",
         NumericComparison::Greater => ">",
         NumericComparison::GreaterOrEqual => ">=",
+    }
+}
+
+#[cfg(test)]
+mod precision_tests {
+    use super::*;
+    #[test]
+    fn native_p_values_keep_precision_in_painted_text() {
+        for label in [
+            "Two-sided p",
+            "p",
+            "Corrected p",
+            "Raw p",
+            "Holm p",
+            "F upper-tail p",
+        ] {
+            for (value, expected) in [
+                (0.049, "0.049"),
+                (0.005, "0.005"),
+                (0.001, "0.001"),
+                (0.0499, "0.0499"),
+            ] {
+                let ctx = egui::Context::default();
+                let mut output = ctx.run_ui(egui::RawInput::default(), |ui| {
+                    contextual_value(
+                        ui,
+                        label,
+                        &Estimate {
+                            value: Some(value),
+                            reason: None,
+                        },
+                        "",
+                    );
+                });
+                output.textures_delta.clear();
+                assert!(
+                    output.shapes.iter().any(
+                        |s| matches!(&s.shape, egui::Shape::Text(t) if t.galley.text() == expected)
+                    ),
+                    "wrong painted {label} value for {value}"
+                );
+            }
+        }
     }
 }

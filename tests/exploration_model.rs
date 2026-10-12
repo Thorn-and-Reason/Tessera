@@ -23,8 +23,10 @@ fn info(id: u64, kind: ColumnKind) -> RunColumnInfo {
 }
 fn frequencies() -> ComputedFrequencies {
     ComputedFrequencies {
+        groups: Vec::new(),
         revision: RevisionId(1),
         request: FrequenciesRequest {
+            group: None,
             columns: vec![ColumnId(1)],
             filter: RowFilter::default(),
             frequency_weight: None,
@@ -153,6 +155,10 @@ fn boxplot() -> ComputedBoxplot {
             value_label_index: None,
             rows: 2,
             n: 2,
+            mean: Estimate {
+                value: None,
+                reason: Some("Mean was not captured.".into()),
+            },
             minimum: e(0.0),
             q1: e(0.5),
             median: e(1.0),
@@ -182,6 +188,7 @@ fn current_roles_bins_shared_filters_and_budget() {
         vec![ColumnId(99)],
     ] {
         assert!(FrequenciesRequest {
+            group: None,
             columns,
             ..base.clone()
         }
@@ -189,6 +196,7 @@ fn current_roles_bins_shared_filters_and_budget() {
         .is_err());
     }
     assert!(FrequenciesRequest {
+        group: None,
         columns: vec![ColumnId(1), ColumnId(2)],
         ..base.clone()
     }
@@ -249,6 +257,7 @@ fn current_roles_bins_shared_filters_and_budget() {
         },
     ] {
         assert!(FrequenciesRequest {
+            group: None,
             filter,
             ..base.clone()
         }
@@ -256,6 +265,7 @@ fn current_roles_bins_shared_filters_and_budget() {
         .is_err());
     }
     assert!(FrequenciesRequest {
+        group: None,
         frequency_weight: Some(ColumnId(2)),
         ..base.clone()
     }
@@ -576,6 +586,10 @@ fn quartiles_outside_whiskers_and_interpolated_missing_intervals_are_valid() {
         value_label_index: None,
         rows: 4,
         n: 4,
+        mean: Estimate {
+            value: None,
+            reason: Some("Mean was not captured.".into()),
+        },
         minimum: e(0.0),
         q1: e(0.75),
         median: e(1.5),

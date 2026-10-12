@@ -226,6 +226,7 @@ fn frequency_state() -> DesktopState {
     let result = analyze_with_budget(
         &data,
         &AnalysisRequest::Frequencies(FrequenciesRequest {
+            group: None,
             columns: vec![ColumnId(1), ColumnId(2)],
             filter: RowFilter::default(),
             frequency_weight: None,
@@ -332,6 +333,7 @@ fn exploration_search_queues_latest_behind_analysis_and_success_switch_invalidat
         let mut state = frequency_state();
         let mut jobs = JobRunner::default();
         let request = AnalysisRequest::Frequencies(FrequenciesRequest {
+            group: None,
             columns: if valid { vec![ColumnId(1)] } else { vec![] },
             filter: RowFilter::default(),
             frequency_weight: None,
@@ -726,6 +728,7 @@ fn exploration_visible_captured_categories_keep_labels_after_current_metadata_ed
     let mut state = result_state(
         data,
         AnalysisRequest::Frequencies(FrequenciesRequest {
+            group: None,
             columns: vec![ColumnId(1)],
             filter: RowFilter::default(),
             frequency_weight: None,

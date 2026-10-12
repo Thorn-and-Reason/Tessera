@@ -67,6 +67,7 @@ fn request(op: &str, data: &Dataset) -> AppResult<AnalysisRequest> {
             frequency_weight: None,
         }),
         "frequencies" => AnalysisRequest::Frequencies(FrequenciesRequest {
+            group: None,
             columns: data.columns().iter().map(|c| c.id()).collect(),
             filter,
             frequency_weight: None,

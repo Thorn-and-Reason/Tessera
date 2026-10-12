@@ -184,6 +184,7 @@ mod tests {
         let result = analyze_with_budget(
             &data,
             &AnalysisRequest::Frequencies(FrequenciesRequest {
+                group: None,
                 columns: vec![ColumnId(1)],
                 filter: RowFilter::default(),
                 frequency_weight: None,

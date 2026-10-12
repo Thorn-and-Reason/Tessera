@@ -24,6 +24,14 @@ pub(super) fn apply(
                 extra + p.owned_bytes()? + s.owned_bytes()?,
             )?
         }
+        Step::Mean { name, columns } => {
+            let output = mean_column(p.next_column_id(), name, d, columns, c)?;
+            d.append_column_with_budget(
+                output,
+                retained,
+                extra + p.owned_bytes()? + s.owned_bytes()?,
+            )?
+        }
         Step::Recode {
             source,
             name,
@@ -67,7 +75,10 @@ fn admit_output(
     extra: usize,
 ) -> AppResult<()> {
     let d = p.dataset();
-    let creates = matches!(s, Step::Compute { .. } | Step::Recode { .. });
+    let creates = matches!(
+        s,
+        Step::Compute { .. } | Step::Mean { .. } | Step::Recode { .. }
+    );
     let count = d
         .column_count()
         .checked_add(usize::from(creates))
@@ -85,9 +96,12 @@ fn admit_output(
     budget.array::<Column>(count.saturating_mul(2))?;
     budget.array::<usize>(d.row_count().saturating_mul(2))?;
     budget.add(4096)?;
+    if let Step::Mean { columns, .. } = s {
+        budget.array::<&Column>(columns.len())?;
+    }
     if creates {
         let (name, kind) = match s {
-            Step::Compute { name, .. } => (name, ColumnKind::Number),
+            Step::Compute { name, .. } | Step::Mean { name, .. } => (name, ColumnKind::Number),
             Step::Recode { name, kind, .. } => (name, *kind),
             _ => unreachable!(),
         };
@@ -180,6 +194,68 @@ fn computed_column(
     let col = Column::numeric(id, name, values)?;
     let mut meta = col.metadata().clone();
     meta.measurement = Measurement::Scale;
+    col.with_metadata(meta)
+}
+fn mean_column(
+    id: ColumnId,
+    name: &str,
+    d: &Dataset,
+    columns: &[ColumnId],
+    c: &JobControl,
+) -> AppResult<Column> {
+    let sources = columns
+        .iter()
+        .map(|id| d.column(*id))
+        .collect::<AppResult<Vec<_>>>()?;
+    let mut values = Vec::with_capacity(d.row_count());
+    for row in 0..d.row_count() {
+        c.checkpoint(row, Some(d.row_count()))?;
+        let mut items = [0.; MAX_MEAN_ITEMS];
+        let mut complete = true;
+        let mut scale = 0_f64;
+        for (i, source) in sources.iter().enumerate() {
+            if source.is_missing_controlled(row, c)? {
+                complete = false;
+                break;
+            }
+            let Cell::Number(value) = source.cell(row)? else {
+                return Err(invalid("Domain averages require numeric values."));
+            };
+            if !value.is_finite() {
+                return Err(invalid("Domain averages require finite values."));
+            }
+            items[i] = value;
+            scale = scale.max(value.abs());
+        }
+        if !complete {
+            values.push(None);
+            continue;
+        }
+        // Scale before summing to avoid overflow; compensate cancellation between items.
+        let (mut sum, mut correction) = (0_f64, 0_f64);
+        if scale != 0. {
+            for value in &items[..sources.len()] {
+                let value = value / scale;
+                let next = sum + value;
+                correction += if sum.abs() >= value.abs() {
+                    (sum - next) + value
+                } else {
+                    (value - next) + sum
+                };
+                sum = next;
+            }
+        }
+        let mean = ((sum + correction) / sources.len() as f64).clamp(-1., 1.) * scale;
+        if !mean.is_finite() {
+            return Err(invalid("Domain average produced a nonfinite result."));
+        }
+        values.push(Some(mean));
+    }
+    let col = Column::numeric(id, name, values)?;
+    let meta = crate::data::ColumnMetadata {
+        measurement: Measurement::Scale,
+        ..col.metadata().clone()
+    };
     col.with_metadata(meta)
 }
 fn arithmetic(a: f64, b: f64, operator: Arithmetic) -> AppResult<f64> {

@@ -132,6 +132,7 @@ fn weighted_bars_keep_explicit_denominators_and_all_labels() {
     let result = analyze_with_budget(
         &data,
         &AnalysisRequest::Frequencies(FrequenciesRequest {
+            group: None,
             columns: vec![ColumnId(1)],
             filter: RowFilter::default(),
             frequency_weight: Some(ColumnId(2)),
@@ -241,6 +242,7 @@ fn too_many_categories_fail_without_omission() {
     let result = analyze_with_budget(
         &data,
         &AnalysisRequest::Frequencies(FrequenciesRequest {
+            group: None,
             columns: vec![ColumnId(1)],
             filter: RowFilter::default(),
             frequency_weight: None,
@@ -397,6 +399,7 @@ fn cropped_categorical_figures_keep_valid_visible_labels_and_full_capture() {
     .unwrap();
     let requests = [
         AnalysisRequest::Frequencies(FrequenciesRequest {
+            group: None,
             columns: vec![ColumnId(1)],
             filter: RowFilter::default(),
             frequency_weight: None,

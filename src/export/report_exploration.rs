@@ -110,7 +110,31 @@ pub(super) fn frequencies(
     c: &JobControl,
 ) -> AppResult<()> {
     method(w, FREQUENCY_METHOD)?;
-    for t in &v.tables {
+    frequency_tables(w, run, &v.tables, c)?;
+    if let Some(group_column) = v.request.group {
+        for group in &v.groups {
+            c.check_cancelled()?;
+            w.write_all(b"<h3>Group: ")?;
+            column_name(w, run, group_column)?;
+            w.write_all(b": ")?;
+            category(w, run, group_column, &group.value, group.value_label_index)?;
+            write!(
+                w,
+                "</h3><p>Group observation rows: {}; group frequency: {}.</p>",
+                group.rows, group.frequency
+            )?;
+            frequency_tables(w, run, &group.tables, c)?;
+        }
+    }
+    Ok(())
+}
+fn frequency_tables(
+    w: &mut dyn Write,
+    run: &AnalysisRun,
+    tables: &[FrequencyTable],
+    c: &JobControl,
+) -> AppResult<()> {
+    for t in tables {
         c.check_cancelled()?;
         w.write_all(b"<h3>")?;
         column_name(w, run, t.column)?;
@@ -579,6 +603,46 @@ fn box_svg(
 mod tests {
     use super::*;
     #[test]
+    fn grouped_frequency_tables_keep_group_identity_counts_and_missingness() {
+        use crate::data::{Column, Dataset};
+        let data = Dataset::new(vec![
+            Column::numeric(ColumnId(1), "Group < name", vec![Some(1.), Some(1.), None]).unwrap(),
+            Column::numeric(ColumnId(2), "Outcome", vec![Some(4.), None, Some(8.)]).unwrap(),
+        ])
+        .unwrap();
+        let analysis = analyze_with_budget(
+            &data,
+            &AnalysisRequest::Frequencies(FrequenciesRequest {
+                group: Some(ColumnId(1)),
+                columns: vec![ColumnId(2)],
+                filter: RowFilter::default(),
+                frequency_weight: None,
+            }),
+            &JobControl::default(),
+            &[],
+            0,
+        )
+        .unwrap();
+        let run = AnalysisRun {
+            id: crate::operation::RunId(1),
+            analysis,
+        };
+        let CompletedAnalysis::Frequencies(v) = &run.analysis else {
+            panic!()
+        };
+        let mut out = Vec::new();
+        frequencies(&mut out, &run, v, &JobControl::default()).unwrap();
+        let html = String::from_utf8(out).unwrap();
+        assert_eq!(html.matches("<h3>Group: ").count(), v.groups.len());
+        assert!(html.contains("Group &lt; name"));
+        assert!(html.contains("Group observation rows: 2; group frequency: 2."));
+        assert!(html.contains("Missing rows: 1; missing frequency: 1."));
+        assert_eq!(
+            html.matches("Complete frequency table").count(),
+            1 + v.groups.len()
+        );
+    }
+    #[test]
     fn long_category_report_copy_can_cancel_and_does_not_publish() {
         use crate::{
             data::{Column, Dataset},
@@ -593,6 +657,7 @@ mod tests {
         .unwrap()])
         .unwrap();
         let request = AnalysisRequest::Frequencies(FrequenciesRequest {
+            group: None,
             columns: vec![ColumnId(1)],
             filter: RowFilter::default(),
             frequency_weight: None,

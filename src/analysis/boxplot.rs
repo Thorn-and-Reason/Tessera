@@ -6,7 +6,7 @@ use super::{
         ordering::{compare_cells, compare_text, sort_indices},
     },
     model::{checked_product, checked_sum},
-    moments::inside_box_fences,
+    moments::{inside_box_fences, Moments},
     selection::{self, Eligible},
     support,
     validation::invalid_analysis,
@@ -41,12 +41,13 @@ pub fn boxplot_with_budget(
         checked_product(dataset.row_count(), size_of::<Eligible>())?,
         checked_product(dataset.row_count(), 2 * size_of::<usize>())?,
         LabelIndex::scratch_bytes(group.map_or(0, |c| c.metadata().value_labels.len()))?,
+        size_of::<Moments>(),
     ])?;
     let mut owned = checked_sum([
         size_of::<ComputedBoxplot>(),
         request.heap_bytes()?,
         support::snapshot_bytes(dataset, &ids)?,
-        8 * EMPTY.len(),
+        9 * EMPTY.len(),
     ])?;
     check_work(baseline, scratch, owned)?;
     let rows = dataset.row_count();
@@ -304,13 +305,15 @@ fn summarize(
     indices: &[usize],
     control: &JobControl,
 ) -> AppResult<BoxplotGroup> {
-    let mut n = 0;
+    let mut moments = Moments::default();
     for (position, &index) in indices.iter().enumerate() {
         if position.is_multiple_of(4096) {
             control.checkpoint(position, None)?;
         }
-        n += eligible[index].weight;
+        let entry = eligible[index];
+        moments.add(number(column, entry.row)?, entry.weight);
     }
+    let n = moments.n;
     let q1 = quartile(column, eligible, indices, n, 1, control)?;
     let median = quartile(column, eligible, indices, n, 2, control)?;
     let q3 = quartile(column, eligible, indices, n, 3, control)?;
@@ -337,6 +340,7 @@ fn summarize(
         value_label_index: None,
         rows: indices.len(),
         n,
+        mean: Estimate::available(moments.mean().ok_or_else(invalid_analysis)?),
         minimum: Estimate::available(number(column, eligible[indices[0]].row)?),
         q1: Estimate::available(q1),
         median: Estimate::available(median),
@@ -359,6 +363,7 @@ fn empty_group() -> BoxplotGroup {
         value_label_index: None,
         rows: 0,
         n: 0,
+        mean: Estimate::unavailable(EMPTY),
         minimum: Estimate::unavailable(EMPTY),
         q1: Estimate::unavailable(EMPTY),
         median: Estimate::unavailable(EMPTY),

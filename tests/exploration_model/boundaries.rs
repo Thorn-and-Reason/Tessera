@@ -9,6 +9,10 @@ fn finite_all_outlier_summary_can_have_two_unavailable_observed_whiskers() {
         value_label_index: None,
         rows: 2,
         n: 2,
+        mean: Estimate {
+            value: None,
+            reason: Some("Mean was not captured.".into()),
+        },
         minimum: e(-a),
         q1: e(-0.0),
         median: e(0.0),
@@ -81,6 +85,10 @@ fn upper_outlier(lo: f64, hi: f64, outlier: f64, reflected: bool) -> ComputedBox
         value_label_index: None,
         rows: 5,
         n: 5,
+        mean: Estimate {
+            value: None,
+            reason: Some("Mean was not captured.".into()),
+        },
         minimum: e(lo),
         q1: e(lo),
         median: e(lo),

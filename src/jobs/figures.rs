@@ -42,6 +42,8 @@ fn filename(key: &FigureKey, format: FigureFormat) -> String {
         FigureKind::Histogram => "histogram".into(),
         FigureKind::Scatter => "scatter".into(),
         FigureKind::Boxplot => "boxplot".into(),
+        FigureKind::GroupMeans => "group-means".into(),
+        FigureKind::Likert => "likert".into(),
         FigureKind::Residual => "residual".into(),
         FigureKind::Qq => "qq".into(),
         FigureKind::Distribution(column) => format!("distribution-{column}"),
@@ -127,7 +129,7 @@ pub(super) fn export_batch(
                             .count(),
                         directory.display()
                     ),
-                ))
+                ));
             }
         }
     }

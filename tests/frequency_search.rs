@@ -31,6 +31,7 @@ fn result() -> ComputedFrequencies {
         .unwrap();
     let d = Dataset::new(vec![column]).unwrap();
     let r = FrequenciesRequest {
+        group: None,
         columns: vec![ColumnId(1)],
         filter: RowFilter::default(),
         frequency_weight: None,
@@ -176,6 +177,7 @@ fn numeric_text_form_and_long_label_inner_cancellation() {
         .unwrap();
     let d = Dataset::new(vec![column]).unwrap();
     let r = FrequenciesRequest {
+        group: None,
         columns: vec![ColumnId(1)],
         filter: RowFilter::default(),
         frequency_weight: None,

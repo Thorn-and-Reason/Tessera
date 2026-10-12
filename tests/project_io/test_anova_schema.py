@@ -53,7 +53,13 @@ class AnovaSchema(unittest.TestCase):
         earlier = json.loads((ROOT / 'docs/project-v4.schema.json').read_text())
         for name, definition in earlier['$defs'].items():
             if name != 'completed':
-                self.assertEqual(definition, self.schema['$defs'][name], name)
+                current = copy.deepcopy(self.schema['$defs'][name])
+                additions = {'frequencies_request': {'group'}, 'frequencies_analysis': {'groups'}, 'boxplot_group': {'mean'}}.get(name, set())
+                self.assertEqual(set(current.get('properties', {})) - set(definition.get('properties', {})), additions)
+                for field in additions:
+                    self.assertNotIn(field, current.get('required', []))
+                    del current['properties'][field]
+                self.assertEqual(definition, current, name)
         self.assertEqual(earlier['$defs']['completed']['oneOf'],
                          self.schema['$defs']['completed']['oneOf'][:10])
         for version, expected in CURATED_IDENTITIES.items():

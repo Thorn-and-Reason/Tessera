@@ -64,6 +64,8 @@ fn label(key: &FigureKey) -> String {
         FigureKind::Histogram => "Histogram".into(),
         FigureKind::Scatter => "Scatterplot".into(),
         FigureKind::Boxplot => "Boxplot".into(),
+        FigureKind::GroupMeans => "Group means".into(),
+        FigureKind::Likert => "Combined Likert chart".into(),
         FigureKind::Residual => "Residual plot".into(),
         FigureKind::Qq => "Normal Q–Q plot".into(),
         FigureKind::Distribution(c) => format!("Distribution · variable {c}"),
@@ -460,6 +462,18 @@ fn properties(
                 let r = ui.checkbox(&mut s.value_labels, "Show values");
                 record(state, "Show values", &r);
             });
+    }
+    if matches!(edit.key.kind, FigureKind::Likert) {
+        egui::CollapsingHeader::new("Ordered response scale").default_open(true).show(ui, |ui| {
+            ui.label("Confirm the questionnaire coding before drawing agreement bars. Codes must run from 1 (most negative) to the highest code (most positive), with the middle code neutral.");
+            egui::ComboBox::from_id_salt("likert-scale").selected_text(s.likert_points.map_or("Setup required".into(), |n| format!("{n} categories"))).show_ui(ui, |ui| {
+                theme::selectable_value(ui, &mut s.likert_points, None, "Setup required");
+                for n in [3, 5, 7] { theme::selectable_value(ui, &mut s.likert_points, Some(n), format!("I confirm codes 1–{n}; neutral = {}", n / 2 + 1)); }
+            });
+            let r = ui.checkbox(&mut s.likert_counts, "Show counts with percentages");
+            record(state, "Show counts with percentages", &r);
+            ui.small("Percentages use each item's valid frequency. Missing answers stay missing. Every category count remains in the captured frequency tables.");
+        });
     }
     // Styles preserve titles, axes and the figure's statistical display choices.
     egui::CollapsingHeader::new("Reuse styles / batch export").show(ui, |ui| {

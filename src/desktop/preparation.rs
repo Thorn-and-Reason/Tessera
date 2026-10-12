@@ -4,7 +4,9 @@ use crate::{
     data::{Cell, ColumnId, ColumnKind},
     error::{AppError, AppResult},
     jobs::{JobOperation, JobRunner},
-    preparation::{Arithmetic, FilterPredicate, Operand, RecodeRule, Step, Unmatched},
+    preparation::{
+        Arithmetic, FilterPredicate, Operand, RecodeRule, Step, Unmatched, MAX_MEAN_ITEMS,
+    },
 };
 use eframe::egui;
 use std::sync::Arc;
@@ -12,6 +14,7 @@ use std::sync::Arc;
 #[derive(Debug, Clone)]
 pub(crate) struct PreparationForm {
     operation: usize,
+    columns: Vec<ColumnId>,
     source: Option<ColumnId>,
     right: Option<ColumnId>,
     arithmetic: Arithmetic,
@@ -28,6 +31,7 @@ impl Default for PreparationForm {
     fn default() -> Self {
         Self {
             operation: 0,
+            columns: Vec::new(),
             source: None,
             right: None,
             arithmetic: Arithmetic::Add,
@@ -61,9 +65,18 @@ fn cell(text: &str, kind: ColumnKind) -> AppResult<Cell> {
 }
 impl PreparationForm {
     pub(crate) fn owned_bytes(&self) -> usize {
-        self.name.capacity() + self.value.capacity() + self.replacement.capacity()
+        self.name.capacity()
+            + self.value.capacity()
+            + self.replacement.capacity()
+            + self.columns.capacity() * std::mem::size_of::<ColumnId>()
     }
     fn step(&self, state: &DesktopState) -> AppResult<Step> {
+        if self.operation == 4 {
+            return Ok(Step::Mean {
+                name: self.name.clone(),
+                columns: self.columns.clone(),
+            });
+        }
         let source = self.source.ok_or_else(|| invalid("Choose a variable."))?;
         let source_kind = state.project().dataset().column(source)?.kind();
         match self.operation {
@@ -191,7 +204,7 @@ pub(crate) fn show(ui: &mut egui::Ui, state: &mut DesktopState, jobs: &mut JobRu
     let editable = !state.active && !state.metadata_has_changes() && state.cell_editor.is_none();
     ui.add_enabled_ui(editable, |ui| {
     ui.horizontal_wrapped(|ui| {
-        for (i, label) in ["Compute", "Recode", "Sort", "Filter"]
+        for (i, label) in ["Compute", "Recode", "Sort", "Filter", "Mean / Domain average"]
             .into_iter()
             .enumerate()
         {
@@ -202,9 +215,11 @@ pub(crate) fn show(ui: &mut egui::Ui, state: &mut DesktopState, jobs: &mut JobRu
     ui.label(match form.operation {
         0 => "Compute adds a new numeric variable using an existing variable and a number or another variable.",
         1 => "Recode adds a new variable with a value replaced. The source variable stays unchanged.",
+        4 => "Average 2–64 numeric items for each respondent. All selected items must be present; any missing answer makes the average missing.",
         2 => "Sort changes the order of whole rows, keeping each row's values together.",
         _ => "Filter keeps only rows that match your condition. Removed rows can be restored with Undo.",
     });
+    if form.operation != 4 {
     column(
         ui,
         "Variable",
@@ -213,6 +228,7 @@ pub(crate) fn show(ui: &mut egui::Ui, state: &mut DesktopState, jobs: &mut JobRu
         form.operation == 0,
         false,
     );
+    }
     match form.operation {
         0 => {
             text(ui, "New variable", &mut form.name);
@@ -272,6 +288,26 @@ pub(crate) fn show(ui: &mut egui::Ui, state: &mut DesktopState, jobs: &mut JobRu
             }
             ui.small("Keeps matching rows. Undo restores removed rows.");
         }
+        4 => {
+            text(ui, "New variable", &mut form.name);
+            form.columns = form.columns.iter().copied().filter(|id| state.project().dataset().column(*id).is_ok_and(|c| c.kind() == ColumnKind::Number)).collect();
+            ui.horizontal(|ui| {
+                if ui.button("Select all numeric items (up to 64)").clicked() {
+                    form.columns = state.project().dataset().columns().iter().filter(|c| c.kind() == ColumnKind::Number).take(MAX_MEAN_ITEMS).map(|c| c.id()).collect();
+                }
+                if ui.button("Clear selection").clicked() { form.columns = Vec::new(); }
+            });
+            ui.label(format!("{} items selected", form.columns.len()));
+            egui::ScrollArea::vertical().id_salt("mean-items").max_height(180.).show(ui, |ui| {
+                for col in state.project().dataset().columns().iter().filter(|c| c.kind() == ColumnKind::Number) {
+                    let mut selected = form.columns.contains(&col.id());
+                    if ui.add_enabled(selected || form.columns.len() < MAX_MEAN_ITEMS, egui::Checkbox::new(&mut selected, theme::caption(col.name()))).changed() {
+                        form.columns = if selected { form.columns.iter().copied().chain(std::iter::once(col.id())).collect() } else { form.columns.iter().copied().filter(|id| *id != col.id()).collect() };
+                    }
+                }
+            });
+            ui.small("Uses the numeric codes as equally spaced values. Recode reversed items explicitly first. This descriptive average does not validate a scale.");
+        }
         _ => {}
     }
     });
@@ -290,7 +326,7 @@ pub(crate) fn show(ui: &mut egui::Ui, state: &mut DesktopState, jobs: &mut JobRu
         ui.label(theme::caption(error));
     } else {
         ui.strong("Ready to apply to the current dataset");
-        ui.small("Compute and Recode add a variable. Sort and Filter change the rows. Check the result in Data; use Undo if needed.");
+        ui.small("Compute, Recode and Mean add a variable. Sort and Filter change the rows. Check the result in Data; use Undo if needed.");
     }
     if let Some(error) = state.error() {
         ui.colored_label(ui.visuals().error_fg_color, theme::caption(error));
@@ -400,6 +436,31 @@ mod tests {
             "a blank output name must not look ready to apply"
         );
         assert!(!jobs.is_running());
+    }
+
+    #[test]
+    fn domain_form_uses_all_items_without_a_single_source() {
+        let state = DesktopState::new().unwrap();
+        let form = PreparationForm {
+            operation: 4,
+            name: "Engagement average".into(),
+            columns: vec![ColumnId(1), ColumnId(2), ColumnId(3)],
+            ..Default::default()
+        };
+        let step = form.step(&state).unwrap();
+        assert_eq!(
+            step,
+            Step::Mean {
+                name: form.name.clone(),
+                columns: form.columns.clone()
+            }
+        );
+        assert!(step.validate_shape().is_ok());
+        let empty = PreparationForm {
+            columns: vec![],
+            ..form
+        };
+        assert!(empty.step(&state).unwrap().validate_shape().is_err());
     }
 
     #[test]

@@ -297,6 +297,7 @@ fn review_fix_long_categories_keep_absolute_captured_identity_and_full_report_ro
     let mut state = result_state(
         data,
         AnalysisRequest::Frequencies(FrequenciesRequest {
+            group: None,
             columns: vec![ColumnId(1)],
             filter: RowFilter::default(),
             frequency_weight: None,

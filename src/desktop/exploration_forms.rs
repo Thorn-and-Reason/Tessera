@@ -10,6 +10,16 @@ pub(super) fn show(
 ) {
     match draft {
         AnalysisDraft::Frequencies(r) => {
+            scalar(
+                ui,
+                state,
+                data,
+                "Grouping variable (optional)",
+                &mut r.group,
+                false,
+                None,
+            );
+            r.columns.retain(|id| Some(*id) != r.group);
             theme::section(ui, "Variables");
             if r.columns.is_empty() {
                 ui.small("Select at least one variable.");
@@ -61,7 +71,10 @@ pub(super) fn show(
                 &mut r.columns,
                 heap,
                 "Select all",
-                data.columns().iter().map(|c| c.id()),
+                data.columns()
+                    .iter()
+                    .map(|c| c.id())
+                    .filter(|id| Some(*id) != r.group),
             );
             let mut added = None;
             scalar(
@@ -71,7 +84,7 @@ pub(super) fn show(
                 "Add frequency variable",
                 &mut added,
                 false,
-                None,
+                r.group,
             );
             if let Some(id) = added {
                 if !r.columns.contains(&id) {

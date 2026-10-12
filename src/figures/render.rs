@@ -9,6 +9,7 @@ use crate::{
 };
 use resvg::{tiny_skia, usvg};
 use std::fmt::Write;
+mod survey;
 const FONT: &[u8] = include_bytes!("../../assets/fonts/NotoSans-Regular.ttf");
 fn invalid(message: &str) -> AppError {
     AppError::invalid("figure", message)
@@ -61,7 +62,9 @@ fn wrap(s: &str, width: f64, size: f64, c: &JobControl) -> AppResult<Vec<String>
                 c.check_cancelled()?;
             }
             if lines.len() > 1000 {
-                return Err(invalid("This label is too long for a report figure; shorten it or increase the figure size."));
+                return Err(invalid(
+                    "This label is too long for a report figure; shorten it or increase the figure size.",
+                ));
             }
             let mut next = line.clone();
             next.push(ch);
@@ -76,7 +79,9 @@ fn wrap(s: &str, width: f64, size: f64, c: &JobControl) -> AppResult<Vec<String>
             line = String::new();
         }
         if lines.len() > 1000 {
-            return Err(invalid("This label is too long for a report figure; shorten it or increase the figure size."));
+            return Err(invalid(
+                "This label is too long for a report figure; shorten it or increase the figure size.",
+            ));
         }
     }
     if !line.is_empty() {
@@ -177,6 +182,9 @@ pub fn svg(
     s.validate()?;
     if key.run != run.id.0 {
         return Err(invalid("Choose a figure from the retained analysis run."));
+    }
+    if matches!(key.kind, FigureKind::Likert | FigureKind::GroupMeans) {
+        return survey::svg(run, key, s, stale, c);
     }
     let mut d = data::captured(run, &key.kind, s, c)?;
     if stale {
@@ -331,7 +339,9 @@ pub fn svg(
         - category_height
         - small * 1.7;
     if right - left < fs * 5. || bottom - top < fs * 4. {
-        return Err(invalid("The labels leave too little room for the plot. Increase figure dimensions or reduce font size and caption length."));
+        return Err(invalid(
+            "The labels leave too little room for the plot. Increase figure dimensions or reduce font size and caption length.",
+        ));
     }
     if horizontal
         && categories.iter().any(|lines| {
@@ -339,10 +349,14 @@ pub fn svg(
                 > (bottom - top) / categories.len().max(1) as f64
         })
     {
-        return Err(invalid("The category labels overlap. Increase figure height, shorten labels, or reduce the font size."));
+        return Err(invalid(
+            "The category labels overlap. Increase figure height, shorten labels, or reduce the font size.",
+        ));
     }
     if ylines.len() > 2 {
-        return Err(invalid("The vertical axis title needs more space. Shorten it, reduce font size, or increase figure height."));
+        return Err(invalid(
+            "The vertical axis title needs more space. Shorten it, reduce font size, or increase figure height.",
+        ));
     }
     if !d.categorical || horizontal {
         let needed = xtick_labels
@@ -350,7 +364,9 @@ pub fn svg(
             .map(|s| measure(s, small))
             .fold(0., f64::max);
         if xticks.len() > 1 && needed > (right - left) / (xticks.len() - 1) as f64 {
-            return Err(invalid("Horizontal tick labels overlap. Increase figure width, reduce tick count, or reduce font size."));
+            return Err(invalid(
+                "Horizontal tick labels overlap. Increase figure width, reduce tick count, or reduce font size.",
+            ));
         }
     }
     let l = Layout {
@@ -370,7 +386,14 @@ pub fn svg(
     };
     let clip =
         format!("figure-{}-{:?}-{}", key.run, key.kind, key.variant).replace(['(', ')'], "_");
-    let mut out=format!("<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"{width}\" height=\"{height}\" viewBox=\"0 0 {width} {height}\" role=\"img\"><title>{}</title><desc>{} {} {} {}</desc>",escape(&title),escape(&s.subtitle),escape(&xname),escape(&yname),escape(&d.note));
+    let mut out = format!(
+        "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"{width}\" height=\"{height}\" viewBox=\"0 0 {width} {height}\" role=\"img\"><title>{}</title><desc>{} {} {} {}</desc>",
+        escape(&title),
+        escape(&s.subtitle),
+        escape(&xname),
+        escape(&yname),
+        escape(&d.note)
+    );
     if !s.transparent {
         write!(
             out,
