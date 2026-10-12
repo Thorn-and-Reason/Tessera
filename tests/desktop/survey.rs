@@ -151,6 +151,17 @@ fn survey_keyboard_paging_modes_and_results_edit_access() {
         frame(&ctx, &mut state, &mut jobs, size, vec![]);
         frame(&ctx, &mut state, &mut jobs, size, vec![]);
         assert!(state.control_rect("Export survey report").unwrap().max.y <= 440.);
+        // Results rendering queues table work; editing stays disabled until it finishes.
+        let until = Instant::now() + Duration::from_secs(10);
+        while jobs.is_running() {
+            state.poll(&mut jobs);
+            assert!(
+                Instant::now() < until,
+                "Results table worker did not finish"
+            );
+            std::thread::yield_now();
+        }
+        assert!(state.error().is_none(), "{:?}", state.error());
         // egui hit-tests against the previous frame; wait for the current Results target.
         let mut hovered = false;
         let mut targets = Vec::new();
