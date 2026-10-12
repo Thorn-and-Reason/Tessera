@@ -150,6 +150,14 @@ fn survey_keyboard_paging_modes_and_results_edit_access() {
         }
         frame(&ctx, &mut state, &mut jobs, size, vec![]);
         frame(&ctx, &mut state, &mut jobs, size, vec![]);
+        for _ in 0..16 {
+            state.poll(&mut jobs);
+            frame(&ctx, &mut state, &mut jobs, size, vec![]);
+            if !jobs.is_running() {
+                break;
+            }
+            std::thread::yield_now();
+        }
         assert!(state.control_rect("Export survey report").unwrap().max.y <= 440.);
         // egui hit-tests against the previous frame; wait for the current Results target.
         let mut hovered = false;
