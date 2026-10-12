@@ -282,8 +282,8 @@ fn import_preview(ui: &mut egui::Ui, state: &mut DesktopState, jobs: &mut JobRun
                 "Tab"
             })
             .show_ui(ui, |ui| {
-                ui.selectable_value(&mut state.import_delimiter, Delimiter::Comma, "Comma");
-                ui.selectable_value(&mut state.import_delimiter, Delimiter::Tab, "Tab");
+                theme::selectable_value(ui, &mut state.import_delimiter, Delimiter::Comma, "Comma");
+                theme::selectable_value(ui, &mut state.import_delimiter, Delimiter::Tab, "Tab");
             });
     });
     if previous != state.import_delimiter {

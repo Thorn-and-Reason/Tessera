@@ -157,7 +157,7 @@ pub(super) fn scalar(
                     return;
                 }
             };
-            if ui.selectable_value(role, None, "Select variable").clicked() {
+            if theme::selectable_value(ui, role, None, "Select variable").clicked() {
                 ui.close();
             }
             let candidates = || {
@@ -178,7 +178,8 @@ pub(super) fn scalar(
                     for c in candidates().skip(range.start).take(range.len()) {
                         let response = ui
                             .push_id(c.id(), |ui| {
-                                ui.selectable_value(
+                                theme::selectable_value(
+                                    ui,
                                     role,
                                     Some(c.id()),
                                     theme::caption_limit(c.name(), 128),
@@ -223,7 +224,7 @@ pub(super) fn confidence(ui: &mut egui::Ui, state: &mut DesktopState, value: &mu
                 ConfidenceLevel::P95,
                 ConfidenceLevel::P99,
             ] {
-                ui.selectable_value(value, c, label(c));
+                theme::selectable_value(ui, value, c, label(c));
             }
         })
         .response;
@@ -358,12 +359,14 @@ fn pearson_options(ui: &mut egui::Ui, request: &mut PearsonRequest) {
             CorrelationMissingPolicy::CompleteCases => "Complete cases",
         })
         .show_ui(ui, |ui| {
-            ui.selectable_value(
+            theme::selectable_value(
+                ui,
                 &mut request.missing_policy,
                 CorrelationMissingPolicy::PairwiseComplete,
                 "Pairwise complete",
             );
-            ui.selectable_value(
+            theme::selectable_value(
+                ui,
                 &mut request.missing_policy,
                 CorrelationMissingPolicy::CompleteCases,
                 "Complete cases",
@@ -423,10 +426,7 @@ fn groups(
         let response = egui::ComboBox::from_id_salt(label)
             .selected_text(selected)
             .show_ui(ui, |ui| {
-                if ui
-                    .selectable_label(values[i].is_none(), "Select group")
-                    .clicked()
-                {
+                if theme::selectable_label(ui, values[i].is_none(), "Select group").clicked() {
                     values[i] = None;
                 }
                 if let Some(result) = &result {
@@ -441,7 +441,8 @@ fn groups(
                                     theme::caption(format_args!("{}. {}", index + 1, choice.label));
                                 let response = ui
                                     .push_id(index, |ui| {
-                                        ui.selectable_label(
+                                        theme::selectable_label(
+                                            ui,
                                             values[i].as_ref() == Some(&choice.value),
                                             text,
                                         )

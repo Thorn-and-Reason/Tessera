@@ -248,12 +248,14 @@ fn form(ui: &mut egui::Ui, state: &mut DesktopState, jobs: &mut JobRunner) {
                             MissingPolicy::CompleteCase => "Complete cases",
                         })
                         .show_ui(ui, |ui| {
-                            ui.selectable_value(
+                            theme::selectable_value(
+                                ui,
                                 &mut draft.missing_policy,
                                 MissingPolicy::PerVariable,
                                 "Per variable",
                             );
-                            ui.selectable_value(
+                            theme::selectable_value(
+                                ui,
                                 &mut draft.missing_policy,
                                 MissingPolicy::CompleteCase,
                                 "Complete cases",
@@ -356,7 +358,7 @@ pub(super) fn common_settings_with_weight(
                     .map_or_else(|| "None".into(), |c| theme::caption(c.name())),
             )
             .show_ui(ui, |ui| {
-                ui.selectable_value(frequency_weight, None, "None");
+                theme::selectable_value(ui, frequency_weight, None, "None");
                 let count = columns
                     .iter()
                     .filter(|c| c.kind() == ColumnKind::Number)
@@ -377,7 +379,8 @@ pub(super) fn common_settings_with_weight(
                             .take(range.len())
                         {
                             ui.push_id(column.id(), |ui| {
-                                ui.selectable_value(
+                                theme::selectable_value(
+                                    ui,
                                     frequency_weight,
                                     Some(column.id()),
                                     theme::caption_limit(column.name(), 128),
@@ -549,7 +552,7 @@ fn edit_filter(ui: &mut egui::Ui, predicate: &mut RowPredicate, kind: ColumnKind
             .enumerate()
             {
                 if kind == ColumnKind::Number || !(2..6).contains(&index) {
-                    ui.selectable_value(&mut operator, index, *label);
+                    theme::selectable_value(ui, &mut operator, index, *label);
                 }
             }
         })

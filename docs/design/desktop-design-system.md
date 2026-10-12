@@ -54,3 +54,11 @@ Native and exported descriptive distributions now stack equal exact values, with
 These are presentation changes: saved numerical results and project formats remain unchanged. Existing editable figure settings still apply.
 
 Fresh macOS all-features verification after the figure changes passed 1,088 application tests and 18 workbook-worker tests, with one ignored application test. Production line coverage was 88.51% (33,827/38,219 lines), recorded in `.build/figure-design-verification/coverage/summary.json`. Formatting, Clippy and diff checks passed, with existing warnings. The native save dialog created a valid PNG by default; the editor opened with PNG selected and SVG remained selectable. Rendered examples covered distributions, frequencies, histograms, scatterplots, boxplots and regression diagnostics. Windows/Linux visual checks and screen-reader acceptance remain outstanding.
+
+## Stable button geometry
+
+Button borders keep the same width when idle, hovered or pressed. Selectable controls share a borderless layout and paint keyboard focus inside their existing bounds. This prevents hovering or changing a selection from resizing controls and moving their neighbours across toolbars, navigation, forms, dropdowns and dialogs.
+
+Regression tests compare control rectangles before hover, during hover and after the pointer leaves in light/dark themes, wide/compact layouts and at 150% UI scaling. Shared-control tests also cover pressing, changing a selection and visible keyboard focus.
+
+Fresh all-features macOS verification passed 1,090 application tests and 18 workbook-worker tests, with one ignored application test. Production line coverage was 88.50% (33,857/38,257 lines). Formatting, Clippy, desktop build and diff checks passed; existing warnings remain. Independent review found no issues.

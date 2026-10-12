@@ -159,7 +159,7 @@ fn column(
         .selected_text(theme::caption(name))
         .show_ui(ui, |ui| {
             if constant {
-                ui.selectable_value(selected, None, "Constant");
+                theme::selectable_value(ui, selected, None, "Constant");
             }
             for c in state
                 .project()
@@ -168,7 +168,7 @@ fn column(
                 .iter()
                 .filter(|c| !numeric || c.kind() == ColumnKind::Number)
             {
-                ui.selectable_value(selected, Some(c.id()), theme::caption(c.name()));
+                theme::selectable_value(ui, selected, Some(c.id()), theme::caption(c.name()));
             }
         })
         .response
@@ -195,7 +195,7 @@ pub(crate) fn show(ui: &mut egui::Ui, state: &mut DesktopState, jobs: &mut JobRu
             .into_iter()
             .enumerate()
         {
-            ui.selectable_value(&mut form.operation, i, label);
+            theme::selectable_value(ui, &mut form.operation, i, label);
         }
     });
     ui.separator();
@@ -230,7 +230,7 @@ pub(crate) fn show(ui: &mut egui::Ui, state: &mut DesktopState, jobs: &mut JobRu
                         (Arithmetic::Multiply, "×"),
                         (Arithmetic::Divide, "÷"),
                     ] {
-                        ui.selectable_value(&mut form.arithmetic, op, label);
+                        theme::selectable_value(ui, &mut form.arithmetic, op, label);
                     }
                 });
             column(ui, "Operand", &mut form.right, state, true, true);
@@ -262,10 +262,10 @@ pub(crate) fn show(ui: &mut egui::Ui, state: &mut DesktopState, jobs: &mut JobRu
                 })
                 .show_ui(ui, |ui| {
                     for (i, (_, label)) in comparisons().into_iter().enumerate() {
-                        ui.selectable_value(&mut form.predicate, i, label);
+                        theme::selectable_value(ui, &mut form.predicate, i, label);
                     }
-                    ui.selectable_value(&mut form.predicate, 6, "Missing");
-                    ui.selectable_value(&mut form.predicate, 7, "Present");
+                    theme::selectable_value(ui, &mut form.predicate, 6, "Missing");
+                    theme::selectable_value(ui, &mut form.predicate, 7, "Present");
                 });
             if form.predicate < 6 {
                 text(ui, "Value", &mut form.value);

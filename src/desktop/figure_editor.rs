@@ -1,5 +1,5 @@
 //! Report figures use the exported SVG for their preview as well as PNG output.
-use super::{button, procedure_forms::record, start, DesktopState};
+use super::{button, procedure_forms::record, start, theme, DesktopState};
 use crate::{
     error::AppResult,
     export::figures::FigureFormat,
@@ -116,7 +116,7 @@ pub(super) fn toolbar(ui: &mut egui::Ui, state: &mut DesktopState, jobs: &mut Jo
                     .selected_text(label(&selected))
                     .show_ui(ui, |ui| {
                         for key in &available {
-                            ui.selectable_value(&mut selected, *key, label(key));
+                            theme::selectable_value(ui, &mut selected, *key, label(key));
                         }
                     });
                 record(state, "Report figure", &combo.response);
@@ -255,8 +255,14 @@ fn editor(ui: &mut egui::Ui, state: &mut DesktopState, jobs: &mut JobRunner) {
                             "PNG"
                         })
                         .show_ui(ui, |ui| {
-                            ui.selectable_value(&mut edit.format, FigureFormat::Png, "PNG · image");
-                            ui.selectable_value(
+                            theme::selectable_value(
+                                ui,
+                                &mut edit.format,
+                                FigureFormat::Png,
+                                "PNG · image",
+                            );
+                            theme::selectable_value(
+                                ui,
                                 &mut edit.format,
                                 FigureFormat::Svg,
                                 "SVG · vector",
@@ -381,7 +387,7 @@ fn properties(
                     (FigurePalette::Monochrome, "Monochrome"),
                     (FigurePalette::Accessible, "Colour-accessible"),
                 ] {
-                    ui.selectable_value(&mut s.palette, v, name);
+                    theme::selectable_value(ui, &mut s.palette, v, name);
                 }
             });
         number(ui, state, "Text size (pt)", &mut s.font_size, 6., 36.);
@@ -436,7 +442,7 @@ fn properties(
                             (FrequencyMetric::ValidPercent, "Percent of valid responses"),
                             (FrequencyMetric::AllPercent, "Percent of all responses"),
                         ] {
-                            ui.selectable_value(&mut s.metric, v, n);
+                            theme::selectable_value(ui, &mut s.metric, v, n);
                         }
                     });
                 ui.label("Category order");
@@ -448,7 +454,7 @@ fn properties(
                             (CategoryOrder::Value, "Category value"),
                             (CategoryOrder::Frequency, "Frequency descending"),
                         ] {
-                            ui.selectable_value(&mut s.order, v, n);
+                            theme::selectable_value(ui, &mut s.order, v, n);
                         }
                     });
                 let r = ui.checkbox(&mut s.value_labels, "Show values");
@@ -462,7 +468,7 @@ fn properties(
             .selected_text("Choose a saved style")
             .show_ui(ui, |ui| {
                 for preset in presets {
-                    if ui.selectable_label(false, &preset.name).clicked() {
+                    if theme::selectable_label(ui, false, &preset.name).clicked() {
                         edit.settings = edit.settings.copy_style_from(&preset.settings);
                         ui.close();
                     }

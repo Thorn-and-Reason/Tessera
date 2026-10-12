@@ -79,13 +79,13 @@ pub fn history(ui: &mut egui::Ui, state: &mut DesktopState) {
                 .show_rows(ui, 28., count, |ui, range| {
                     for run in matches().skip(range.start).take(range.len()) {
                         let label = history_label(run, revision);
-                        if ui
-                            .selectable_label(
-                                state.selected_run().is_some_and(|r| r.id == run.id),
-                                &label,
-                            )
-                            .on_hover_text(&label)
-                            .clicked()
+                        if theme::selectable_label(
+                            ui,
+                            state.selected_run().is_some_and(|r| r.id == run.id),
+                            &label,
+                        )
+                        .on_hover_text(&label)
+                        .clicked()
                         {
                             state.act(UiAction::SelectRun(run.id));
                             ui.close();

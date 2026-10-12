@@ -48,7 +48,7 @@ pub(crate) fn mode_switch(ui: &mut egui::Ui, state: &mut DesktopState) {
                 (AnalysisMode::Guided, "Guided"),
                 (AnalysisMode::Advanced, "Advanced"),
             ] {
-                let response = ui.selectable_value(&mut mode, choice, label);
+                let response = theme::selectable_value(ui, &mut mode, choice, label);
                 if response.clicked() {
                     ui.close();
                 }

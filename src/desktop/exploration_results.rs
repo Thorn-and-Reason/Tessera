@@ -132,7 +132,8 @@ pub(super) fn frequencies(
                 v.tables.len(),
                 |ui, range| {
                     for i in range {
-                        let response = ui.selectable_value(
+                        let response = theme::selectable_value(
+                            ui,
                             &mut selected,
                             i,
                             theme::caption(&v.columns[cache.table_columns[i]].name),

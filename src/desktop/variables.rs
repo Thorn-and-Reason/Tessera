@@ -1,7 +1,7 @@
 use super::{
     button, start,
     state::{MetadataEditor, MAX_DRAFT_BYTES, TEXT_LIMIT},
-    DesktopState, Dialog, UiAction, Workspace,
+    theme, DesktopState, Dialog, UiAction, Workspace,
 };
 use crate::{
     data::{Cell, ColumnKind, Measurement, MissingRules, ValueLabel},
@@ -143,8 +143,8 @@ pub fn kind_picker(
         let response = egui::ComboBox::from_id_salt(format!("{id:?}"))
             .selected_text(kind_label(*kind))
             .show_ui(ui, |ui| {
-                ui.selectable_value(kind, ColumnKind::Number, "Number");
-                ui.selectable_value(kind, ColumnKind::Text, "Text");
+                theme::selectable_value(ui, kind, ColumnKind::Number, "Number");
+                theme::selectable_value(ui, kind, ColumnKind::Text, "Text");
             })
             .response;
         response.labelled_by(label.id);
@@ -234,7 +234,7 @@ pub fn properties(ui: &mut egui::Ui, state: &mut DesktopState, jobs: &mut JobRun
                             Measurement::Ordinal,
                             Measurement::Scale,
                         ] {
-                            ui.selectable_value(
+                            theme::selectable_value(ui,
                                 &mut editor.metadata.measurement,
                                 value,
                                 measurement_label(value),

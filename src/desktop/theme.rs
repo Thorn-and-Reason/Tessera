@@ -146,9 +146,9 @@ pub fn install(ctx: &egui::Context) {
         );
         style.visuals.widgets.hovered.bg_fill = selected;
         style.visuals.widgets.hovered.weak_bg_fill = selected;
-        style.visuals.widgets.hovered.bg_stroke = egui::Stroke::new(1.5, ink);
+        style.visuals.widgets.hovered.bg_stroke = egui::Stroke::new(1., ink);
         style.visuals.widgets.active.bg_fill = selected;
-        style.visuals.widgets.active.bg_stroke = egui::Stroke::new(2., ink);
+        style.visuals.widgets.active.bg_stroke = egui::Stroke::new(1., ink);
         for widget in [
             &mut style.visuals.widgets.inactive,
             &mut style.visuals.widgets.hovered,
@@ -262,6 +262,39 @@ pub(crate) fn quiet<'a>(_ui: &egui::Ui, label: &'a str) -> egui::Button<'a> {
         .stroke(egui::Stroke::NONE)
         .frame_when_inactive(false)
 }
+/// Selectable buttons keep border geometry constant in idle, hover and focus states.
+pub(crate) fn selectable_label<'a>(
+    ui: &mut egui::Ui,
+    selected: bool,
+    text: impl egui::IntoAtoms<'a>,
+) -> egui::Response {
+    let response = ui.add(egui::Button::selectable(selected, text).stroke(egui::Stroke::NONE));
+    focus_ring(ui, &response);
+    response
+}
+pub(crate) fn selectable_value<'a, Value: PartialEq>(
+    ui: &mut egui::Ui,
+    current: &mut Value,
+    choice: Value,
+    text: impl egui::IntoAtoms<'a>,
+) -> egui::Response {
+    let mut response = selectable_label(ui, *current == choice, text);
+    if response.clicked() && *current != choice {
+        *current = choice;
+        response.mark_changed();
+    }
+    response
+}
+fn focus_ring(ui: &egui::Ui, response: &egui::Response) {
+    if response.has_focus() {
+        ui.painter().rect_stroke(
+            response.rect.shrink(1.),
+            4.,
+            egui::Stroke::new(1.5, accent(ui)),
+            egui::StrokeKind::Inside,
+        );
+    }
+}
 /// Desktop source-list row: standard button keyboard handling, left-aligned text.
 pub(crate) fn list_row(
     ui: &mut egui::Ui,
@@ -323,14 +356,7 @@ pub(crate) fn list_row(
             &accessible_label,
         )
     });
-    if response.has_focus() {
-        ui.painter().rect_stroke(
-            response.rect.shrink(1.),
-            4.,
-            egui::Stroke::new(1.5, accent(ui)),
-            egui::StrokeKind::Inside,
-        );
-    }
+    focus_ring(ui, &response);
     response.on_hover_text(accessible_label)
 }
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -424,6 +450,100 @@ mod tests {
         };
         let (a, b) = (luminance(a), luminance(b));
         (a.max(b) + 0.05) / (a.min(b) + 0.05)
+    }
+    fn widget_frame(
+        ctx: &egui::Context,
+        choice: &mut u8,
+        events: Vec<egui::Event>,
+    ) -> (Vec<egui::Rect>, egui::Id, bool, bool) {
+        let mut rects = Vec::new();
+        let mut id = egui::Id::NULL;
+        let mut changed = false;
+        let mut output = ctx.run_ui(
+            egui::RawInput {
+                screen_rect: Some(egui::Rect::from_min_size(
+                    egui::Pos2::ZERO,
+                    egui::vec2(1000., 300.),
+                )),
+                events,
+                ..Default::default()
+            },
+            |ui| {
+                ui.horizontal(|ui| {
+                    rects.push(ui.add(primary(ui, "Primary")).rect);
+                    rects.push(ui.add(secondary(ui, "Secondary")).rect);
+                    rects.push(ui.add(quiet(ui, "Quiet")).rect);
+                    rects.push(selectable_value(ui, choice, 0, "First").rect);
+                    let response = selectable_value(ui, choice, 1, "Second");
+                    rects.push(response.rect);
+                    id = response.id;
+                    changed = response.changed();
+                    rects.push(ui.small_button("Small").rect);
+                    rects.push(ui.button("Neighbour").rect);
+                });
+            },
+        );
+        let focus = output.shapes.iter().any(|shape| matches!(&shape.shape, egui::Shape::Rect(r) if r.stroke.width == 1.5 && r.rect == rects[4].shrink(1.)));
+        output.textures_delta.clear();
+        (rects, id, changed, focus)
+    }
+    #[test]
+    fn all_button_styles_keep_geometry_on_hover_press_and_selection_with_visible_focus() {
+        use egui::{Event, Modifiers, PointerButton, Pos2};
+        for appearance in [egui::Theme::Light, egui::Theme::Dark] {
+            let ctx = egui::Context::default();
+            install(&ctx);
+            ctx.set_theme(appearance);
+            let mut choice = 0;
+            let off = Pos2::new(990., 290.);
+            let mut baseline = Vec::new();
+            for _ in 0..3 {
+                baseline = widget_frame(&ctx, &mut choice, vec![Event::PointerMoved(off)]).0;
+            }
+            for rect in &baseline {
+                for _ in 0..3 {
+                    assert_eq!(
+                        widget_frame(&ctx, &mut choice, vec![Event::PointerMoved(rect.center())]).0,
+                        baseline
+                    );
+                }
+            }
+            let point = baseline[4].center();
+            for _ in 0..3 {
+                widget_frame(&ctx, &mut choice, vec![Event::PointerMoved(point)]);
+            }
+            let (rects, _, _, _) = widget_frame(
+                &ctx,
+                &mut choice,
+                vec![Event::PointerButton {
+                    pos: point,
+                    button: PointerButton::Primary,
+                    pressed: true,
+                    modifiers: Modifiers::NONE,
+                }],
+            );
+            assert_eq!(rects, baseline);
+            let (rects, id, changed, _) = widget_frame(
+                &ctx,
+                &mut choice,
+                vec![Event::PointerButton {
+                    pos: point,
+                    button: PointerButton::Primary,
+                    pressed: false,
+                    modifiers: Modifiers::NONE,
+                }],
+            );
+            assert_eq!(rects, baseline);
+            assert!(changed);
+            assert_eq!(choice, 1);
+            ctx.memory_mut(|memory| memory.request_focus(id));
+            for _ in 0..3 {
+                let (rects, _, _, focus) =
+                    widget_frame(&ctx, &mut choice, vec![Event::PointerMoved(off)]);
+                assert_eq!(rects, baseline);
+                assert!(focus, "selected choices must retain a visible focus ring");
+            }
+        }
     }
     #[test]
     fn both_themes_keep_text_and_focus_legible() {

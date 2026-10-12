@@ -249,6 +249,7 @@ fn navigation_button(
         size,
         egui::Button::new(label)
             .selected(selected)
+            .stroke(egui::Stroke::NONE)
             .frame_when_inactive(selected),
     );
     procedure_forms::record(state, view.label(), &response);
