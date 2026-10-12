@@ -2,9 +2,9 @@
 
 Tessera's source is free under GPL-3.0-only. You may build, modify and
 redistribute it, including compiled copies, subject to that licence. Thorn &
-Reason plans to sell prepared official packages through
-[thornandreason.com](https://thornandreason.com/tessera/). Source publication
-does not mean that the current development candidate is ready for sale.
+Reason plans to sell prepared official packages after release and delivery
+acceptance. Source publication does not mean that the current development
+candidate is ready for sale.
 
 ## Run from source
 
@@ -27,7 +27,24 @@ cargo run --locked --release
 
 The workbook-worker executable must remain beside the application for Excel
 import. The commands above use the same `target/release` directory for both.
-See [the README](../README.md) for application features and Python checks.
+See [the README](../README.md) for application features. Python helper checks
+require Python 3.11+ and `scripts/requirements-dev.txt`. Install those development
+dependencies in a virtual environment, then run:
+
+```sh
+python3 -m unittest discover -s scripts -p 'test_*.py'
+python3 -m unittest discover -s tests/project_io -p 'test_*.py'
+```
+
+For Rust formatting and lint checks:
+
+```sh
+cargo fmt --all -- --check
+cargo clippy --locked --all-targets --all-features
+```
+
+The desktop feature is enabled by default. Core checks and development
+benchmarks can use `--no-default-features`.
 
 ## Build distributable packages
 
@@ -64,7 +81,9 @@ security prompts. Platform and downloaded-file acceptance remain in
 The public repository runs verification only; it does not publish official
 executables. Thorn & Reason's private release workflow builds candidate
 packages from a full commit identifier using these same packaging scripts.
-Official packages are delivered from private website storage after purchase.
+The planned customer-delivery service will provide official packages from
+private website storage after purchase, once release and delivery acceptance
+are complete.
 
 Every distributed package must have a retained corresponding-source archive
 for its exact build inputs, including the required dependency source. The free

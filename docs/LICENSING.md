@@ -46,9 +46,10 @@ redistribution rights granted by the GPL.
   has been made. Purchase terms must preserve GPL rights and applicable
   consumer rights, including rights concerning faulty digital content.
 
-No payment account, checkout, sale or public source release is created by this
-licensing decision. The website should continue to show development status
-until an actual tested release and checkout are ready.
+This licensing decision did not itself create a payment account, checkout, sale
+or source release. Public source releases now exist for matching published
+source snapshots; the website should continue to show development status until
+an actual tested package release and checkout are ready.
 
 ## Dependency review performed
 
@@ -86,7 +87,10 @@ texts are actually present in their packages.
    directions **next to the installer downloads**, including on the hosted
    delivery page. GPLv3 section 6(d) permits a different source server when
    equivalent copying facilities and clear directions are provided. Maintain
-   availability for as long as required. A source URL has not been created yet.
+   availability for as long as required. Versioned corresponding-source archives
+   and checksums are available on the [public releases page](https://github.com/Thorn-and-Reason/Tessera/releases).
+   Each archive identifies a specific source revision; use the archive that
+   matches the distributed binaries.
 5. Verify a clean build from that source and retain the release identifier,
    source archive and checksums alongside the shipped package identities.
 6. Provide an accessible application licence/about notice before the public

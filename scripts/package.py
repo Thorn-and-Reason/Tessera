@@ -15,7 +15,8 @@ ROOT = Path(__file__).resolve().parent.parent
 VERSION = tomllib.loads((ROOT / "Cargo.toml").read_text())["package"]["version"]
 BUILD_NUMBER = VERSION
 DOCUMENTS = (
-    "README.md", "LICENSE", "docs/LICENSING.md", "docs/INSTALLING.md", "docs/project-format.md", "docs/project.schema.json",
+    "README.md", "LICENSE", "docs/LICENSING.md", "docs/INSTALLING.md",
+    "docs/using-tessera.md", "docs/project-format.md", "docs/project.schema.json",
     "examples/sample.tessera", "examples/mixed-analysis.tessera",
     "examples/exploration.tessera", "examples/regression-analysis.tessera",
     "assets/fonts/LICENSE", "assets/fonts/Libron-LICENSE.txt",
