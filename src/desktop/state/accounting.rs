@@ -285,6 +285,10 @@ mod tests {
             })
             .unwrap();
         frame(&mut state, &ctx, &mut jobs);
+        assert_eq!(state.workspace(), Workspace::Results);
+        // Results reuse frozen output; the next editable copy warms the new owner once.
+        ACCOUNTING_PASSES.with(|p| assert_eq!(p.get(), 1));
+        state.check_ui_copy(0).unwrap();
         ACCOUNTING_PASSES.with(|p| assert_eq!(p.get(), 2));
         let different_owner = Arc::new(state.project.as_ref().clone());
         state.adopt(different_owner, None, None).unwrap();

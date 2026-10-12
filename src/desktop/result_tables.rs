@@ -1,5 +1,5 @@
 //! Loaded results use their captured roles and definitions.
-use super::{theme, DesktopState, UiAction, Workspace};
+use super::{theme, DesktopState};
 use crate::{
     analysis::*,
     data::{Cell, ColumnId},
@@ -110,10 +110,6 @@ pub(super) fn show(ui: &mut egui::Ui, state: &mut DesktopState, run: &AnalysisRu
                     "Run settings and provenance".into(),
                     panel.header_response.rect,
                 );
-                if super::button(ui, state, "Use this run in Analyses").clicked() {
-                    state.load_selected_request();
-                    state.act(UiAction::Navigate(Workspace::Analyses));
-                }
                 return;
             }
             ui.heading(format!(
@@ -152,10 +148,6 @@ pub(super) fn show(ui: &mut egui::Ui, state: &mut DesktopState, run: &AnalysisRu
                 "Run settings and provenance".into(),
                 panel.header_response.rect,
             );
-            if super::button(ui, state, "Use this run in Analyses").clicked() {
-                state.load_selected_request();
-                state.act(UiAction::Navigate(Workspace::Analyses));
-            }
         });
 }
 fn pearson(ui: &mut egui::Ui, run: &AnalysisRun, v: &ComputedPearson) {

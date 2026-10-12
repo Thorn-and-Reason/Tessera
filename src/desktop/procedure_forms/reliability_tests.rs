@@ -112,12 +112,22 @@ fn reliability_chooser_selects_real_draft_and_submits_ordered_request() {
     let ctx = egui::Context::default();
     let mut jobs = JobRunner::default();
     chooser_frame(&ctx, &mut state, &mut jobs, vec![]);
-    chooser_click(&ctx, &mut state, &mut jobs, "Procedure");
+    chooser_click(&ctx, &mut state, &mut jobs, "Search procedures");
+    chooser_frame(
+        &ctx,
+        &mut state,
+        &mut jobs,
+        vec![egui::Event::Text("Scale reliability".into())],
+    );
+    chooser_frame(&ctx, &mut state, &mut jobs, vec![]);
     chooser_click(&ctx, &mut state, &mut jobs, "Scale reliability");
     assert!(matches!(state.draft, AnalysisDraft::Reliability(_)));
     for id in [2, 1] {
         chooser_click(&ctx, &mut state, &mut jobs, "Add item");
         chooser_click(&ctx, &mut state, &mut jobs, &format!("Add item: {id}"));
+    }
+    for _ in 0..3 {
+        chooser_frame(&ctx, &mut state, &mut jobs, vec![]);
     }
     chooser_click(&ctx, &mut state, &mut jobs, "Run analysis");
     assert!(

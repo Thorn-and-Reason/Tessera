@@ -78,6 +78,10 @@ fn exposed_procedure_runs_from_native_button_and_shortcut() {
     click(&mut state, &mut jobs, &ctx, "Run analysis");
     settle(&mut state, &mut jobs);
     assert_eq!(state.project().runs().len(), 2);
+    assert_eq!(state.workspace(), Workspace::Results);
+    state = state
+        .apply_action(UiAction::Navigate(Workspace::Analyses))
+        .unwrap();
     frame(
         &mut state,
         &mut jobs,

@@ -314,6 +314,7 @@ fn near_ceiling_render_child() {
     state = near_ceiling(256 * 1024);
     for view in [
         Workspace::Data,
+        Workspace::Prepare,
         Workspace::Variables,
         Workspace::Analyses,
         Workspace::Results,
@@ -462,7 +463,7 @@ fn compact_results_keep_full_precision_accessible() {
     );
 }
 #[test]
-fn inactive_navigation_is_unfilled_and_selection_is_parchment() {
+fn inactive_navigation_is_unfilled_and_selection_uses_brand_selection_fill() {
     let ctx = egui::Context::default();
     tessera::desktop::configure_context(&ctx);
     ctx.set_theme(egui::Theme::Light);
@@ -482,7 +483,7 @@ fn inactive_navigation_is_unfilled_and_selection_is_parchment() {
         output.shapes.iter().any(|shape|matches!(&shape.shape,egui::Shape::Rect(shape) if shape.rect.center().distance(rect.center())<1.0&&shape.fill!=egui::Color32::TRANSPARENT&&colour.is_none_or(|colour|shape.fill==colour)))
     };
     assert!(!has_fill(variables, None));
-    assert!(has_fill(data, Some(egui::Color32::from_rgb(238, 230, 214))));
+    assert!(has_fill(data, Some(egui::Color32::from_rgb(228, 237, 247))));
 }
 
 fn popup_access_frame(

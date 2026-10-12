@@ -118,25 +118,33 @@ fn new_forms_keyboard_and_narrow_settings() {
             .unwrap();
         let mut jobs = JobRunner::default();
         frame(&ctx, &mut state, &mut jobs, size, vec![]);
-        click(&ctx, &mut state, &mut jobs, "Settings", size);
-        assert_eq!(state.dialog(), Some(Dialog::Settings));
-        frame(&ctx, &mut state, &mut jobs, size, vec![]);
-        assert!(state.control_rect("Procedure").is_some());
+        assert!(state.dialog().is_none());
+        assert!(state.control_rect("Settings").is_none());
+        assert!(state.control_rect("Search procedures").is_some());
+        let label = if procedure == Procedure::Describe {
+            "Run descriptives"
+        } else {
+            "Run analysis"
+        };
+        let footer = state.control_rect(label).unwrap();
+        assert!(footer.bottom() <= size.y);
+        // The full-page form is keyboard reachable without a modal.
+        let id = state.control_id("Search procedures").unwrap();
+        ctx.memory_mut(|m| m.request_focus(id));
         frame(
             &ctx,
             &mut state,
             &mut jobs,
             size,
             vec![Event::Key {
-                key: Key::Escape,
+                key: Key::Tab,
                 physical_key: None,
                 pressed: true,
                 repeat: false,
                 modifiers: Modifiers::NONE,
             }],
         );
-        assert_eq!(state.dialog(), None);
-        assert_eq!(ctx.memory(|m| m.focused()), state.control_id("Settings"));
+        assert!(ctx.memory(|m| m.focused()).is_some());
     }
 }
 
@@ -156,7 +164,7 @@ fn native_chooser_and_scalar_form_commit_real_roles_and_run() {
     for p in Procedure::ALL {
         assert!(state.control_rect(p.label()).is_some());
     }
-    // Family headers and all twelve entries can exceed the popup viewport; use its actual search.
+    // Search the visible catalog to bring the chosen procedure into view.
     click(&ctx, &mut state, &mut jobs, "Search procedures", size);
     frame(
         &ctx,
@@ -170,14 +178,14 @@ fn native_chooser_and_scalar_form_commit_real_roles_and_run() {
     }
     let result = state
         .control_rect("One-sample t-test")
-        .expect("search must retain its open popup and matching procedure");
+        .expect("search must retain the matching procedure");
     assert!(
         result.min.y >= 0. && result.max.y <= size.y,
         "matching procedure is visibly reachable: {result:?}"
     );
     assert!(
         state.control_rect("ANOVA").is_none(),
-        "search filters the actual procedure menu"
+        "search filters the visible catalog"
     );
     click(&ctx, &mut state, &mut jobs, "One-sample t-test", size);
     assert_eq!(state.draft().procedure(), Procedure::OneSampleT);
@@ -191,6 +199,9 @@ fn native_chooser_and_scalar_form_commit_real_roles_and_run() {
         panic!()
     };
     assert_eq!(*variable, Some(ColumnId(1)));
+    for _ in 0..3 {
+        frame(&ctx, &mut state, &mut jobs, size, vec![]);
+    }
     click(&ctx, &mut state, &mut jobs, "Run analysis", size);
     let until = Instant::now() + Duration::from_secs(5);
     while jobs.is_running() {
@@ -230,6 +241,9 @@ fn invalid_reference_shortcut_does_not_append_or_replace_output() {
                 filter: RowFilter::default(),
                 frequency_weight: None,
             }))
+            .unwrap();
+        state = state
+            .apply_action(UiAction::Navigate(Workspace::Analyses))
             .unwrap();
         let ctx = egui::Context::default();
         tessera::desktop::configure_context(&ctx);
@@ -299,7 +313,7 @@ fn native_group_choices_keep_equal_labels_and_empty_text_distinct() {
         .unwrap();
     let ctx = egui::Context::default();
     tessera::desktop::configure_context(&ctx);
-    let size = Vec2::new(1180.0, 780.0);
+    let size = Vec2::new(1180.0, 1200.0);
     let mut jobs = JobRunner::default();
     for (label, index) in [("First group", 0), ("Second group", 1)] {
         frame(&ctx, &mut state, &mut jobs, size, vec![]);
@@ -314,24 +328,6 @@ fn native_group_choices_keep_equal_labels_and_empty_text_distinct() {
         assert_eq!(choices.choices.len(), 2);
         assert!(choices.choices.iter().all(|c| c.label.contains("Same")));
         assert_ne!(choices.choices[0].value, choices.choices[1].value);
-        frame(
-            &ctx,
-            &mut state,
-            &mut jobs,
-            size,
-            vec![
-                Event::PointerMoved(Pos2::new(300., 380.)),
-                Event::MouseWheel {
-                    unit: egui::MouseWheelUnit::Point,
-                    phase: egui::TouchPhase::Move,
-                    delta: Vec2::new(0., -180.),
-                    modifiers: Modifiers::NONE,
-                },
-            ],
-        );
-        for _ in 0..20 {
-            frame(&ctx, &mut state, &mut jobs, size, vec![]);
-        }
         click(&ctx, &mut state, &mut jobs, label, size);
         frame(&ctx, &mut state, &mut jobs, size, vec![]);
         click(

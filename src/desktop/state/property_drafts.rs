@@ -72,11 +72,15 @@ impl DesktopState {
                 next = next.apply_action(UiAction::AddColumn { name, kind })?;
                 next.new_name.clear();
             }
+            if let Some(workspace) = next.pending_workspace.take() {
+                next = next.apply_action(UiAction::Navigate(workspace))?;
+            }
         }
         next.pending_column = None;
         next.pending_selection = None;
         next.pending_property_action = None;
         next.pending_new_variable = None;
+        next.pending_workspace = None;
         if choice == PropertyChoice::Stay {
             next.pending_save_as = None;
         }
@@ -115,6 +119,47 @@ mod tests {
             kind: ColumnKind::Number,
         });
         state
+    }
+    #[test]
+    fn navigation_resolves_metadata_before_preparation_and_resumes_destination() {
+        let original = edited();
+        let prompted = original
+            .apply_action(UiAction::Navigate(Workspace::Prepare))
+            .unwrap();
+        assert_eq!(prompted.workspace(), Workspace::Data);
+        assert_eq!(prompted.dialog(), Some(Dialog::PropertyChanges));
+        let stayed = prompted
+            .apply_action(UiAction::ResolveProperties(PropertyChoice::Stay))
+            .unwrap();
+        assert_eq!(stayed.workspace(), Workspace::Data);
+        assert!(stayed.metadata_has_changes());
+        let applied = prompted
+            .apply_action(UiAction::ResolveProperties(PropertyChoice::Apply))
+            .unwrap();
+        assert_eq!(applied.workspace(), Workspace::Prepare);
+        assert_eq!(
+            applied
+                .project()
+                .dataset()
+                .column(ColumnId(1))
+                .unwrap()
+                .name(),
+            "Edited"
+        );
+        let discarded = prompted
+            .apply_action(UiAction::ResolveProperties(PropertyChoice::Discard))
+            .unwrap();
+        assert_eq!(discarded.workspace(), Workspace::Prepare);
+        assert_eq!(
+            discarded
+                .project()
+                .dataset()
+                .column(ColumnId(1))
+                .unwrap()
+                .name(),
+            "First"
+        );
+        assert!(!discarded.metadata_has_changes());
     }
     #[test]
     fn selection_preserves_draft_until_apply_discard_or_stay() {

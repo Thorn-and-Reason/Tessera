@@ -113,3 +113,32 @@ fn partial_first_last_rows_and_bottom_page_are_retained() {
     assert_eq!(seen, vec![62, 63]);
     assert!(visible.contains(&63));
 }
+
+#[test]
+fn empty_list_does_not_reserve_space_or_render_paging_controls() {
+    let ctx = egui::Context::default();
+    let mut rendered = false;
+    let mut consumed = 0.;
+    let mut out = ctx.run_ui(egui::RawInput::default(), |ui| {
+        egui::CentralPanel::default().show(ui, |ui| {
+            let before = ui.cursor().min.y;
+            let controls = show_rows(
+                ui,
+                "empty-list",
+                "empty list",
+                28.,
+                0,
+                (168., 56.),
+                |_, _| rendered = true,
+            );
+            consumed = ui.cursor().min.y - before;
+            assert!(controls.0.is_empty());
+        });
+    });
+    out.textures_delta.clear();
+    assert!(!rendered, "empty lists should not enter the row renderer");
+    assert_eq!(
+        consumed, 0.,
+        "empty selected lists must not leave a blank panel"
+    );
+}

@@ -1,14 +1,12 @@
 use eframe::egui::{self, Color32, FontData, FontDefinitions, FontFamily, FontId, TextStyle};
 pub const NAVY: Color32 = Color32::from_rgb(38, 52, 73);
-pub const PAPER: Color32 = Color32::from_rgb(242, 235, 220);
-pub const SELECTED_LIGHT: Color32 = Color32::from_rgb(238, 230, 214);
+pub const SELECTED_LIGHT: Color32 = Color32::from_rgb(228, 237, 247);
 pub const GOLD: Color32 = Color32::from_rgb(197, 155, 67);
-pub const GOLD_INK: Color32 = Color32::from_rgb(134, 99, 31);
 pub(crate) fn accent(ui: &egui::Ui) -> Color32 {
     if ui.visuals().dark_mode {
-        GOLD
+        Color32::from_rgb(158, 190, 224)
     } else {
-        GOLD_INK
+        Color32::from_rgb(54, 94, 135)
     }
 }
 pub fn install(ctx: &egui::Context) {
@@ -53,6 +51,26 @@ pub fn install(ctx: &egui::Context) {
         FontFamily::Name("brand-serif".into()),
         vec!["Libron".into(), "Noto Sans".into()],
     );
+    #[cfg(target_os = "macos")]
+    {
+        // Use the installed Mac font without distributing it; bundled fonts remain fallbacks.
+        static SYSTEM_FONT: std::sync::OnceLock<Option<std::sync::Arc<FontData>>> =
+            std::sync::OnceLock::new();
+        if let Some(font) = SYSTEM_FONT.get_or_init(|| {
+            std::fs::read("/System/Library/Fonts/SFNS.ttf")
+                .ok()
+                .map(|bytes| FontData::from_owned(bytes).into())
+        }) {
+            fonts
+                .font_data
+                .insert("system-ui".into(), std::sync::Arc::clone(font));
+            fonts
+                .families
+                .get_mut(&FontFamily::Proportional)
+                .unwrap()
+                .insert(0, "system-ui".into());
+        }
+    }
     ctx.set_fonts(fonts);
     ctx.data_mut(|d| d.insert_temp(egui::Id::new("tessera-brand-fonts"), true));
     for theme in [egui::Theme::Light, egui::Theme::Dark] {
@@ -64,38 +82,40 @@ pub fn install(ctx: &egui::Context) {
             egui::Visuals::light()
         };
         let ink = if dark {
-            Color32::from_rgb(242, 235, 220)
+            Color32::from_rgb(232, 235, 241)
         } else {
-            NAVY
+            Color32::from_rgb(39, 45, 55)
         };
         let base = if dark {
-            Color32::from_rgb(27, 37, 52)
+            Color32::from_rgb(24, 27, 32)
         } else {
-            PAPER
+            Color32::WHITE
         };
-        let border = Color32::from_rgb(125, 130, 127);
+        let border = if dark {
+            Color32::from_rgb(67, 74, 85)
+        } else {
+            Color32::from_rgb(213, 218, 225)
+        };
         let selected = if dark {
-            Color32::from_rgb(62, 74, 91)
+            Color32::from_rgb(48, 65, 85)
         } else {
             SELECTED_LIGHT
         };
-        // Surfaces step away from the paper base: chrome (navigation, status,
-        // project bar) sinks slightly; buttons and cards lift slightly.
         let chrome = if dark {
-            Color32::from_rgb(33, 45, 62)
+            Color32::from_rgb(32, 36, 43)
         } else {
-            Color32::from_rgb(232, 223, 205)
+            Color32::from_rgb(245, 246, 248)
         };
         let card = if dark {
-            Color32::from_rgb(42, 56, 76)
+            Color32::from_rgb(40, 45, 54)
         } else {
-            Color32::from_rgb(249, 244, 232)
+            Color32::from_rgb(250, 251, 252)
         };
         style.visuals.override_text_color = Some(ink);
         style.visuals.weak_text_color = Some(if dark {
-            Color32::from_rgb(208, 199, 180)
+            Color32::from_rgb(179, 187, 199)
         } else {
-            Color32::from_rgb(78, 90, 102)
+            Color32::from_rgb(94, 103, 117)
         });
         style.visuals.panel_fill = base;
         style.visuals.window_fill = base;
@@ -116,7 +136,14 @@ pub fn install(ctx: &egui::Context) {
         style.visuals.widgets.noninteractive.bg_stroke = egui::Stroke::new(1., border);
         style.visuals.widgets.inactive.bg_fill = card;
         style.visuals.widgets.inactive.weak_bg_fill = card;
-        style.visuals.widgets.inactive.bg_stroke = egui::Stroke::new(1., border);
+        style.visuals.widgets.inactive.bg_stroke = egui::Stroke::new(
+            1.,
+            if dark {
+                Color32::from_rgb(126, 137, 153)
+            } else {
+                Color32::from_rgb(133, 143, 158)
+            },
+        );
         style.visuals.widgets.hovered.bg_fill = selected;
         style.visuals.widgets.hovered.weak_bg_fill = selected;
         style.visuals.widgets.hovered.bg_stroke = egui::Stroke::new(1.5, ink);
@@ -128,27 +155,27 @@ pub fn install(ctx: &egui::Context) {
             &mut style.visuals.widgets.active,
         ] {
             widget.fg_stroke = egui::Stroke::new(1.5, ink);
-            widget.corner_radius = egui::CornerRadius::same(6);
+            widget.corner_radius = egui::CornerRadius::same(4);
         }
-        style.spacing.item_spacing = egui::vec2(10., 10.);
-        style.spacing.button_padding = egui::vec2(12., 7.);
-        style.spacing.interact_size.y = 30.;
+        style.spacing.item_spacing = egui::vec2(8., 6.);
+        style.spacing.button_padding = egui::vec2(8., 4.);
+        style.spacing.interact_size.y = 26.;
         style
             .text_styles
-            .insert(TextStyle::Body, FontId::proportional(14.));
+            .insert(TextStyle::Body, FontId::proportional(13.));
         style
             .text_styles
-            .insert(TextStyle::Button, FontId::proportional(14.));
+            .insert(TextStyle::Button, FontId::proportional(13.));
         style.text_styles.insert(
             TextStyle::Heading,
-            FontId::new(23., FontFamily::Name("brand-serif".into())),
+            FontId::new(18., FontFamily::Name("semibold".into())),
         );
         style
             .text_styles
-            .insert(TextStyle::Small, FontId::proportional(12.));
+            .insert(TextStyle::Small, FontId::proportional(11.5));
         style
             .text_styles
-            .insert(TextStyle::Monospace, FontId::monospace(13.));
+            .insert(TextStyle::Monospace, FontId::monospace(12.));
         ctx.set_style_of(theme, style);
     }
     ctx.set_theme(egui::ThemePreference::System);
@@ -189,12 +216,19 @@ fn section_family(ui: &egui::Ui) -> FontFamily {
 pub(crate) fn section(ui: &mut egui::Ui, label: &str) -> egui::Response {
     ui.label(
         egui::RichText::new(label)
-            .font(FontId::new(15.5, section_family(ui)))
+            .font(FontId::new(13., section_family(ui)))
             .color(text(ui)),
     )
 }
 pub(crate) fn wordmark(ui: &mut egui::Ui, label: &str) -> egui::Response {
-    let family = TextStyle::Heading.resolve(ui.style()).family;
+    let family = if ui
+        .ctx()
+        .data(|d| d.get_temp::<bool>(egui::Id::new("tessera-brand-fonts")) == Some(true))
+    {
+        FontFamily::Name("brand-serif".into())
+    } else {
+        FontFamily::Proportional
+    };
     ui.label(
         egui::RichText::new(label)
             .font(FontId::new(17., family))
@@ -202,18 +236,21 @@ pub(crate) fn wordmark(ui: &mut egui::Ui, label: &str) -> egui::Response {
     )
 }
 pub(crate) fn primary<'a>(ui: &egui::Ui, label: &'a str) -> egui::Button<'a> {
-    // The decisive action must stay visible on both bases: navy on paper,
-    // brand gold on navy. Both pairings clear 4.5:1 (see brand_theme tests).
-    if ui.visuals().dark_mode {
-        egui::Button::new(egui::RichText::new(label).color(NAVY).strong())
-            .fill(GOLD)
-            .stroke(egui::Stroke::new(1., GOLD))
+    let fill = if ui.visuals().dark_mode {
+        Color32::from_rgb(158, 190, 224)
     } else {
-        egui::Button::new(egui::RichText::new(label).color(PAPER).strong())
-            .fill(NAVY)
-            .stroke(egui::Stroke::new(1., NAVY))
-    }
+        NAVY
+    };
+    let ink = if ui.visuals().dark_mode {
+        Color32::from_rgb(24, 27, 32)
+    } else {
+        Color32::WHITE
+    };
+    egui::Button::new(egui::RichText::new(label).color(ink).strong())
+        .fill(fill)
+        .stroke(egui::Stroke::new(1., fill))
 }
+
 pub(crate) fn secondary<'a>(_ui: &egui::Ui, label: &'a str) -> egui::Button<'a> {
     egui::Button::new(egui::RichText::new(label))
 }
@@ -224,6 +261,77 @@ pub(crate) fn quiet<'a>(_ui: &egui::Ui, label: &'a str) -> egui::Button<'a> {
         .fill(Color32::TRANSPARENT)
         .stroke(egui::Stroke::NONE)
         .frame_when_inactive(false)
+}
+/// Desktop source-list row: standard button keyboard handling, left-aligned text.
+pub(crate) fn list_row(
+    ui: &mut egui::Ui,
+    selected: bool,
+    label: &str,
+    subtitle: Option<&str>,
+) -> egui::Response {
+    let height = if subtitle.is_some() { 40. } else { 28. };
+    let response = ui.add_sized(
+        [ui.available_width(), height],
+        egui::Button::new("")
+            .selected(selected)
+            .stroke(egui::Stroke::NONE)
+            .frame_when_inactive(selected),
+    );
+    let width = (response.rect.width() - 16.).max(0.);
+    let label_text = caption(label);
+    let galley = egui::WidgetText::from(egui::RichText::new(&label_text).color(text(ui)))
+        .into_galley(
+            ui,
+            Some(egui::TextWrapMode::Truncate),
+            width,
+            TextStyle::Body,
+        );
+    let y = if subtitle.is_some() {
+        response.rect.top() + 3.
+    } else {
+        response.rect.center().y - galley.size().y / 2.
+    };
+    ui.painter()
+        .galley(egui::pos2(response.rect.left() + 8., y), galley, text(ui));
+    let accessible_label = if let Some(subtitle) = subtitle {
+        let subtitle = caption(subtitle);
+        let galley =
+            egui::WidgetText::from(egui::RichText::new(&subtitle).small().color(muted(ui)))
+                .into_galley(
+                    ui,
+                    Some(egui::TextWrapMode::Truncate),
+                    width,
+                    TextStyle::Small,
+                );
+        ui.painter().galley(
+            egui::pos2(
+                response.rect.left() + 8.,
+                response.rect.bottom() - galley.size().y - 3.,
+            ),
+            galley,
+            muted(ui),
+        );
+        format!("{label_text} · {subtitle}")
+    } else {
+        label_text
+    };
+    response.widget_info(|| {
+        egui::WidgetInfo::selected(
+            egui::WidgetType::SelectableLabel,
+            ui.is_enabled(),
+            selected,
+            &accessible_label,
+        )
+    });
+    if response.has_focus() {
+        ui.painter().rect_stroke(
+            response.rect.shrink(1.),
+            4.,
+            egui::Stroke::new(1.5, accent(ui)),
+            egui::StrokeKind::Inside,
+        );
+    }
+    response.on_hover_text(accessible_label)
 }
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum Kind {

@@ -1,7 +1,7 @@
 use super::{
     button, start,
     state::{MetadataEditor, MAX_DRAFT_BYTES, TEXT_LIMIT},
-    DesktopState, Dialog, UiAction,
+    DesktopState, Dialog, UiAction, Workspace,
 };
 use crate::{
     data::{Cell, ColumnKind, Measurement, MissingRules, ValueLabel},
@@ -11,8 +11,7 @@ use crate::{
 use eframe::egui;
 use std::sync::Arc;
 pub fn show(ui: &mut egui::Ui, state: &mut DesktopState, jobs: &mut JobRunner) {
-    let wide = super::theme::inspector_visible(ui.ctx());
-    ui.horizontal(|ui| {
+    ui.horizontal_wrapped(|ui| {
         ui.heading("Variables");
         if ui
             .add_enabled(!state.active, egui::Button::new("Add variable"))
@@ -20,24 +19,23 @@ pub fn show(ui: &mut egui::Ui, state: &mut DesktopState, jobs: &mut JobRunner) {
         {
             state.dialog = Some(Dialog::AddVariable);
         }
-        let response = super::toggle(ui, state, "Properties");
-        if response.clicked() {
-            if wide {
-                state.properties_open = !state.properties_open;
-            } else {
-                state.dialog = Some(Dialog::Properties);
-                state.return_focus = Some(response.id);
-            }
-        }
+        ui.add_enabled_ui(
+            !state.active && state.project().dataset().column_count() > 0,
+            |ui| {
+                if super::command(ui, state, "Analyse data").clicked() {
+                    state.act(UiAction::Navigate(Workspace::Analyses));
+                }
+            },
+        );
     });
-    if wide
-        && state.properties_open
-        && !state.project().dataset().columns().is_empty()
-        && state.dialog != Some(Dialog::Properties)
-    {
+    if !state.project().dataset().columns().is_empty() && state.dialog != Some(Dialog::Properties) {
+        if state.selected_column.is_none() {
+            let id = state.project().dataset().columns()[0].id();
+            state.act(UiAction::SelectColumn(id));
+        }
         egui::Panel::right("variable-properties")
-            .default_size(super::theme::inspector_width(ui.ctx()))
-            .size_range(240.0..=420.0)
+            .default_size(320.0_f32.min(ui.available_width() * 0.52))
+            .size_range(200.0..=420.0)
             .resizable(true)
             .show(ui, |ui| properties(ui, state, jobs));
     }
@@ -52,7 +50,7 @@ pub fn show(ui: &mut egui::Ui, state: &mut DesktopState, jobs: &mut JobRunner) {
     let columns = project.dataset().columns();
     if columns.is_empty() {
         ui.heading("Define your variables");
-        ui.label("Add a variable or import CSV/TSV data to describe your dataset.");
+        ui.label("Import Excel (.xlsx), CSV or TSV data, or add a variable to start your dataset.");
         ui.horizontal(|ui| {
             if button(ui, state, "Import data…").clicked() {
                 super::dialogs::import(state);
@@ -78,82 +76,47 @@ pub fn show(ui: &mut egui::Ui, state: &mut DesktopState, jobs: &mut JobRunner) {
         ui.label("No variables match your search.");
         return;
     }
-    egui::ScrollArea::both().show(ui, |ui| {
-        let width = ui.available_width().max(540.0);
-        let widths = [width * 0.27, 75.0, 110.0, (width * 0.73 - 185.0).max(170.0)];
-        ui.horizontal(|ui| {
-            for (heading, width) in ["Name", "Type", "Measurement", "Description"]
-                .into_iter()
-                .zip(widths)
-            {
-                ui.add_sized(
-                    [width, 24.0],
-                    egui::Label::new(egui::RichText::new(heading).strong()),
-                );
+    egui::ScrollArea::vertical().show_rows(ui, 34.0, count, |ui, range| {
+        for column in columns
+            .iter()
+            .filter(matches)
+            .skip(range.start)
+            .take(range.len())
+        {
+            let selected = state.selected_column == Some(column.id());
+            let text = format!(
+                "{}  ·  {}",
+                super::theme::caption(column.name()),
+                kind_label(column.kind())
+            );
+            let response = super::theme::list_row(ui, selected, &text, None);
+            response.widget_info(|| {
+                egui::WidgetInfo::selected(
+                    egui::WidgetType::SelectableLabel,
+                    true,
+                    selected,
+                    format!(
+                        "Variable {}, {}, {}",
+                        super::theme::caption(column.name()),
+                        kind_label(column.kind()),
+                        measurement_label(column.metadata().measurement)
+                    ),
+                )
+            });
+            let response = response.on_hover_text(format!(
+                "{}\n{}",
+                super::theme::caption_limit(column.name(), 128),
+                super::theme::caption_limit(&column.metadata().description, 128)
+            ));
+            super::procedure_forms::record(
+                state,
+                &format!("Variable {}", column.id().0),
+                &response,
+            );
+            if response.clicked() {
+                state.act(UiAction::SelectColumn(column.id()));
             }
-        });
-        egui::ScrollArea::vertical().show_rows(ui, 40.0, count, |ui, range| {
-            for column in columns
-                .iter()
-                .filter(matches)
-                .skip(range.start)
-                .take(range.len())
-            {
-                let (rect, response) =
-                    ui.allocate_exact_size(egui::vec2(width + 24.0, 36.0), egui::Sense::click());
-                if state.selected_column == Some(column.id()) {
-                    ui.painter()
-                        .rect_filled(rect, 5.0, super::theme::selection(ui));
-                } else if response.hovered() {
-                    ui.painter()
-                        .rect_filled(rect, 5.0, super::theme::surface(ui));
-                }
-                if response.has_focus() {
-                    ui.painter().rect_stroke(
-                        rect,
-                        5.0,
-                        ui.visuals().selection.stroke,
-                        egui::StrokeKind::Inside,
-                    );
-                }
-                let texts = [
-                    super::theme::caption(column.name()),
-                    kind_label(column.kind()).into(),
-                    measurement_label(column.metadata().measurement).into(),
-                    super::theme::caption(&column.metadata().description),
-                ];
-                let mut x = rect.left() + 8.0;
-                for (text, w) in texts.iter().zip(widths) {
-                    let area = egui::Rect::from_min_size(
-                        egui::pos2(x, rect.top()),
-                        egui::vec2(w, rect.height()),
-                    );
-                    ui.scope_builder(egui::UiBuilder::new().max_rect(area), |ui| {
-                        ui.add(egui::Label::new(text).truncate().selectable(false));
-                    });
-                    x += w + ui.spacing().item_spacing.x;
-                }
-                response.widget_info(|| {
-                    egui::WidgetInfo::selected(
-                        egui::WidgetType::SelectableLabel,
-                        true,
-                        state.selected_column == Some(column.id()),
-                        format!("Variable {}, {}, {}", texts[0], texts[1], texts[2]),
-                    )
-                });
-                if response.clicked() {
-                    state.act(UiAction::SelectColumn(column.id()));
-                }
-                if response.double_clicked() && state.dialog != Some(Dialog::PropertyChanges) {
-                    if wide {
-                        state.properties_open = true;
-                    } else {
-                        state.dialog = Some(Dialog::Properties);
-                        state.return_focus = Some(response.id);
-                    }
-                }
-            }
-        });
+        }
     });
 }
 fn measurement_label(measurement: Measurement) -> &'static str {
@@ -188,7 +151,7 @@ pub fn kind_picker(
     });
 }
 pub fn properties(ui: &mut egui::Ui, state: &mut DesktopState, jobs: &mut JobRunner) {
-    ui.heading("Properties");
+    ui.heading("Variable properties");
     let Some(id) = state.selected_column else {
         ui.label("Select a variable to edit its name, description and value settings.");
         return;
@@ -221,7 +184,8 @@ pub fn properties(ui: &mut egui::Ui, state: &mut DesktopState, jobs: &mut JobRun
     }
     let project = Arc::clone(state.project());
     if let Ok(column) = project.dataset().column(id) {
-        ui.label(super::theme::caption(column.name()));
+        ui.add(egui::Label::new(super::theme::caption(column.name())).truncate())
+            .on_hover_text(super::theme::caption_limit(column.name(), 128));
     }
     if state.metadata_has_changes() {
         ui.colored_label(ui.visuals().warn_fg_color, "Unapplied changes");
@@ -231,7 +195,7 @@ pub fn properties(ui: &mut egui::Ui, state: &mut DesktopState, jobs: &mut JobRun
     let mut convert = None;
     egui::ScrollArea::vertical()
         .id_salt("properties-fields")
-        .max_height((ui.available_height() - 110.0).max(80.0))
+        .max_height((ui.available_height() - 40.0).max(20.0))
         .show(ui, |ui| {
             ui.add_enabled_ui(!state.active, |ui| {
                 let Some(editor) = &mut draft else {
@@ -279,6 +243,7 @@ pub fn properties(ui: &mut egui::Ui, state: &mut DesktopState, jobs: &mut JobRun
                     })
                     .response
                     .labelled_by(measurement_label_response.id);
+                ui.small("Nominal: categories without an order. Ordinal: ordered categories. Scale: numeric measurements.");
                 let label = ui.label("Display decimals");
                 ui.add(egui::DragValue::new(&mut editor.metadata.display_decimals).range(0..=16))
                     .labelled_by(label.id);
@@ -290,9 +255,10 @@ pub fn properties(ui: &mut egui::Ui, state: &mut DesktopState, jobs: &mut JobRun
                 });
             });
         });
-    let apply = ui
-        .add_enabled(!state.active, super::theme::primary(ui, "Apply properties"))
-        .clicked();
+    let apply_response =
+        ui.add_enabled(!state.active, super::theme::primary(ui, "Apply properties"));
+    super::procedure_forms::record(state, "Apply properties", &apply_response);
+    let apply = apply_response.clicked();
     if let Some(editor) = &draft {
         if editor
             .metadata
@@ -516,6 +482,42 @@ fn remove_button(ui: &mut egui::Ui, label: String) -> bool {
 #[cfg(test)]
 mod tests {
     use super::super::theme::NameQuery;
+    #[test]
+    fn variable_screen_shows_details_when_worksheet_inspector_is_closed() {
+        use crate::data::{Column, ColumnId, Dataset};
+        let project = crate::project::Project::new(
+            "Draft",
+            Dataset::new(vec![
+                Column::numeric(ColumnId(1), "Score", vec![Some(1.0)]).unwrap()
+            ])
+            .unwrap(),
+        )
+        .unwrap();
+        let mut state = super::DesktopState::from_project(project).unwrap();
+        state.properties_open = false;
+        let mut jobs = crate::jobs::JobRunner::default();
+        let ctx = eframe::egui::Context::default();
+        ctx.enable_accesskit();
+        let mut output = ctx.run_ui(
+            eframe::egui::RawInput {
+                screen_rect: Some(eframe::egui::Rect::from_min_size(
+                    eframe::egui::Pos2::ZERO,
+                    eframe::egui::vec2(1100.0, 760.0),
+                )),
+                ..Default::default()
+            },
+            |ui| super::show(ui, &mut state, &mut jobs),
+        );
+        output.textures_delta.clear();
+        assert!(output
+            .platform_output
+            .accesskit_update
+            .unwrap()
+            .nodes
+            .iter()
+            .any(|(_, node)| node.label() == Some("Apply properties")));
+    }
+
     #[test]
     fn apply_button_commits_metadata_and_retains_the_selected_conversion_type() {
         use crate::data::{Column, ColumnId, ColumnKind, Dataset};

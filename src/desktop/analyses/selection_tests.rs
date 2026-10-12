@@ -156,3 +156,29 @@ fn selected_column_growth_is_refused_before_allocation_at_both_budgets() {
         assert!(state.error().is_some());
     }
 }
+
+#[test]
+fn numeric_variable_choices_are_visible_without_opening_a_picker() {
+    let data = Dataset::new(vec![
+        Column::numeric(ColumnId(1), "Score", vec![Some(1.)]).unwrap()
+    ])
+    .unwrap();
+    let mut state =
+        DesktopState::from_project(Project::new("Visible choices", data).unwrap()).unwrap();
+    let ctx = egui::Context::default();
+    let mut jobs = JobRunner::default();
+    let mut output = ctx.run_ui(
+        egui::RawInput {
+            screen_rect: Some(egui::Rect::from_min_size(
+                egui::Pos2::ZERO,
+                egui::vec2(1180., 780.),
+            )),
+            ..Default::default()
+        },
+        |ui| {
+            egui::CentralPanel::default().show(ui, |ui| settings(ui, &mut state, &mut jobs));
+        },
+    );
+    output.textures_delta.clear();
+    assert!(state.control_rect("Variable 1").is_some());
+}

@@ -71,6 +71,22 @@ pub(crate) fn question(family: &str) -> &'static str {
         _ => "Compare values or groups",
     }
 }
+pub(crate) fn task_label(procedure: Procedure) -> &'static str {
+    match procedure {
+        Procedure::Describe => "Summarise numeric values",
+        Procedure::Frequencies => "Count values and categories",
+        Procedure::Histogram => "View a distribution",
+        Procedure::Boxplot => "Inspect spread and unusual values",
+        Procedure::Scatter => "Plot a relationship",
+        Procedure::Pearson => "Measure a linear relationship",
+        Procedure::OneSampleT => "Compare with a reference value",
+        Procedure::PairedT => "Compare paired measurements",
+        Procedure::IndependentT => "Compare two groups",
+        Procedure::Regression => "Explain a numeric outcome",
+        Procedure::Anova => "Compare several means",
+        Procedure::Reliability => "Check scale consistency",
+    }
+}
 pub(crate) fn description(procedure: Procedure) -> &'static str {
     match procedure {
         Procedure::Describe => "Summarise numeric values with averages, variation and ranges.",
@@ -98,7 +114,8 @@ pub(crate) fn description(procedure: Procedure) -> &'static str {
     }
 }
 pub(crate) fn procedure_matches(procedure: Procedure, query: &theme::NameQuery) -> bool {
-    query.matches(procedure.label())
+    query.matches(task_label(procedure))
+        || query.matches(procedure.label())
         || query.matches(question(procedure.family()))
         || query.matches(description(procedure))
 }
@@ -191,11 +208,11 @@ pub(crate) fn summary(
         );
         ui.small(format!("Weight variable: {name}. Frequency weights represent repeated observations, not survey weights."));
     }
-    if state.analysis_mode() == AnalysisMode::Guided
+    if weight.is_some()
+        && state.analysis_mode() == AnalysisMode::Guided
         && super::button(ui, state, "Open advanced settings").clicked()
     {
         state.act(UiAction::SetAnalysisMode(AnalysisMode::Advanced));
-        state.settings_open = true;
     }
 }
 pub(crate) fn reading_aid(request: AnalysisRequestRef<'_>) -> &'static str {
@@ -261,6 +278,10 @@ mod tests {
             let draft = state.draft().for_procedure(procedure);
             let before = draft.clone();
             assert!(!description(procedure).is_empty());
+            assert!(procedure_matches(
+                procedure,
+                &theme::NameQuery::new(task_label(procedure)).unwrap()
+            ));
             assert!(procedure_matches(
                 procedure,
                 &theme::NameQuery::new(description(procedure)).unwrap()

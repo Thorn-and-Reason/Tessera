@@ -243,6 +243,15 @@ fn reliability_full_root_frame_aggregate_peak_preserves_saved_identity() {
             );
         }
         for label in ["More settings", "Run settings and provenance"] {
+            if label == "Run settings and provenance" {
+                warm = warm
+                    .apply_action(UiAction::Navigate(Workspace::Results))
+                    .unwrap();
+                keep(
+                    &mut previous,
+                    frame(&ctx, &mut warm, &mut jobs, tall, vec![]),
+                );
+            }
             let pos = text_pos(&previous, label).unwrap_or_else(|| panic!("warm missing {label}"));
             click(&ctx, &mut warm, &mut jobs, &mut previous, pos, tall);
             for _ in 0..3 {
@@ -356,72 +365,55 @@ fn reliability_full_root_frame_aggregate_peak_preserves_saved_identity() {
             frame(&ctx, &mut s, &mut jobs, normal, vec![]),
         );
         let mut traversals = 0;
-        for label in [
-            "Next selected items page",
-            "Next item results page",
-            "Next filter conditions page",
-            "Next captured items page",
-            "Next captured definitions page",
-            "Next captured filter conditions page",
+        // Draft and captured-result paging have separate owners in the redesigned workspaces.
+        for (workspace, labels) in [
+            (
+                Workspace::Analyses,
+                vec!["Next selected items page", "Next filter conditions page"],
+            ),
+            (
+                Workspace::Results,
+                vec![
+                    "Next item results page",
+                    "Next captured items page",
+                    "Next captured definitions page",
+                    "Next captured filter conditions page",
+                ],
+            ),
         ] {
-            for _ in 0..70 {
-                if !enter(&ctx, &mut s, &mut jobs, &mut previous, label, normal) {
-                    break;
-                }
-                traversals += 1;
-            }
-        }
-        // Keep the prior complete output live while rendering its successor, including textures.
-        for size in [narrow, normal] {
-            keep(&mut previous, frame(&ctx, &mut s, &mut jobs, size, vec![]));
-        }
-        assert!(
-            s.control_rect("Procedure").is_some(),
-            "wide settings inspector is visible"
-        );
-        let pos = s.control_rect("Settings").unwrap().center();
-        click(&ctx, &mut s, &mut jobs, &mut previous, pos, normal);
-        keep(
-            &mut previous,
-            frame(&ctx, &mut s, &mut jobs, normal, vec![]),
-        );
-        assert!(s.dialog().is_none(), "wide Settings toggles the inspector");
-        assert!(
-            s.control_rect("Procedure").is_none(),
-            "wide Settings hides its editor"
-        );
-        // Narrow Settings opens the same editor in a modal; resize while retaining both outputs.
-        for _ in 0..2 {
-            keep(
-                &mut previous,
-                frame(&ctx, &mut s, &mut jobs, narrow, vec![]),
-            );
-        }
-        let pos = s.control_rect("Settings").unwrap().center();
-        click(&ctx, &mut s, &mut jobs, &mut previous, pos, narrow);
-        assert_eq!(s.dialog(), Some(desktop::Dialog::Settings));
-        for _ in 0..4 {
+            s = s.apply_action(UiAction::Navigate(workspace)).unwrap();
             keep(
                 &mut previous,
                 frame(&ctx, &mut s, &mut jobs, normal, vec![]),
             );
+            let before_traversal = traversals;
+            for label in labels {
+                for _ in 0..70 {
+                    if !enter(&ctx, &mut s, &mut jobs, &mut previous, label, normal) {
+                        break;
+                    }
+                    traversals += 1;
+                }
+            }
+            assert!(
+                traversals > before_traversal,
+                "paging is exercised independently in {workspace:?}"
+            );
         }
-        keep(
-            &mut previous,
-            frame(
-                &ctx,
-                &mut s,
-                &mut jobs,
-                narrow,
-                vec![Event::Key {
-                    key: Key::Escape,
-                    physical_key: None,
-                    pressed: true,
-                    repeat: false,
-                    modifiers: Modifiers::NONE,
-                }],
-            ),
-        );
+        s = s
+            .apply_action(UiAction::Navigate(Workspace::Analyses))
+            .unwrap();
+        // Keep the prior complete output live while rendering its successor, including textures.
+        for size in [narrow, normal, narrow, normal] {
+            keep(&mut previous, frame(&ctx, &mut s, &mut jobs, size, vec![]));
+            assert!(
+                s.control_rect("Search procedures").is_some(),
+                "builder stays visible after resize"
+            );
+            assert!(s.control_rect("Settings").is_none());
+            assert!(s.dialog().is_none());
+            assert!(s.control_rect("Run analysis").unwrap().bottom() <= size.y);
+        }
         s = s
             .apply_action(UiAction::Navigate(Workspace::Results))
             .unwrap();

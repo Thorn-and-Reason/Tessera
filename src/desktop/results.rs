@@ -36,7 +36,8 @@ pub fn history(ui: &mut egui::Ui, state: &mut DesktopState) {
     let project = Arc::clone(state.project());
     let revision = project.dataset().revision();
     let history = egui::ComboBox::from_id_salt("run-history")
-        .width(300.)
+        .width(ui.available_width().min(300.))
+        .truncate()
         .selected_text(
             state
                 .selected_run()
@@ -103,16 +104,130 @@ pub fn history(ui: &mut egui::Ui, state: &mut DesktopState) {
         ..egui::WidgetInfo::labeled(egui::WidgetType::ComboBox, true, "History")
     });
     super::procedure_forms::record(state, "History", &history.response);
+    if let Some(run) = state.selected_run() {
+        history.response.on_hover_text(history_label(run, revision));
+    }
 }
+fn saved_list(ui: &mut egui::Ui, state: &mut DesktopState) {
+    let project = Arc::clone(state.project());
+    let revision = project.dataset().revision();
+    ui.strong("Saved results");
+    ui.small(format!("{} saved analyses", project.runs().len()));
+    let response = ui.add(
+        egui::TextEdit::singleline(&mut state.history_search)
+            .hint_text("Search saved results")
+            .char_limit(super::state::TEXT_LIMIT),
+    );
+    response.widget_info(|| {
+        egui::WidgetInfo::labeled(egui::WidgetType::TextEdit, true, "Search saved results")
+    });
+    super::procedure_forms::record(state, "Search saved results", &response);
+    let query = match theme::NameQuery::new(&state.history_search) {
+        Ok(query) => query,
+        Err(error) => {
+            state.fail(error);
+            return;
+        }
+    };
+    let matches = || {
+        project.runs().iter().rev().filter(|run| {
+            query.matches(&history_label(run, revision))
+                || run
+                    .analysis
+                    .columns()
+                    .iter()
+                    .any(|column| query.matches(&column.name))
+        })
+    };
+    let count = matches().count();
+    if count == 0 {
+        ui.label("No matching saved results");
+    }
+    egui::ScrollArea::vertical()
+        .id_salt("saved-results-list")
+        .show_rows(ui, 40., count, |ui, range| {
+            for run in matches().skip(range.start).take(range.len()) {
+                let method = format!(
+                    "{} · Run {}",
+                    crate::export::report_analyses::method(&run.analysis),
+                    run.id.0
+                );
+                let variables = run
+                    .analysis
+                    .columns()
+                    .iter()
+                    .take(3)
+                    .map(|column| theme::caption_limit(&column.name, 24))
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                let subtitle = format!(
+                    "{variables} · {}",
+                    if run.analysis.revision() == revision {
+                        "Current data"
+                    } else {
+                        "Data changed"
+                    }
+                );
+                let response = ui
+                    .push_id(run.id.0, |ui| {
+                        theme::list_row(
+                            ui,
+                            state
+                                .selected_run()
+                                .is_some_and(|selected| selected.id == run.id),
+                            &method,
+                            Some(&subtitle),
+                        )
+                    })
+                    .inner;
+                if response
+                    .on_hover_text(history_label(run, revision))
+                    .clicked()
+                {
+                    state.act(UiAction::SelectRun(run.id));
+                }
+            }
+        });
+}
+
 pub fn show(ui: &mut egui::Ui, state: &mut DesktopState, jobs: &mut JobRunner) {
-    ui.horizontal_wrapped(|ui| {
+    if state.project().runs().is_empty() {
         ui.heading("Results");
-        history(ui, state);
+        output(ui, state);
+        return;
+    }
+    let wide = ui.available_width() >= 760. && !state.project().runs().is_empty();
+    if !wide {
+        ui.horizontal_wrapped(|ui| {
+            ui.heading("Results");
+            history(ui, state);
+        });
+    }
+    ui.horizontal_wrapped(|ui| {
+        if wide {
+            ui.heading("Results");
+        }
+        if button(ui, state, "New analysis").clicked() {
+            state.act(UiAction::Navigate(super::Workspace::Analyses));
+        }
+        let edit = ui.add_enabled(
+            !state.active && state.selected_run().is_some(),
+            egui::Button::new("Edit selected analysis"),
+        );
+        super::procedure_forms::record(state, "Edit selected analysis", &edit);
+        super::procedure_forms::record(state, "Use this run in Analyses", &edit);
+        if edit.clicked() {
+            state.load_selected_request();
+            if state.error().is_none() {
+                state.act(UiAction::Navigate(super::Workspace::Analyses));
+            }
+        }
         if ui
             .add_enabled(
                 !state.active && !state.project().runs().is_empty(),
-                egui::Button::new("Export report…"),
+                theme::primary(ui, "Export all results…"),
             )
+            .on_hover_text("Export every saved result, including its captured settings and complete tables, as an HTML report")
             .clicked()
         {
             dialogs::export_report(state, jobs);
@@ -122,6 +237,7 @@ pub fn show(ui: &mut egui::Ui, state: &mut DesktopState, jobs: &mut JobRunner) {
                 !state.active && state.selected_run().is_some(),
                 egui::Button::new("Rerun"),
             )
+            .on_hover_text("Run the saved settings against the current data")
             .clicked()
         {
             if let Some(run) = state.selected_run() {
@@ -134,32 +250,47 @@ pub fn show(ui: &mut egui::Ui, state: &mut DesktopState, jobs: &mut JobRunner) {
                             request,
                         },
                     ),
-                    Err(e) => state.fail(e),
+                    Err(error) => state.fail(error),
                 }
             }
         }
     });
-    if !state.project().runs().is_empty() {
-        ui.small(format!(
-            "Export includes all {} saved results, with captured settings and complete tables.",
-            state.project().runs().len()
-        ));
-    }
     ui.separator();
-    super::figure_editor::toolbar(ui, state, jobs);
-    output(ui, state);
+    if state.selected_run().is_some() {
+        super::figure_editor::toolbar(ui, state, jobs);
+    }
+    if wide {
+        let height = ui.available_height();
+        ui.horizontal_top(|ui| {
+            ui.allocate_ui_with_layout(
+                egui::vec2(230., height),
+                egui::Layout::top_down(egui::Align::LEFT),
+                |ui| saved_list(ui, state),
+            );
+            ui.separator();
+            ui.vertical(|ui| {
+                output(ui, state);
+            });
+        });
+    } else {
+        output(ui, state);
+    }
 }
 pub fn output(ui: &mut egui::Ui, state: &mut DesktopState) {
-    ui.scope(|ui| {
-        super::output_style::apply(ui);
-        output_contents(ui, state);
-    });
+    egui::Frame::new()
+        .fill(ui.visuals().panel_fill)
+        .inner_margin(16)
+        .show(ui, |ui| {
+            ui.set_min_width(ui.available_width());
+            super::output_style::apply(ui);
+            output_contents(ui, state);
+        });
 }
 fn output_contents(ui: &mut egui::Ui, state: &mut DesktopState) {
     let Some(run) = state.selected_run().cloned() else {
         ui.add_space(24.);
         ui.heading("Your results will appear here");
-        ui.label("Choose a procedure in Analyses, select your variables, and run it. Saved results retain their original data and settings.");
+        ui.label("Open Analyse, choose what you want to find out, select your variables, and run the analysis. Each result keeps its original data and settings.");
         if button(ui, state, "Go to Analyses").clicked() {
             state.act(UiAction::Navigate(super::Workspace::Analyses));
         }
@@ -223,7 +354,6 @@ fn output_contents(ui: &mut egui::Ui, state: &mut DesktopState) {
             for source in state.project().provenance(){ui.label(theme::caption(source));}
         });
         state.controls.insert("Run settings and provenance".into(),provenance.header_response.rect);
-        if button(ui,state,"Use this run in Analyses").clicked(){state.load_selected_request();state.act(UiAction::Navigate(super::Workspace::Analyses));}
     });
 }
 fn name(run: &AnalysisRun, id: crate::data::ColumnId) -> &str {

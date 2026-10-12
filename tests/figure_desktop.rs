@@ -127,6 +127,12 @@ fn frame(
     output.textures_delta.clear();
 }
 fn click(ctx: &egui::Context, state: &mut DesktopState, jobs: &mut JobRunner, label: &str) {
+    if label == "Edit figure" && state.control_rect(label).is_none() {
+        click(ctx, state, jobs, "Figures");
+        for _ in 0..5 {
+            frame(ctx, state, jobs, vec![]);
+        }
+    }
     let p = state.control_rect(label).expect(label).center();
     for pressed in [true, false] {
         frame(
@@ -204,6 +210,12 @@ fn report_figure_controls_are_accessible_in_results() {
         );
         output.textures_delta.clear();
     }
+    assert!(state.control_rect("Figures").is_some());
+    assert!(
+        state.control_rect("Edit figure").is_none(),
+        "figure tools start disclosed only on request"
+    );
+    click(&ctx, &mut state, &mut jobs, "Figures");
     assert!(state.control_rect("Edit figure").is_some());
     assert!(state.control_rect("Export figure…").is_some());
 }
@@ -278,4 +290,42 @@ fn editor_actions_fit_a_small_desktop_window() {
         apply.max.y <= 440. && apply.max.x <= 640.,
         "Figure actions must stay visible: {apply:?}"
     );
+}
+
+#[test]
+fn escape_closes_figure_editor_without_applying_draft_changes() {
+    let mut state = state()
+        .apply_action(UiAction::SelectRun(tessera::operation::RunId(1)))
+        .unwrap()
+        .apply_action(UiAction::Navigate(Workspace::Results))
+        .unwrap();
+    let key = figure_keys(&state.project().runs()[0])[0];
+    let original = state.project().figure_settings(&key);
+    let ctx = egui::Context::default();
+    tessera::desktop::configure_context(&ctx);
+    let mut jobs = JobRunner::default();
+    frame(&ctx, &mut state, &mut jobs, vec![]);
+    click(&ctx, &mut state, &mut jobs, "Edit figure");
+    click(&ctx, &mut state, &mut jobs, "Figure title");
+    frame(
+        &ctx,
+        &mut state,
+        &mut jobs,
+        vec![egui::Event::Text("Unsaved draft".into())],
+    );
+    frame(
+        &ctx,
+        &mut state,
+        &mut jobs,
+        vec![egui::Event::Key {
+            key: egui::Key::Escape,
+            physical_key: None,
+            pressed: true,
+            repeat: false,
+            modifiers: egui::Modifiers::NONE,
+        }],
+    );
+    frame(&ctx, &mut state, &mut jobs, vec![]);
+    assert!(state.control_rect("Figure title").is_none());
+    assert_eq!(state.project().figure_settings(&key), original);
 }

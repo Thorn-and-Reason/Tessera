@@ -25,6 +25,9 @@ pub(super) fn show_rows(
     bounds: (f32, f32),
     add: impl FnOnce(&mut egui::Ui, std::ops::Range<usize>),
 ) -> PageControls {
+    if rows == 0 {
+        return PageControls::default();
+    }
     let pending_id = ui.make_persistent_id((&id, "keyboard-page-offset"));
     let pending = ui
         .ctx()

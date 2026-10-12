@@ -1,6 +1,6 @@
 //! Native forms share the same checked draft and single worker as shortcuts.
 use super::{
-    analyses, button,
+    analyses,
     draft::{AnalysisDraft, Procedure},
     state::TEXT_LIMIT,
     theme, DesktopState, UiAction,
@@ -47,63 +47,62 @@ pub(super) fn append_column(
     }
     columns.push(id);
 }
-pub(super) fn chooser(ui: &mut egui::Ui, state: &mut DesktopState) {
-    ui.label(if state.analysis_mode() == super::AnalysisMode::Guided {
-        "What would you like to explore?"
-    } else {
-        "Procedure"
-    });
+pub(super) fn chooser(ui: &mut egui::Ui, state: &mut DesktopState, full_height: bool) {
+    theme::section(ui, "Methods");
     let mut procedure = state.draft.procedure();
-    let response = egui::ComboBox::from_id_salt("procedure")
-        .close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside)
-        .height(420.)
-        .selected_text(procedure.label())
-        .show_ui(ui, |ui| {
-            let response = ui.add(
-                egui::TextEdit::singleline(&mut state.procedure_search)
-                    .id_salt("analysis-procedure-search")
-                    .hint_text("Search procedures")
-                    .char_limit(TEXT_LIMIT),
-            );
-            response.widget_info(|| {
-                egui::WidgetInfo::labeled(egui::WidgetType::TextEdit, true, "Search procedures")
-            });
-            record(state, "Search procedures", &response);
-            let query = match theme::NameQuery::new(&state.procedure_search) {
-                Ok(q) => q,
-                Err(e) => {
-                    state.fail(e);
-                    return;
-                }
-            };
-            let mode = state.analysis_mode();
+    let response = ui.add(
+        egui::TextEdit::singleline(&mut state.procedure_search)
+            .id_salt("analysis-procedure-search")
+            .hint_text("Search methods")
+            .desired_width(ui.available_width())
+            .char_limit(TEXT_LIMIT),
+    );
+    response.widget_info(|| {
+        egui::WidgetInfo::labeled(egui::WidgetType::TextEdit, true, "Search analyses")
+    });
+    record(state, "Search procedures", &response);
+    record(state, "Procedure", &response);
+    let query = match theme::NameQuery::new(&state.procedure_search) {
+        Ok(q) => q,
+        Err(e) => {
+            state.fail(e);
+            return;
+        }
+    };
+    egui::ScrollArea::vertical()
+        .id_salt("analysis-catalog")
+        .max_height(if full_height {
+            ui.available_height()
+        } else {
+            72.
+        })
+        .show(ui, |ui| {
+            let mut matches = 0;
             for family in ["Summaries", "Relationships", "Comparisons"] {
-                ui.strong(if state.analysis_mode() == super::AnalysisMode::Guided {
-                    super::experience::question(family)
-                } else {
-                    family
-                });
-                for p in Procedure::ALL.into_iter().filter(|p| {
-                    p.family() == family
-                        && (query.matches(p.label())
-                            || (mode == super::AnalysisMode::Guided
-                                && super::experience::procedure_matches(*p, &query)))
-                }) {
-                    let response = ui.selectable_value(&mut procedure, p, p.label());
+                let choices: Vec<_> = Procedure::ALL
+                    .into_iter()
+                    .filter(|p| {
+                        p.family() == family && super::experience::procedure_matches(*p, &query)
+                    })
+                    .collect();
+                if choices.is_empty() {
+                    continue;
+                }
+                ui.small(family);
+                for p in choices {
+                    matches += 1;
+                    let response = theme::list_row(ui, procedure == p, p.label(), None)
+                        .on_hover_text(super::experience::task_label(p));
                     record(state, p.label(), &response);
                     if response.clicked() {
-                        ui.close();
+                        procedure = p;
                     }
                 }
             }
-        })
-        .response;
-    response
-        .widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::ComboBox, true, "Procedure"));
-    record(state, "Procedure", &response);
-    if state.analysis_mode() == super::AnalysisMode::Guided {
-        ui.small(super::experience::description(procedure));
-    }
+            if matches == 0 {
+                ui.label("No analyses match. Try a different question or method name.");
+            }
+        });
     if procedure != state.draft.procedure() {
         match state.checked_editable_draft() {
             Ok(draft) => {
@@ -243,6 +242,7 @@ fn pearson_roles(
     if request.columns.len() < 2 {
         ui.small("Select at least two numeric variables.");
     }
+    ui.small(format!("Selected ({})", request.columns.len()));
     let mut remove = None;
     super::paged_rows::show_rows(
         ui,
@@ -289,16 +289,15 @@ fn pearson_roles(
     if let Some(i) = remove {
         request.columns.remove(i);
     }
-    if button(ui, state, "Add variables…").clicked() {
-        state.picker = !state.picker;
-    }
-    if state.picker {
+    {
+        ui.small("Available numeric variables");
         let response = ui.add(
             egui::TextEdit::singleline(&mut state.search)
                 .id_salt("pearson-variable-search")
                 .hint_text("Search variables")
                 .char_limit(TEXT_LIMIT),
         );
+        super::procedure_forms::record(state, "Add variables…", &response);
         response.widget_info(|| {
             egui::WidgetInfo::labeled(egui::WidgetType::TextEdit, true, "Search variables")
         });
@@ -322,7 +321,12 @@ fn pearson_roles(
                     for c in candidates().skip(range.start).take(range.len()) {
                         let response = ui
                             .push_id(c.id(), |ui| {
-                                button(ui, state, &theme::caption_limit(c.name(), 128))
+                                theme::list_row(
+                                    ui,
+                                    false,
+                                    &theme::caption_limit(c.name(), 128),
+                                    None,
+                                )
                             })
                             .inner;
                         record(
@@ -504,8 +508,8 @@ pub(super) fn settings(ui: &mut egui::Ui, state: &mut DesktopState, jobs: &mut J
     let lookup = state.group_lookup().cloned();
     let project = Arc::clone(state.project());
     let data = project.dataset();
-    egui::ScrollArea::vertical().id_salt("procedure-form").max_height((ui.available_height()-if state.draft_requirement().is_some() {114.0} else {54.0}).max(60.0)).show(ui,|ui| {
-        super::experience::summary(ui, state, super::experience::settings_summary(&draft), draft.common().1);
+    egui::ScrollArea::vertical().id_salt("procedure-form").max_height(ui.available_height().max(0.)).show(ui,|ui| {
+        theme::section(ui, "Variables");
         match &mut draft {
             AnalysisDraft::Reliability(r) => super::reliability_forms::settings(ui,state,r),
             AnalysisDraft::Anova(r) => super::anova_forms::settings(ui,state,r,&mut active_reference,lookup.as_deref()),
@@ -539,6 +543,7 @@ pub(super) fn settings(ui: &mut egui::Ui, state: &mut DesktopState, jobs: &mut J
             AnalysisDraft::Frequencies(_) | AnalysisDraft::Histogram {..} | AnalysisDraft::Scatter {..} | AnalysisDraft::Boxplot {..} => super::exploration_forms::show(ui,state,data,&mut draft),
             AnalysisDraft::Describe(_) => unreachable!(),
         }
+        super::experience::summary(ui, state, super::experience::settings_summary(&draft), draft.common().1);
         let header = super::experience::detailed_settings(ui, state.analysis_mode(), egui::Id::new("procedure-details"), |ui| {
             match &mut draft {
                 AnalysisDraft::Pearson(r) => pearson_options(ui, r),
@@ -584,7 +589,6 @@ pub(super) fn settings(ui: &mut egui::Ui, state: &mut DesktopState, jobs: &mut J
             state.fail(error);
         }
     }
-    analyses::run_button(ui, state, jobs, "Run analysis");
     state.service_lookup(jobs);
 }
 

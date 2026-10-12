@@ -1,24 +1,32 @@
 use super::{
     button, dialogs,
     state::{MAX_DRAFT_BYTES, TEXT_LIMIT},
-    theme, variables, DesktopState, Dialog, UiAction,
+    theme, variables, DesktopState, Dialog, UiAction, Workspace,
 };
 use crate::{
     data::{Cell, ColumnKind},
     jobs::JobRunner,
 };
 use eframe::egui::{self, Align2, FontId, Id, Key, Pos2, Rect, Sense, Vec2};
-const ROW: f32 = 34.0;
+const ROW: f32 = 26.0;
 const COLUMN: f32 = 148.0;
 const GUTTER: f32 = 44.0;
 pub fn show(ui: &mut egui::Ui, state: &mut DesktopState, jobs: &mut JobRunner) {
+    let has_data = state.project().dataset().column_count() > 0;
     ui.horizontal_wrapped(|ui| {
         ui.heading("Data");
+        ui.weak(format!(
+            "{} rows · {} variables",
+            state.project().dataset().row_count(),
+            state.project().dataset().column_count()
+        ));
+    });
+    ui.horizontal_wrapped(|ui| {
+        if has_data && button(ui, state, "Import data…").clicked() {
+            dialogs::import(state);
+        }
         if ui
-            .add_enabled(
-                !state.active && state.project().dataset().column_count() > 0,
-                egui::Button::new("Add row"),
-            )
+            .add_enabled(!state.active && has_data, egui::Button::new("Add row"))
             .clicked()
         {
             state.act(UiAction::AppendRow);
@@ -29,15 +37,17 @@ pub fn show(ui: &mut egui::Ui, state: &mut DesktopState, jobs: &mut JobRunner) {
         {
             state.dialog = Some(Dialog::AddVariable);
         }
-        let response = super::toggle(ui, state, "Properties");
-        if response.clicked() {
-            if !theme::inspector_visible(ui.ctx()) {
-                state.dialog = Some(Dialog::Properties);
-                state.return_focus = Some(response.id);
-            } else {
-                state.properties_open = !state.properties_open;
+        ui.add_enabled_ui(!state.active && has_data, |ui| {
+            if button(ui, state, "Variable details").clicked() {
+                state.act(UiAction::Navigate(Workspace::Variables));
             }
-        }
+            if button(ui, state, "Prepare data").clicked() {
+                state.act(UiAction::Navigate(Workspace::Prepare));
+            }
+            if super::command(ui, state, "Analyse data").clicked() {
+                state.act(UiAction::Navigate(Workspace::Analyses));
+            }
+        });
     });
     ui.separator();
     if let Some(edit) = &mut state.cell_editor {
@@ -93,8 +103,8 @@ fn grid(ui: &mut egui::Ui, state: &mut DesktopState) {
     let rows = dataset.row_count();
     if count == 0 || rows == 0 {
         ui.add_space(24.0);
-        ui.heading("Start your worksheet");
-        ui.label("Import CSV, TSV or Excel (.xlsx), or add variables and rows to enter your data.");
+        ui.heading("Bring your data into Tessera");
+        ui.label("Import an Excel workbook (.xlsx), CSV or TSV file. Review the columns before importing, then check your data here. You can also enter data by hand.");
         ui.horizontal(|ui| {
             if button(ui, state, "Import data…").clicked() {
                 dialogs::import(state);
@@ -443,7 +453,7 @@ fn grid(ui: &mut egui::Ui, state: &mut DesktopState) {
                     );
                 }
             }
-            let painter = ui.painter();
+            let painter = ui.painter().clone();
             painter.rect_filled(
                 Rect::from_min_max(
                     Pos2::new(left, top),
@@ -489,8 +499,10 @@ fn grid(ui: &mut egui::Ui, state: &mut DesktopState) {
                 let response = headers.put(
                     rect,
                     egui::Button::new(theme::caption(column.name()))
+                        .truncate()
                         .selected(state.selected_column == Some(column.id())),
                 );
+                let response = response.on_hover_text(column.name());
                 let handle = headers
                     .interact(
                         Rect::from_min_max(
@@ -511,6 +523,13 @@ fn grid(ui: &mut egui::Ui, state: &mut DesktopState) {
                     state.act(UiAction::SelectColumn(column.id()));
                 }
             }
+            painter.text(
+                Pos2::new(left + GUTTER / 2.0, top + ROW / 2.0),
+                Align2::CENTER_CENTER,
+                "Row",
+                FontId::proportional(11.0),
+                theme::text(ui),
+            );
             ui.interact(
                 Rect::from_min_size(Pos2::new(left, top), Vec2::new(GUTTER, ROW)),
                 Id::new("row-number-header"),

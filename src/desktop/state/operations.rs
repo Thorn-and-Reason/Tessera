@@ -331,7 +331,7 @@ impl DesktopState {
                         self.clear_frequency_search()?;
                         self.selected_run = Some(id);
                         self.prepare_chart_roles();
-                        self.workspace = Workspace::Analyses;
+                        self.workspace = Workspace::Results;
                     }
                     JobOutput::Converted(dataset) => {
                         self.publish_dataset(dataset)?;

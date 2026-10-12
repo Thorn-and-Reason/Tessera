@@ -33,6 +33,7 @@ pub const TEXT_LIMIT: usize = 8192;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Workspace {
     Data,
+    Prepare,
     Variables,
     Analyses,
     Results,
@@ -41,6 +42,7 @@ impl Workspace {
     pub fn label(self) -> &'static str {
         match self {
             Self::Data => "Data",
+            Self::Prepare => "Prepare",
             Self::Variables => "Variables",
             Self::Analyses => "Analyses",
             Self::Results => "Results",
@@ -167,7 +169,6 @@ pub struct DesktopState {
     pub(crate) dialog: Option<Dialog>,
     pub(crate) return_focus: Option<Id>,
     pub(crate) properties_open: bool,
-    pub(crate) settings_open: bool,
     pub(crate) preparation: super::preparation::PreparationForm,
     pub(crate) recovery_entries: Option<Vec<crate::recovery::RecoveryEntry>>,
     pub(crate) recovery_finished: Option<(JobToken, bool)>,
@@ -179,6 +180,7 @@ pub struct DesktopState {
     pub(crate) pending_selection: Option<(ColumnId, usize)>,
     pending_property_action: Option<PendingAction>,
     pending_new_variable: Option<(String, ColumnKind)>,
+    pending_workspace: Option<Workspace>,
     pending_save_as: Option<bool>,
     pending: Option<PendingAction>,
     pub(crate) pending_ready: bool,
@@ -255,8 +257,7 @@ impl DesktopState {
             metadata_editor: None,
             dialog: None,
             return_focus: None,
-            properties_open: true,
-            settings_open: true,
+            properties_open: false,
             preparation: Default::default(),
             recovery_entries: None,
             recovery_finished: None,
@@ -268,6 +269,7 @@ impl DesktopState {
             pending_selection: None,
             pending_property_action: None,
             pending_new_variable: None,
+            pending_workspace: None,
             pending_save_as: None,
             pending: None,
             pending_ready: false,
@@ -428,7 +430,12 @@ impl DesktopState {
                 if view != Workspace::Data && self.cell_editor.is_some() {
                     next = self.apply_action(UiAction::CommitCell)?;
                 }
-                next.workspace = view;
+                if view != self.workspace && next.metadata_has_changes() {
+                    next.pending_workspace = Some(view);
+                    next.dialog = Some(Dialog::PropertyChanges);
+                } else {
+                    next.workspace = view;
+                }
             }
             UiAction::SelectColumn(id) => {
                 self.project.dataset().column(id)?;
@@ -713,6 +720,7 @@ impl DesktopState {
         self.pending_selection = None;
         self.pending_property_action = None;
         self.pending_new_variable = None;
+        self.pending_workspace = None;
         self.pending_save_as = None;
         self.cell_editor = None;
         self.metadata_editor = None;

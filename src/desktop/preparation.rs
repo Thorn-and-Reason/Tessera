@@ -176,6 +176,20 @@ fn column(
 }
 pub(crate) fn show(ui: &mut egui::Ui, state: &mut DesktopState, jobs: &mut JobRunner) {
     let mut form = state.preparation.clone();
+    let request = egui::ScrollArea::vertical()
+        .id_salt("preparation-form")
+        .max_height((ui.available_height() - 44.0).max(20.0))
+        .auto_shrink([false, false])
+        .show(ui, |ui| {
+    ui.set_max_width(600.0);
+    ui.heading("Prepare data");
+    ui.label(format!(
+        "{} rows · {} variables",
+        state.project().dataset().row_count(),
+        state.project().dataset().column_count()
+    ));
+    let editable = !state.active && !state.metadata_has_changes() && state.cell_editor.is_none();
+    ui.add_enabled_ui(editable, |ui| {
     ui.horizontal_wrapped(|ui| {
         for (i, label) in ["Compute", "Recode", "Sort", "Filter"]
             .into_iter()
@@ -183,6 +197,13 @@ pub(crate) fn show(ui: &mut egui::Ui, state: &mut DesktopState, jobs: &mut JobRu
         {
             ui.selectable_value(&mut form.operation, i, label);
         }
+    });
+    ui.separator();
+    ui.label(match form.operation {
+        0 => "Compute adds a new numeric variable using an existing variable and a number or another variable.",
+        1 => "Recode adds a new variable with a value replaced. The source variable stays unchanged.",
+        2 => "Sort changes the order of whole rows, keeping each row's values together.",
+        _ => "Filter keeps only rows that match your condition. Removed rows can be restored with Undo.",
     });
     column(
         ui,
@@ -253,12 +274,62 @@ pub(crate) fn show(ui: &mut egui::Ui, state: &mut DesktopState, jobs: &mut JobRu
         }
         _ => {}
     }
-    let request = form.step(state);
+    });
+    ui.separator();
+    let current_request = form.step(state).and_then(|step| {
+        step.validate_shape()?;
+        Ok(step)
+    });
+    if state.active {
+        ui.label("Wait for the current operation to finish before preparing data.");
+    } else if state.cell_editor.is_some() {
+        ui.label("Finish or cancel the cell edit in Data before applying a preparation step.");
+    } else if state.metadata_has_changes() {
+        ui.label("Apply or discard variable property changes before preparing data.");
+    } else if let Err(error) = &current_request {
+        ui.label(theme::caption(error));
+    } else {
+        ui.strong("Ready to apply to the current dataset");
+        ui.small("Compute and Recode add a variable. Sort and Filter change the rows. Check the result in Data; use Undo if needed.");
+    }
+    if let Some(error) = state.error() {
+        ui.colored_label(ui.visuals().error_fg_color, theme::caption(error));
+    }
+    if !state.project().steps().is_empty() {
+        ui.collapsing("Preparation history", |ui| {
+        for record in state.project().steps().iter().rev().take(12) {
+            ui.label(format!(
+                "{} · revision {}",
+                record.step.label(),
+                record.result_revision.0
+            ));
+        }
+        });
+    }
+    current_request
+    }).inner;
     let ready = !state.active
         && !state.metadata_has_changes()
         && state.cell_editor.is_none()
         && request.is_ok();
-    let response = ui.add_enabled(ready, egui::Button::new("Apply"));
+    let response = ui
+        .horizontal_wrapped(|ui| {
+            let response = ui.add_enabled(ready, theme::primary(ui, "Apply preparation"));
+            if ui
+                .add_enabled(
+                    !state.active
+                        && !state.metadata_has_changes()
+                        && state.cell_editor.is_none()
+                        && state.can_undo(),
+                    egui::Button::new("Undo last step"),
+                )
+                .clicked()
+            {
+                state.act(super::UiAction::Undo);
+            }
+            response
+        })
+        .inner;
     super::procedure_forms::record(state, "Apply preparation", &response);
     state.preparation = form;
     if response.clicked() {
@@ -273,24 +344,64 @@ pub(crate) fn show(ui: &mut egui::Ui, state: &mut DesktopState, jobs: &mut JobRu
             Err(error) => state.fail(error),
         }
     }
-    if let Some(error) = state.error() {
-        ui.colored_label(ui.visuals().error_fg_color, theme::caption(error));
-    }
-    if !state.project().steps().is_empty() {
-        ui.separator();
-        ui.strong("Preparation history");
-        for record in state.project().steps().iter().rev().take(12) {
-            ui.label(format!(
-                "{} · revision {}",
-                record.step.label(),
-                record.result_revision.0
-            ));
-        }
-    }
 }
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn apply_stays_visible_in_a_short_preparation_workspace() {
+        let mut state = DesktopState::new().unwrap();
+        let mut jobs = JobRunner::default();
+        let ctx = egui::Context::default();
+        let mut output = ctx.run_ui(
+            egui::RawInput {
+                screen_rect: Some(egui::Rect::from_min_size(
+                    egui::Pos2::ZERO,
+                    egui::vec2(620.0, 120.0),
+                )),
+                ..Default::default()
+            },
+            |ui| show(ui, &mut state, &mut jobs),
+        );
+        output.textures_delta.clear();
+        let apply = state.control_rect("Apply preparation").unwrap();
+        assert!(
+            apply.bottom() <= 120.0,
+            "Apply must stay visible: {apply:?}"
+        );
+    }
+
+    #[test]
+    fn unnamed_compute_cannot_be_applied() {
+        use crate::data::{Column, Dataset};
+        let project = crate::project::Project::new(
+            "Draft",
+            Dataset::new(vec![
+                Column::numeric(ColumnId(1), "Score", vec![Some(1.0)]).unwrap()
+            ])
+            .unwrap(),
+        )
+        .unwrap();
+        let mut state = DesktopState::from_project(project).unwrap();
+        state.preparation.source = Some(ColumnId(1));
+        let mut jobs = JobRunner::default();
+        let ctx = egui::Context::default();
+        ctx.enable_accesskit();
+        let mut output = ctx.run_ui(Default::default(), |ui| show(ui, &mut state, &mut jobs));
+        output.textures_delta.clear();
+        let update = output.platform_output.accesskit_update.unwrap();
+        let apply = update
+            .nodes
+            .iter()
+            .find(|(_, node)| node.label() == Some("Apply preparation"))
+            .unwrap();
+        assert!(
+            apply.1.is_disabled(),
+            "a blank output name must not look ready to apply"
+        );
+        assert!(!jobs.is_running());
+    }
+
     #[test]
     fn finite_numeric_controls_and_exact_text_are_distinct() {
         assert!(number("NaN").is_err());
