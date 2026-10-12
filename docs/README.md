@@ -1,5 +1,7 @@
 # Documentation index
 
+- [User guide](using-tessera.md): import, survey reports, preparation, analysis,
+  figures, saving, recovery and keyboard navigation.
 - [Project format](project-format.md) and [JSON Schema](project.schema.json):
   the accepted `.tessera` header is `tessera-project`, version 3.
 - [Licensing and distribution](LICENSING.md): GPL-3.0-only terms and notices.
