@@ -46,7 +46,7 @@ pub(super) fn show(ui: &mut egui::Ui, state: &mut DesktopState, jobs: &mut JobRu
                     procedure_forms::record(state, "Help", &help.response);
                     ui.menu_button("View", |ui| {
                         ui.label("Analysis detail");
-                        experience::mode_switch(ui, state);
+                        experience::mode_choices(ui, state);
                         ui.separator();
                         ui.strong("Appearance");
                         let mut preference = ui.ctx().options(|o| o.theme_preference);

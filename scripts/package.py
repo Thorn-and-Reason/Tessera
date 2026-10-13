@@ -17,6 +17,8 @@ BUILD_NUMBER = VERSION
 DOCUMENTS = (
     "README.md", "LICENSE", "docs/LICENSING.md", "docs/INSTALLING.md",
     "docs/using-tessera.md", "docs/project-format.md", "docs/project.schema.json",
+    "docs/build-and-distribution.md", "docs/production-readiness.md",
+    "docs/design/instant-survey-report.md", "docs/design/survey-improvements.md",
     "examples/sample.tessera", "examples/mixed-analysis.tessera",
     "examples/exploration.tessera", "examples/regression-analysis.tessera",
     "assets/fonts/LICENSE", "assets/fonts/Libron-LICENSE.txt",
@@ -67,19 +69,61 @@ def dependency_notices(target):
         folder = Path(package["manifest_path"]).parent
         licenses = sorted(path for path in folder.iterdir()
                           if path.is_file() and path.name.lower().startswith(("license", "licence", "copying", "copyright")))
+        additional = sorted(path for path in folder.iterdir()
+                            if path.is_file() and path.name.lower().startswith(("notice", "authors")))
+        for path in additional:
+            if not path.resolve().is_relative_to(folder.resolve()):
+                raise ValueError(f"Dependency licence escapes its package: {package['name']}")
+        # r-efi carries its licence grant and copyright notices in AUTHORS.
+        has_grant = licenses or any("Permission is hereby granted" in path.read_text(encoding="utf-8")
+                                    for path in additional)
+        licenses.extend(additional)
+        # Embedded components can carry independent terms (e.g. tracing's spin).
+        licenses.extend(sorted(path for path in folder.rglob("*")
+                               if path.is_file() and path.parent != folder
+                               and path.name.lower().split(".")[0] in
+                               ("license", "licence", "copying", "copyright", "notice", "notices")
+                               and path.suffix.lower() != ".rs"))
         # egui's embedded fallback fonts carry separate OFL/UFL/Hack/emoji notices.
         if (folder / "fonts").is_dir():
-            licenses.extend(sorted((folder / "fonts").rglob("*.txt")))
+            licenses.extend(path for path in sorted((folder / "fonts").rglob("*.txt")) if path not in licenses)
         if package.get("license_file"):
             custom = folder / package["license_file"]
             if custom not in licenses:
                 licenses.append(custom)
+            has_grant = True
         for path in licenses:
             if not path.resolve().is_relative_to(folder.resolve()):
                 raise ValueError(f"Dependency licence escapes its package: {package['name']}")
-            notices.append(f"\n--- {path.name} ---\n")
+            notices.append(f"\n--- {path.relative_to(folder).as_posix()} ---\n")
             notices.append(path.read_text(encoding="utf-8", errors="replace"))
+        if not has_grant:
+            notices.extend(supplemental_licenses(package, folder))
     return "".join(notices)
+
+
+def supplemental_licenses(package, folder):
+    """Use reviewed, revision-bound upstream texts when a crate omits them."""
+    root = ROOT / "assets/dependency-licenses"
+    records = json.loads((root / "manifest.json").read_text())
+    key = f"{package['name']}-{package['version']}"
+    record = records.get(key)
+    if not record or not record["files"] or record["license"] != package.get("license"):
+        raise ValueError(f"Missing reviewed dependency licence text: {key}")
+    vcs = json.loads((folder / ".cargo_vcs_info.json").read_text())
+    if vcs["git"]["sha1"] != record["revision"]:
+        raise ValueError(f"Dependency licence revision differs: {key}")
+    notices = []
+    for item in record["files"]:
+        path = root / item["file"]
+        if not path.resolve().is_relative_to(root.resolve()):
+            raise ValueError(f"Supplemental licence escapes its directory: {key}")
+        data = path.read_bytes()
+        if hashlib.sha256(data).hexdigest() != item["sha256"]:
+            raise ValueError(f"Supplemental licence checksum differs: {key}")
+        notices.extend([f"\n--- {item['upstream_name']} ---\nSource: {item['url']}\n",
+                        item.get("note", "") + "\n", data.decode("utf-8")])
+    return notices
 
 
 def archive(platform, output, binary, worker, root, notices):

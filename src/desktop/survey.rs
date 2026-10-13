@@ -149,7 +149,11 @@ pub(super) fn show(ui: &mut egui::Ui, state: &mut DesktopState, jobs: &mut JobRu
                         .response;
                     let label = format!("Survey role {}", finding.column.0);
                     response.widget_info(|| {
-                        egui::WidgetInfo::labeled(egui::WidgetType::ComboBox, !state.active, &label)
+                        egui::WidgetInfo::labeled(
+                            egui::WidgetType::ComboBox,
+                            !state.active,
+                            format!("Reporting role for {}", column.name()),
+                        )
                     });
                     record(state, &label, &response);
                     if selected != role {
@@ -159,8 +163,32 @@ pub(super) fn show(ui: &mut egui::Ui, state: &mut DesktopState, jobs: &mut JobRu
                     }
                     ui.horizontal_wrapped(|ui| {
                         for warning in &finding.findings {
-                            ui.weak(warning.label())
-                                .on_hover_text(warning.explanation());
+                            let response = ui
+                                .menu_button(warning.label(), |ui| {
+                                    ui.set_max_width(360.);
+                                    ui.label(warning.explanation());
+                                })
+                                .response;
+                            response.widget_info(|| {
+                                egui::WidgetInfo::labeled(
+                                    egui::WidgetType::Button,
+                                    !state.active,
+                                    format!(
+                                        "{} for {}: show explanation",
+                                        warning.label(),
+                                        column.name()
+                                    ),
+                                )
+                            });
+                            record(
+                                state,
+                                &format!(
+                                    "Survey warning {}: {}",
+                                    finding.column.0,
+                                    warning.label()
+                                ),
+                                &response,
+                            );
                         }
                     });
                     ui.separator();

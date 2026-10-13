@@ -16,6 +16,43 @@ use crate::{
     project::Project,
 };
 use std::{io::Write, mem::size_of, path::Path};
+/// Raw delimited exports preserve text that spreadsheet applications may evaluate.
+pub fn has_formula_like_text(dataset: &Dataset, control: &JobControl) -> AppResult<bool> {
+    control.check_cancelled()?;
+    for (index, column) in dataset.columns().iter().enumerate() {
+        control.checkpoint(index, Some(dataset.columns().len()))?;
+        if formula_like(column.name(), control)? {
+            return Ok(true);
+        }
+    }
+    for row in 0..dataset.row_count() {
+        control.checkpoint(row, Some(dataset.row_count()))?;
+        for (index, column) in dataset.columns().iter().enumerate() {
+            if index % 1024 == 0 {
+                control.check_cancelled()?;
+            }
+            if column.kind() == ColumnKind::Text {
+                if let Some(text) = column.text_value(row)? {
+                    if formula_like(text, control)? {
+                        return Ok(true);
+                    }
+                }
+            }
+        }
+    }
+    Ok(false)
+}
+fn formula_like(text: &str, control: &JobControl) -> AppResult<bool> {
+    for (index, character) in text.chars().enumerate() {
+        if index % 1024 == 0 {
+            control.check_cancelled()?;
+        }
+        if !character.is_whitespace() && !character.is_control() {
+            return Ok(matches!(character, '=' | '+' | '-' | '@'));
+        }
+    }
+    Ok(false)
+}
 pub fn export_data(
     path: &Path,
     dataset: &Dataset,

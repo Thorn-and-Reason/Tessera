@@ -72,6 +72,15 @@ a certification of every dependency's contents, asset provenance or ownership.
 Repeat it for the exact final platform builds and check that required notice
 texts are actually present in their packages.
 
+The 13 October 2026 RustSec audit reported no known vulnerabilities in the
+locked application graph and maintenance advisories for `paste` 1.0.15,
+`rustybuzz` 0.20.1 and `ttf-parser` 0.25.1. The candidate retains these versions
+while a replacement is evaluated with numerical, font, figure-rendering and
+package checks. This is a recorded maintenance risk, not an assurance of future
+security. The warnings remain visible; repeat the audit for any distributed
+candidate and reassess if a vulnerability or tested replacement becomes
+available.
+
 ## Release requirements
 
 1. Confirm the right to license the original code and distribute included

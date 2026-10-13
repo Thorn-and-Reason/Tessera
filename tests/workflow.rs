@@ -165,6 +165,7 @@ fn first_build_workflow() {
                 project,
                 path: destination.clone(),
                 delimiter,
+                acknowledge_formula_risk: false,
             },
         );
         let exported = fs::read_to_string(&destination).unwrap();
@@ -178,6 +179,7 @@ fn first_build_workflow() {
                     project,
                     path: destination.clone(),
                     delimiter,
+                    acknowledge_formula_risk: false,
                 },
             )
             .unwrap();

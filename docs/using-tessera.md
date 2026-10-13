@@ -171,6 +171,22 @@ Earlier boxplots without captured means require rerunning.
 
 ## Save projects, undo and recover
 
+### Export data safely
+
+CSV/TSV export preserves the original text, including variable names. Tessera
+asks for confirmation when text could be interpreted as a spreadsheet formula.
+Opening that file directly in Excel or another spreadsheet can evaluate the
+text or turn it into an active link; CSV quotation marks do not prevent this.
+Use the spreadsheet's text-import command and set the imported columns to
+**Text** before loading the file. Check the import preview before proceeding.
+Cancel the export if you cannot use a suitable text-import route.
+
+Numeric values remain numeric in the export. Tessera does not add apostrophes
+or otherwise change respondent text to suppress formulas. Save a `.tessera`
+project when you need to retain the full dataset and its metadata.
+
+### Project files and recovery
+
 Save a `.tessera` project to retain datasets, metadata, captured analyses,
 figures and provenance. CSV/TSV export cannot preserve every project metadata
 or missing-text distinction. Projects use format version 3 and reject other

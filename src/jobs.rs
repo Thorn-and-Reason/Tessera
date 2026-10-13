@@ -180,6 +180,7 @@ pub enum JobOperation {
         project: Arc<Project>,
         path: PathBuf,
         delimiter: Delimiter,
+        acknowledge_formula_risk: bool,
     },
     ExportFigures {
         project: Arc<Project>,
@@ -235,6 +236,10 @@ pub enum JobOutput {
     Converted(Dataset),
     Saved(SaveOutcome),
     Exported(SaveOutcome),
+    ExportDataConfirmation {
+        path: PathBuf,
+        delimiter: Delimiter,
+    },
     FiguresExported {
         outcomes: Vec<SaveOutcome>,
     },

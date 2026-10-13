@@ -279,15 +279,28 @@ impl JobTask {
                 project,
                 path,
                 delimiter,
-            } => export::export_data_with_budget(
-                path,
-                project.dataset(),
-                *delimiter,
-                control,
-                &datasets,
-                extra,
-            )
-            .map(JobOutput::Exported),
+                acknowledge_formula_risk,
+            } => {
+                if !acknowledge_formula_risk
+                    && export::has_formula_like_text(project.dataset(), control)?
+                {
+                    Budget::check_datasets(&datasets, add(extra, path.capacity())?)?;
+                    control.check_cancelled()?;
+                    return Ok(JobOutput::ExportDataConfirmation {
+                        path: path.clone(),
+                        delimiter: *delimiter,
+                    });
+                }
+                export::export_data_with_budget(
+                    path,
+                    project.dataset(),
+                    *delimiter,
+                    control,
+                    &datasets,
+                    extra,
+                )
+                .map(JobOutput::Exported)
+            }
             JobOperation::ExportFigures {
                 project,
                 directory,

@@ -1,4 +1,6 @@
 #![cfg(feature = "desktop")]
+#[path = "desktop/export_confirmation.rs"]
+mod export_confirmation;
 #[path = "desktop/guidance.rs"]
 mod guidance;
 #[path = "desktop/survey_improvements.rs"]

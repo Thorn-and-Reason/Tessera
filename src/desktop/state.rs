@@ -62,6 +62,7 @@ pub enum Dialog {
     ExcelImport,
     Unsaved,
     FileOutcome,
+    ExportDataConfirmation,
     PropertyChanges,
 }
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -205,6 +206,7 @@ pub struct DesktopState {
     pub(crate) import_delimiter: Delimiter,
     preview_delimiter: Delimiter,
     pub(crate) file_outcome: Option<SaveOutcome>,
+    pub(crate) export_confirmation: Option<(PathBuf, Delimiter, JobToken)>,
     pub(crate) controls: BTreeMap<String, Rect>,
     pub(crate) control_ids: BTreeMap<String, Id>,
     pub(crate) search: String,
@@ -295,6 +297,7 @@ impl DesktopState {
             import_delimiter: Delimiter::Comma,
             preview_delimiter: Delimiter::Comma,
             file_outcome: None,
+            export_confirmation: None,
             controls: BTreeMap::new(),
             control_ids: BTreeMap::new(),
             search: String::new(),
