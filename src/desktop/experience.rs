@@ -36,30 +36,31 @@ pub(crate) fn save_mode(storage: &mut dyn eframe::Storage, mode: AnalysisMode) {
     storage.set_string(MODE_KEY, mode.preference_value().into());
 }
 pub(crate) fn mode_switch(ui: &mut egui::Ui, state: &mut DesktopState) {
-    let mut mode = state.analysis_mode();
     let response = egui::ComboBox::from_id_salt("analysis-mode")
         .width(100.)
-        .selected_text(match mode {
+        .selected_text(match state.analysis_mode() {
             AnalysisMode::Guided => "Guided",
             AnalysisMode::Advanced => "Advanced",
         })
-        .show_ui(ui, |ui| {
-            for (choice, label) in [
-                (AnalysisMode::Guided, "Guided"),
-                (AnalysisMode::Advanced, "Advanced"),
-            ] {
-                let response = theme::selectable_value(ui, &mut mode, choice, label);
-                if response.clicked() {
-                    ui.close();
-                }
-                super::procedure_forms::record(state, label, &response);
-            }
-        })
+        .show_ui(ui, |ui| mode_choices(ui, state))
         .response;
     response.widget_info(|| {
         egui::WidgetInfo::labeled(egui::WidgetType::ComboBox, true, "Analysis mode")
     });
     super::procedure_forms::record(state, "Analysis mode", &response);
+}
+pub(crate) fn mode_choices(ui: &mut egui::Ui, state: &mut DesktopState) {
+    let mut mode = state.analysis_mode();
+    for (choice, label) in [
+        (AnalysisMode::Guided, "Guided"),
+        (AnalysisMode::Advanced, "Advanced"),
+    ] {
+        let response = theme::selectable_value(ui, &mut mode, choice, label);
+        if response.clicked() {
+            ui.close();
+        }
+        super::procedure_forms::record(state, label, &response);
+    }
     if mode != state.analysis_mode() {
         state.act(UiAction::SetAnalysisMode(mode));
     }

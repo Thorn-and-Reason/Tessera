@@ -1,6 +1,27 @@
 //! Single-worker operation ownership and publication.
 use super::*;
 impl DesktopState {
+    pub(crate) fn confirm_data_export(&mut self, jobs: &mut JobRunner) -> AppResult<()> {
+        self.idle()?;
+        let Some((path, delimiter, token)) = self.export_confirmation.take() else {
+            return Err(AppError::Conflict("Choose Export data again.".into()));
+        };
+        self.dialog = None;
+        if token != self.token() {
+            return Err(AppError::Conflict(
+                "The project changed. Choose Export data again to review the current data.".into(),
+            ));
+        }
+        self.start_operation(
+            jobs,
+            JobOperation::ExportData {
+                project: Arc::clone(&self.project),
+                path,
+                delimiter,
+                acknowledge_formula_risk: true,
+            },
+        )
+    }
     pub fn start_operation(
         &mut self,
         jobs: &mut JobRunner,
@@ -306,6 +327,10 @@ impl DesktopState {
                     return Ok(());
                 }
                 match output {
+                    JobOutput::ExportDataConfirmation { path, delimiter } => {
+                        self.export_confirmation = Some((path, delimiter, token));
+                        self.dialog = Some(Dialog::ExportDataConfirmation);
+                    }
                     JobOutput::SurveyCleaningPreview(preview) => {
                         self.accept_survey_cleaning_preview(preview)?
                     }
@@ -458,6 +483,48 @@ impl DesktopState {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn export_acknowledgement_cannot_outlive_document_revision_or_generation() {
+        for identity in 0..3 {
+            let mut state = DesktopState::new().unwrap();
+            let mut stale = state.token();
+            match identity {
+                0 => stale.document += 1,
+                1 => stale.revision = RevisionId(stale.revision.0 + 1),
+                _ => stale.generation += 1,
+            }
+            state.export_confirmation =
+                Some((PathBuf::from("unused.csv"), Delimiter::Comma, stale));
+            state.dialog = Some(Dialog::ExportDataConfirmation);
+            assert!(state
+                .confirm_data_export(&mut JobRunner::default())
+                .is_err());
+            assert!(state.export_confirmation.is_none());
+            assert!(!state.active);
+        }
+    }
+    #[test]
+    fn stale_or_cancelled_export_scan_never_opens_confirmation() {
+        for cancelled in [false, true] {
+            let mut state = DesktopState::new().unwrap();
+            let mut token = state.token();
+            if !cancelled {
+                token.generation += 1;
+            }
+            state
+                .handle_event(JobEvent::Completed {
+                    token,
+                    cancelled,
+                    result: Ok(JobOutput::ExportDataConfirmation {
+                        path: PathBuf::from("unused.csv"),
+                        delimiter: Delimiter::Comma,
+                    }),
+                })
+                .unwrap();
+            assert!(state.export_confirmation.is_none());
+            assert_ne!(state.dialog, Some(Dialog::ExportDataConfirmation));
+        }
+    }
     #[test]
     fn stale_cancellation_requests_cannot_change_current_feedback_or_release_owners() {
         let mut state = DesktopState::new().unwrap();

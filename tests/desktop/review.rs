@@ -620,6 +620,150 @@ fn dirty_new_with_open_file_menu_exposes_modal_and_escape_cancels() {
 }
 
 #[test]
+fn dirty_close_modal_remains_accessible_above_large_worksheets() {
+    for rows in [13, 30] {
+        let ctx = egui::Context::default();
+        ctx.enable_accesskit();
+        let columns = (0..11)
+            .map(|column| {
+                Column::numeric(
+                    ColumnId(column + 1),
+                    &format!("Question {}", column + 1),
+                    (0..rows).map(|row| Some(row as f64)).collect(),
+                )
+                .unwrap()
+            })
+            .collect();
+        let mut state = DesktopState::from_project(
+            Project::new("Large worksheet", Dataset::new(columns).unwrap()).unwrap(),
+        )
+        .unwrap();
+        let project = Arc::clone(state.project());
+        let mut jobs = JobRunner::default();
+        let frame = |state: &mut DesktopState, jobs: &mut JobRunner, events| {
+            let mut output = ctx.run_ui(
+                egui::RawInput {
+                    screen_rect: Some(Rect::from_min_size(Pos2::ZERO, Vec2::new(2400.0, 1600.0))),
+                    events,
+                    ..Default::default()
+                },
+                |ui| render(ui, state, jobs),
+            );
+            output.textures_delta.clear();
+            output.platform_output.accesskit_update.unwrap()
+        };
+        frame(&mut state, &mut jobs, vec![]);
+        let background = frame(&mut state, &mut jobs, vec![]);
+        if rows == 30 {
+            let buttons = background
+                .nodes
+                .iter()
+                .filter(|(_, node)| node.role() == egui::accesskit::Role::Button)
+                .count();
+            assert!(buttons >= 200, "fixture exposed only {buttons} buttons");
+        }
+        state = state
+            .apply_action(UiAction::Request(PendingAction::Close))
+            .unwrap();
+        assert_eq!(state.dialog(), Some(Dialog::Unsaved));
+        frame(&mut state, &mut jobs, vec![]);
+        let tree = frame(&mut state, &mut jobs, vec![]);
+        let labels = reachable_access_labels(&tree);
+        for expected in ["Save changes", "Discard", "Cancel"] {
+            assert!(
+                labels.iter().any(|label| label == expected),
+                "{rows} rows: missing {expected}"
+            );
+        }
+        let cancel = tree
+            .nodes
+            .iter()
+            .find(|(_, node)| node.label() == Some("Cancel"))
+            .unwrap()
+            .0;
+        frame(
+            &mut state,
+            &mut jobs,
+            vec![Event::AccessKitActionRequest(
+                egui::accesskit::ActionRequest {
+                    action: egui::accesskit::Action::Click,
+                    target_tree: egui::accesskit::TreeId::ROOT,
+                    target_node: cancel,
+                    data: None,
+                },
+            )],
+        );
+        assert!(state.dialog().is_none());
+        assert!(state.pending().is_none());
+        assert!(Arc::ptr_eq(&project, state.project()));
+    }
+}
+
+#[test]
+fn view_menu_switches_analysis_mode_through_accessibility_and_keyboard_actions() {
+    for keyboard in [false, true] {
+        let ctx = egui::Context::default();
+        ctx.enable_accesskit();
+        let mut state = state();
+        let mut jobs = JobRunner::default();
+        for label in ["View", "Advanced", "View", "Guided"] {
+            popup_access_frame(&ctx, &mut state, &mut jobs, vec![]);
+            let tree = popup_access_frame(&ctx, &mut state, &mut jobs, vec![]);
+            let target = tree
+                .nodes
+                .iter()
+                .find(|(_, node)| node.label() == Some(label))
+                .unwrap_or_else(|| panic!("missing {label}: {:?}", reachable_access_labels(&tree)))
+                .0;
+            let action = if keyboard {
+                egui::accesskit::Action::Focus
+            } else {
+                egui::accesskit::Action::Click
+            };
+            popup_access_frame(
+                &ctx,
+                &mut state,
+                &mut jobs,
+                vec![Event::AccessKitActionRequest(
+                    egui::accesskit::ActionRequest {
+                        action,
+                        target_tree: egui::accesskit::TreeId::ROOT,
+                        target_node: target,
+                        data: None,
+                    },
+                )],
+            );
+            if keyboard {
+                for pressed in [true, false] {
+                    popup_access_frame(
+                        &ctx,
+                        &mut state,
+                        &mut jobs,
+                        vec![Event::Key {
+                            key: Key::Enter,
+                            physical_key: None,
+                            pressed,
+                            repeat: false,
+                            modifiers: Modifiers::NONE,
+                        }],
+                    );
+                }
+            }
+            if label != "View" {
+                assert_eq!(
+                    state.analysis_mode(),
+                    if label == "Advanced" {
+                        tessera::desktop::AnalysisMode::Advanced
+                    } else {
+                        tessera::desktop::AnalysisMode::Guided
+                    }
+                );
+            }
+        }
+    }
+}
+
+#[test]
 fn only_matching_cancelled_completion_clears_cancelling_status() {
     let ctx = egui::Context::default();
     ctx.enable_accesskit();

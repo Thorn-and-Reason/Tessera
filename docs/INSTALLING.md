@@ -35,9 +35,17 @@ publisher or reputation warning. Use only a download you trust. If a security
 product reports malware, stop and contact Thorn & Reason rather than disabling
 it. Native Windows and clean-machine acceptance remain required before release.
 
+Windows crash recovery is unavailable in this candidate. Save projects
+explicitly and regularly; unsaved work may be lost if the application or
+computer stops unexpectedly. Windows packages remain development candidates
+until their native acceptance checks pass.
+
 ## Source and licence
 
 Tessera is GPL-3.0-only. The source is free to obtain, build and redistribute,
-including compiled copies, under that licence. The customer downloads page
-provides the free corresponding-source link for its packages. See `LICENSE`,
-`docs/LICENSING.md` and `THIRD-PARTY-NOTICES.txt` in the package.
+including compiled copies, under that licence. Use the corresponding-source
+archive identified alongside your specific installer, rather than a changing
+development branch. Local candidate sets include that archive beside the
+installers; a customer downloads page must provide equivalent free access
+before distribution. See `LICENSE`, `docs/LICENSING.md` and
+`THIRD-PARTY-NOTICES.txt` in the package.

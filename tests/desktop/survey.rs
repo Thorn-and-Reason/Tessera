@@ -1,4 +1,195 @@
 use super::*;
+
+fn survey_access_frame(
+    ctx: &egui::Context,
+    state: &mut DesktopState,
+    jobs: &mut JobRunner,
+    events: Vec<Event>,
+) -> egui::accesskit::TreeUpdate {
+    let mut output = ctx.run_ui(
+        egui::RawInput {
+            screen_rect: Some(Rect::from_min_size(Pos2::ZERO, Vec2::new(1000., 900.))),
+            events,
+            ..Default::default()
+        },
+        |ui| render(ui, state, jobs),
+    );
+    output.textures_delta.clear();
+    output.platform_output.accesskit_update.unwrap()
+}
+
+fn has_reachable_label(tree: &egui::accesskit::TreeUpdate, expected: &str) -> bool {
+    let mut pending = vec![tree.tree.as_ref().unwrap().root];
+    while let Some(id) = pending.pop() {
+        if let Some((_, node)) = tree.nodes.iter().find(|(node_id, _)| *node_id == id) {
+            if node.label().or_else(|| node.value()) == Some(expected) {
+                return true;
+            }
+            pending.extend_from_slice(node.children());
+        }
+    }
+    false
+}
+
+#[test]
+fn survey_accessible_roles_include_complete_question_names() {
+    let name = "How confident are you about explaining your findings to colleagues? ŵ";
+    let data = Dataset::new(vec![Column::numeric(
+        ColumnId(1),
+        name,
+        vec![Some(1.), Some(2.)],
+    )
+    .unwrap()])
+    .unwrap();
+    let mut state = DesktopState::from_project(Project::new("Survey", data).unwrap()).unwrap();
+    let mut jobs = JobRunner::default();
+    state.enter_survey().unwrap();
+    state.service_survey(&mut jobs).unwrap();
+    while jobs.is_running() {
+        state.poll(&mut jobs);
+        std::thread::yield_now();
+    }
+    let ctx = egui::Context::default();
+    ctx.enable_accesskit();
+    let tree = survey_access_frame(&ctx, &mut state, &mut jobs, vec![]);
+    let expected = format!("Reporting role for {name}");
+    assert!(
+        has_reachable_label(&tree, &expected),
+        "role has no full question label"
+    );
+}
+
+#[test]
+fn survey_warning_explanations_open_with_keyboard() {
+    let data = Dataset::new(vec![Column::text(
+        ColumnId(1),
+        "Email address",
+        vec![
+            Some("person@example.com".into()),
+            Some("other@example.com".into()),
+        ],
+    )
+    .unwrap()])
+    .unwrap();
+    let mut state = DesktopState::from_project(Project::new("Survey", data).unwrap()).unwrap();
+    let mut jobs = JobRunner::default();
+    state.enter_survey().unwrap();
+    state.service_survey(&mut jobs).unwrap();
+    while jobs.is_running() {
+        state.poll(&mut jobs);
+        std::thread::yield_now();
+    }
+    let finding = &state.survey_review().unwrap().columns[0];
+    let warning = *finding.findings.first().expect("fixture needs a warning");
+    let label = format!("Survey warning {}: {}", finding.column.0, warning.label());
+    let ctx = egui::Context::default();
+    ctx.enable_accesskit();
+    let tree = survey_access_frame(&ctx, &mut state, &mut jobs, vec![]);
+    assert!(has_reachable_label(
+        &tree,
+        &format!("{} for Email address: show explanation", warning.label())
+    ));
+    let id = state
+        .control_id(&label)
+        .expect("warning must be keyboard reachable");
+    ctx.memory_mut(|memory| memory.request_focus(id));
+    for pressed in [true, false] {
+        survey_access_frame(
+            &ctx,
+            &mut state,
+            &mut jobs,
+            vec![Event::Key {
+                key: Key::Enter,
+                physical_key: None,
+                pressed,
+                repeat: false,
+                modifiers: Modifiers::NONE,
+            }],
+        );
+    }
+    let tree = survey_access_frame(&ctx, &mut state, &mut jobs, vec![]);
+    assert!(
+        has_reachable_label(&tree, warning.explanation()),
+        "warning explanation missing from accessibility tree"
+    );
+    survey_access_frame(
+        &ctx,
+        &mut state,
+        &mut jobs,
+        vec![Event::Key {
+            key: Key::Escape,
+            physical_key: None,
+            pressed: true,
+            repeat: false,
+            modifiers: Modifiers::NONE,
+        }],
+    );
+    assert!(
+        !egui::Popup::is_any_open(&ctx),
+        "Escape must close the warning"
+    );
+}
+#[test]
+fn survey_many_warnings_fit_compact_virtual_rows() {
+    for zoom in [1., 1.5] {
+        let values = (0..40)
+            .map(|i| {
+                Some(match i {
+                    0 => "".into(),
+                    1 => "NA".into(),
+                    2 => "yes".into(),
+                    3 => " Yes ".into(),
+                    _ => format!(
+                        "person{i}@example.com; {}",
+                        "a long written response ".repeat(8)
+                    ),
+                })
+            })
+            .collect();
+        let data = Dataset::new(
+            std::iter::once(Column::text(ColumnId(1), "Email and comments", values).unwrap())
+                .chain((2..=100).map(|id| {
+                    Column::text(
+                        ColumnId(id),
+                        &format!("Email {id}"),
+                        vec![Some("next@example.com".into()); 40],
+                    )
+                    .unwrap()
+                }))
+                .collect(),
+        )
+        .unwrap();
+        let mut state = DesktopState::from_project(Project::new("Survey", data).unwrap()).unwrap();
+        let mut jobs = JobRunner::default();
+        state.enter_survey().unwrap();
+        state.service_survey(&mut jobs).unwrap();
+        while jobs.is_running() {
+            state.poll(&mut jobs);
+            std::thread::yield_now();
+        }
+        let warnings = state.survey_review().unwrap().columns[0].findings.clone();
+        assert!(warnings.len() >= 5, "fixture warnings: {warnings:?}");
+        let ctx = egui::Context::default();
+        ctx.set_zoom_factor(zoom);
+        frame(&ctx, &mut state, &mut jobs, Vec2::new(640., 440.), vec![]);
+        for warning in warnings {
+            let rect = state
+                .control_rect(&format!("Survey warning 1: {}", warning.label()))
+                .unwrap();
+            assert!(
+                ctx.content_rect().contains_rect(rect),
+                "{zoom}: {} {rect:?}",
+                warning.label()
+            );
+            let next = state.control_rect("Next survey variables page").unwrap();
+            assert!(
+                rect.max.y <= next.min.y,
+                "warning overlaps paging at {zoom}: {rect:?}, {next:?}"
+            );
+        }
+    }
+}
+
 #[test]
 fn survey_entry_empty_and_both_modes() {
     for mode in [

@@ -76,6 +76,81 @@ fn output(event: JobEvent) -> JobOutput {
     }
 }
 #[test]
+fn raw_export_requires_acknowledgement_before_publishing_formula_like_text() {
+    let temp = Temp::new();
+    let project = Arc::new(
+        Project::new(
+            "Export",
+            Dataset::new(vec![
+                Column::text(ColumnId(1), "=header", vec![Some(" \t=1+1".into())]).unwrap(),
+                Column::numeric(ColumnId(2), "number", vec![Some(-2.)]).unwrap(),
+            ])
+            .unwrap(),
+        )
+        .unwrap(),
+    );
+    let mut runner = JobRunner::default();
+    for (name, delimiter, expected) in [
+        (
+            "raw.csv",
+            Delimiter::Comma,
+            "=header,number\r\n \t=1+1,-2\r\n",
+        ),
+        (
+            "raw.tsv",
+            Delimiter::Tab,
+            "=header\tnumber\r\n\" \t=1+1\"\t-2\r\n",
+        ),
+    ] {
+        let path = temp.0.join(name);
+        runner
+            .start(
+                JobTask::new(JobOperation::ExportData {
+                    project: Arc::clone(&project),
+                    path: path.clone(),
+                    delimiter,
+                    acknowledge_formula_risk: false,
+                }),
+                token(),
+            )
+            .unwrap();
+        assert!(matches!(
+            output(finish(&mut runner)),
+            JobOutput::ExportDataConfirmation { .. }
+        ));
+        assert!(!path.exists());
+        runner
+            .start(
+                JobTask::new(JobOperation::ExportData {
+                    project: Arc::clone(&project),
+                    path: path.clone(),
+                    delimiter,
+                    acknowledge_formula_risk: true,
+                }),
+                token(),
+            )
+            .unwrap();
+        assert!(finish(&mut runner).published_file().is_some());
+        assert_eq!(fs::read_to_string(&path).unwrap(), expected);
+        runner
+            .start(
+                JobTask::new(JobOperation::ExportData {
+                    project: Arc::clone(&project),
+                    path: path.clone(),
+                    delimiter,
+                    acknowledge_formula_risk: false,
+                }),
+                token(),
+            )
+            .unwrap();
+        assert!(matches!(
+            output(finish(&mut runner)),
+            JobOutput::ExportDataConfirmation { .. }
+        ));
+        assert_eq!(fs::read_to_string(&path).unwrap(), expected);
+    }
+}
+#[test]
 fn cancelled_or_superseded_results_are_not_published() {
     assert!(may_publish(token(), 1, RevisionId(1), 1));
     assert!(!may_publish(token(), 1, RevisionId(1), 2));
@@ -279,6 +354,7 @@ fn import_describe_convert_save_open_and_exports_use_the_worker() {
                 project: p.clone(),
                 path: temp.0.join("data.csv"),
                 delimiter: Delimiter::Comma,
+                acknowledge_formula_risk: false,
             }),
             token(),
         )

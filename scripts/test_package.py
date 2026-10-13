@@ -12,6 +12,50 @@ from unittest.mock import patch
 
 
 class PackageTests(unittest.TestCase):
+    def test_supplemental_licence_is_revision_and_content_bound(self):
+        spec = importlib.util.spec_from_file_location("package", Path(__file__).with_name("package.py"))
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            records = root / "assets/dependency-licenses"
+            records.mkdir(parents=True)
+            (root / ".cargo_vcs_info.json").write_text(json.dumps({"git": {"sha1": "revision"}}))
+            data = b"upstream licence permission"
+            (records / "license.txt").write_bytes(data)
+            record = {"license": "MIT", "revision": "revision", "files": [{"file": "license.txt", "sha256": hashlib.sha256(data).hexdigest(), "upstream_name": "LICENSE", "url": "https://example.invalid/revision/LICENSE"}]}
+            (records / "manifest.json").write_text(json.dumps({"fixture-1": record}))
+            package = {"name": "fixture", "version": "1", "license": "MIT"}
+            with patch.object(module, "ROOT", root):
+                self.assertIn(data.decode(), "".join(module.supplemental_licenses(package, root)))
+                (records / "license.txt").write_bytes(b"changed")
+                with self.assertRaisesRegex(ValueError, "checksum"):
+                    module.supplemental_licenses(package, root)
+                (root / ".cargo_vcs_info.json").write_text(json.dumps({"git": {"sha1": "other revision"}}))
+                with self.assertRaisesRegex(ValueError, "revision"):
+                    module.supplemental_licenses(package, root)
+
+    def test_dependency_notices_include_upstream_notice_and_fail_without_licence(self):
+        spec = importlib.util.spec_from_file_location("package", Path(__file__).with_name("package.py"))
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        with tempfile.TemporaryDirectory() as directory:
+            folder = Path(directory)
+            (folder / "LICENSE").write_text("fixture permission")
+            (folder / "NOTICES.md").write_text("required upstream attribution")
+            (folder / "src/spin").mkdir(parents=True)
+            (folder / "src/spin/LICENSE").write_text("embedded component permission")
+            package = {"id": "fixture", "name": "fixture", "version": "1", "source": "registry+fixture", "license": "MIT", "authors": [], "manifest_path": str(folder / "Cargo.toml")}
+            result = subprocess.CompletedProcess([], 0, stdout=json.dumps({"packages": [package], "resolve": {"nodes": [{"id": "fixture"}]}}))
+            with patch.object(module, "command", return_value=result):
+                self.assertIn("required upstream attribution", module.dependency_notices("aarch64-apple-darwin"))
+                self.assertIn("embedded component permission", module.dependency_notices("aarch64-apple-darwin"))
+                (folder / "LICENSE").unlink()
+                with self.assertRaisesRegex(ValueError, "licence text"):
+                    module.dependency_notices("aarch64-apple-darwin")
+                (folder / "AUTHORS").write_text("Permission is hereby granted; copyright fixture authors")
+                self.assertIn("copyright fixture authors", module.dependency_notices("aarch64-apple-darwin"))
+
     def test_linux_cli_accepts_choice_and_reports_unsupported_host(self):
         spec = importlib.util.spec_from_file_location("package", Path(__file__).with_name("package.py"))
         module = importlib.util.module_from_spec(spec)

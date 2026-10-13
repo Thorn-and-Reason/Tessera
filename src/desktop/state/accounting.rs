@@ -58,6 +58,11 @@ impl DesktopState {
     }
     pub(super) fn retained_ui_bytes(&self) -> usize {
         let mut bytes = self.draft.heap_bytes().unwrap_or(usize::MAX);
+        bytes = bytes.saturating_add(
+            self.export_confirmation
+                .as_ref()
+                .map_or(0, |(path, _, _)| path.capacity()),
+        );
         bytes = bytes.saturating_add(self.survey_owned_bytes());
         bytes = bytes.saturating_add(self.preparation.owned_bytes());
         if let Some(entries) = &self.recovery_entries {

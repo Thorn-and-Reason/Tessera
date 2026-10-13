@@ -93,6 +93,7 @@ pub fn export_data(state: &mut DesktopState, jobs: &mut JobRunner, delimiter: De
                 project: Arc::clone(state.project()),
                 path,
                 delimiter,
+                acknowledge_formula_risk: false,
             },
         );
     }
@@ -200,6 +201,7 @@ pub fn show(ctx: &egui::Context, state: &mut DesktopState, jobs: &mut JobRunner)
                 Dialog::FileOutcome => "File details", Dialog::ExcelImport => "Excel import",
                 Dialog::Prepare => "Prepare data",
                 Dialog::About => "About Tessera",
+                Dialog::ExportDataConfirmation => "Spreadsheet formula warning",
             });
             if !matches!(dialog, Dialog::Unsaved | Dialog::PropertyChanges) {
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
@@ -239,6 +241,11 @@ pub fn show(ctx: &egui::Context, state: &mut DesktopState, jobs: &mut JobRunner)
                 Dialog::ExcelImport => super::state::excel::render(ui, state, jobs),
                 Dialog::Prepare => super::preparation::show(ui, state, jobs),
                 Dialog::About => super::about::show(ui, state),
+                Dialog::ExportDataConfirmation => {
+                    ui.label("Some text or variable names begin with characters that spreadsheet applications may treat as formulas. Opening this CSV or TSV file directly could run those formulas.");
+                    ui.label("The export preserves your original text exactly. In Excel or LibreOffice, use the text-import dialog and set every column to Text before loading the file. Do not enable external links or content.");
+                    ui.label("Export the original data with this risk acknowledged?");
+                }
                 Dialog::FileOutcome => {
                     if let Some(outcome) = &state.file_outcome {
                         ui.label(match outcome.publication {
@@ -292,6 +299,12 @@ pub fn show(ctx: &egui::Context, state: &mut DesktopState, jobs: &mut JobRunner)
                     if button(ui, state, "Discard").clicked() { state.act(UiAction::ResolveProperties(PropertyChoice::Discard)); }
                     if toggle(ui, state, "Stay").clicked() { state.act(UiAction::ResolveProperties(PropertyChoice::Stay)); }
                 }
+                Dialog::ExportDataConfirmation => {
+                    if command(ui, state, "Acknowledge risk and export").clicked() {
+                        if let Err(error) = state.confirm_data_export(jobs) { state.fail(error); }
+                    }
+                    if toggle(ui, state, "Cancel export").clicked() { close = true; }
+                }
                 Dialog::Import => {
                     let response = ui.add_enabled(!state.active, theme::primary(ui, "Import data"));
                     super::procedure_forms::record(state, "Import data", &response);
@@ -309,6 +322,9 @@ pub fn show(ctx: &egui::Context, state: &mut DesktopState, jobs: &mut JobRunner)
         } else if dialog == Dialog::Unsaved {
             state.act(UiAction::ResolveUnsaved(UnsavedChoice::Cancel));
         } else {
+            if dialog == Dialog::ExportDataConfirmation {
+                state.export_confirmation = None;
+            }
             if matches!(dialog, Dialog::Import | Dialog::ExcelImport) {
                 state.cancel_survey_import();
             }

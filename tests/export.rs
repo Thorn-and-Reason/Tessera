@@ -12,6 +12,43 @@ use tessera::{
 };
 static NEXT: AtomicU64 = AtomicU64::new(0);
 #[test]
+fn formula_risk_detects_headers_and_text_without_flagging_numeric_negatives() {
+    use tessera::export::has_formula_like_text;
+    let control = JobControl::default();
+    for value in ["=1+1", "+SUM(A1)", "-1+2", "@SUM(A1)", " \t=1", "\r\n=1"] {
+        let data = Dataset::new(vec![Column::text(
+            ColumnId(1),
+            "text",
+            vec![Some(value.into())],
+        )
+        .unwrap()])
+        .unwrap();
+        assert!(has_formula_like_text(&data, &control).unwrap(), "{value:?}");
+        let data = Dataset::new(vec![Column::numeric(
+            ColumnId(1),
+            value.trim(),
+            vec![Some(1.)],
+        )
+        .unwrap()])
+        .unwrap();
+        assert!(
+            has_formula_like_text(&data, &control).unwrap(),
+            "header {value:?}"
+        );
+    }
+    let data = Dataset::new(vec![
+        Column::numeric(ColumnId(1), "number", vec![Some(-2.)]).unwrap(),
+        Column::text(ColumnId(2), "text", vec![Some("a=1".into())]).unwrap(),
+    ])
+    .unwrap();
+    assert!(!has_formula_like_text(&data, &control).unwrap());
+    control.cancel();
+    assert!(matches!(
+        has_formula_like_text(&data, &control),
+        Err(tessera::error::AppError::Cancelled)
+    ));
+}
+#[test]
 fn exports_escape_and_never_clobber() {
     let dir = std::env::temp_dir().canonicalize().unwrap().join(format!(
         "tessera-export-test-{}-{}",
