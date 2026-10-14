@@ -156,32 +156,48 @@ fn export_receipt_identifies_export_and_preserves_current_project_path() {
     );
     assert_eq!(state.file_receipt().unwrap().destination, export);
     assert!(!state.is_dirty());
-    let warning = state.file_receipt().unwrap().warning.clone();
-    if warning.is_some() {
-        assert_eq!(state.dialog(), Some(Dialog::FileOutcome));
-    } else {
-        assert_eq!(state.dialog(), None);
-    }
-    let ctx = egui::Context::default();
-    if warning.is_none() {
+    let outcome = state.file_receipt().unwrap().clone();
+    for warning in [
+        outcome.warning.clone(),
+        Some("Publication completed; directory durability needs review.".into()),
+    ] {
+        let mut state = state.clone();
+        state
+            .handle_event(JobEvent::Completed {
+                token: state.token(),
+                cancelled: false,
+                result: Ok(JobOutput::Exported(tessera::files::SaveOutcome {
+                    warning: warning.clone(),
+                    ..outcome.clone()
+                })),
+            })
+            .unwrap();
+        assert_eq!(
+            state.dialog(),
+            warning.as_ref().map(|_| Dialog::FileOutcome)
+        );
+        let ctx = egui::Context::default();
+        // Newly opened dialogs need their initial layout frames before inspection.
         for _ in 0..2 {
             visible_text(&ctx, &mut state, &mut jobs);
         }
-        click(
-            &ctx,
-            &mut state,
-            &mut jobs,
-            "File details",
-            Vec2::new(1000., 760.),
-        );
+        if warning.is_none() {
+            click(
+                &ctx,
+                &mut state,
+                &mut jobs,
+                "File details",
+                Vec2::new(1000., 760.),
+            );
+        }
+        assert_eq!(state.dialog(), Some(Dialog::FileOutcome));
+        let text = visible_text(&ctx, &mut state, &mut jobs);
+        assert!(text.contains("File export"), "{text}");
+        assert!(text.contains("Destination:"), "{text}");
+        if let Some(warning) = warning {
+            assert!(text.contains(&warning), "{text}");
+        }
+        assert!(text.contains("Current project file:"), "{text}");
+        assert!(!text.contains("File saved"), "{text}");
     }
-    assert_eq!(state.dialog(), Some(Dialog::FileOutcome));
-    let text = visible_text(&ctx, &mut state, &mut jobs);
-    assert!(text.contains("File export"), "{text}");
-    assert!(text.contains("Destination:"), "{text}");
-    if let Some(warning) = warning {
-        assert!(text.contains(&warning), "{text}");
-    }
-    assert!(text.contains("Current project file:"), "{text}");
-    assert!(!text.contains("File saved"), "{text}");
 }
