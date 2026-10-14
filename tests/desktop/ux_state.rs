@@ -1,5 +1,7 @@
 use super::*;
-use tessera::{files::Publication, recovery::RecoveryStore};
+use tessera::files::Publication;
+#[cfg(unix)]
+use tessera::recovery::RecoveryStore;
 
 struct Temp(std::path::PathBuf);
 impl Temp {
@@ -154,20 +156,32 @@ fn export_receipt_identifies_export_and_preserves_current_project_path() {
     );
     assert_eq!(state.file_receipt().unwrap().destination, export);
     assert!(!state.is_dirty());
-    let ctx = egui::Context::default();
-    for _ in 0..2 {
-        visible_text(&ctx, &mut state, &mut jobs);
+    let warning = state.file_receipt().unwrap().warning.clone();
+    if warning.is_some() {
+        assert_eq!(state.dialog(), Some(Dialog::FileOutcome));
+    } else {
+        assert_eq!(state.dialog(), None);
     }
-    click(
-        &ctx,
-        &mut state,
-        &mut jobs,
-        "File details",
-        Vec2::new(1000., 760.),
-    );
+    let ctx = egui::Context::default();
+    if warning.is_none() {
+        for _ in 0..2 {
+            visible_text(&ctx, &mut state, &mut jobs);
+        }
+        click(
+            &ctx,
+            &mut state,
+            &mut jobs,
+            "File details",
+            Vec2::new(1000., 760.),
+        );
+    }
+    assert_eq!(state.dialog(), Some(Dialog::FileOutcome));
     let text = visible_text(&ctx, &mut state, &mut jobs);
     assert!(text.contains("File export"), "{text}");
     assert!(text.contains("Destination:"), "{text}");
+    if let Some(warning) = warning {
+        assert!(text.contains(&warning), "{text}");
+    }
     assert!(text.contains("Current project file:"), "{text}");
     assert!(!text.contains("File saved"), "{text}");
 }
