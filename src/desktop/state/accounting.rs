@@ -59,6 +59,17 @@ impl DesktopState {
     pub(super) fn retained_ui_bytes(&self) -> usize {
         let mut bytes = self.draft.heap_bytes().unwrap_or(usize::MAX);
         bytes = bytes.saturating_add(
+            self.report_selection
+                .capacity()
+                .saturating_mul(std::mem::size_of::<RunId>()),
+        );
+        for outcome in [&self.file_outcome, &self.recovery_outcome]
+            .into_iter()
+            .flatten()
+        {
+            bytes = bytes.saturating_add(super::file_feedback::receipt_bytes(outcome));
+        }
+        bytes = bytes.saturating_add(
             self.export_confirmation
                 .as_ref()
                 .map_or(0, |(path, _, _)| path.capacity()),

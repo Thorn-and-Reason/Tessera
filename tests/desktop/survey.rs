@@ -216,7 +216,11 @@ fn survey_entry_empty_and_both_modes() {
                     Vec2::new(640., 440.),
                     vec![],
                 );
-                assert!(state.control_rect("Instant survey report").is_some());
+                assert_eq!(
+                    state.control_rect("Instant survey report").is_some(),
+                    full || workspace == Workspace::Analyses,
+                    "empty Data keeps its first-use actions focused on import or manual entry"
+                );
             }
         }
     }
@@ -438,6 +442,37 @@ fn survey_text_role_menu_has_categories_but_no_numeric_measure() {
     frame(&ctx, &mut state, &mut jobs, size, vec![]);
     // Page the sparse review rather than rendering every variable at once.
     if state.control_rect("Survey role 2").is_none() {
+        let pager = "Next survey variables page";
+        let mut pager_visible = false;
+        for _ in 0..60 {
+            let output =
+                super::survey_improvements::review_frame(&ctx, &mut state, &mut jobs, size, vec![]);
+            pager_visible = state.control_rect(pager).is_some_and(|rect| {
+                output.shapes.iter().any(|shape| {
+                    matches!(&shape.shape, egui::Shape::Text(text) if text.galley.text() == "Next page")
+                        && shape.clip_rect.contains_rect(rect)
+                })
+            });
+            if pager_visible {
+                break;
+            }
+            frame(
+                &ctx,
+                &mut state,
+                &mut jobs,
+                size,
+                vec![
+                    Event::PointerMoved(Pos2::new(300., 250.)),
+                    Event::MouseWheel {
+                        unit: egui::MouseWheelUnit::Point,
+                        phase: egui::TouchPhase::Move,
+                        delta: Vec2::new(0., -40.),
+                        modifiers: Modifiers::NONE,
+                    },
+                ],
+            );
+        }
+        assert!(pager_visible, "survey paging is reachable after scrolling");
         click(
             &ctx,
             &mut state,

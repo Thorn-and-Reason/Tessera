@@ -28,6 +28,49 @@ fn project(title: &str) -> Project {
     Project::new(title, Dataset::new(vec![]).unwrap()).unwrap()
 }
 #[test]
+fn successful_checkpoint_replacement_and_retirement_leave_no_snapshot_backups() {
+    let temp = Temp::new();
+    let store = RecoveryStore::open_at(&temp.0).unwrap();
+    for sequence in 1..=3 {
+        let outcome = store
+            .checkpoint(
+                &project(&format!("Private version {sequence}")),
+                sequence,
+                &JobControl::default(),
+            )
+            .unwrap();
+        assert!(outcome.recovery.is_none());
+        assert!(fs::read_dir(store.path().parent().unwrap())
+            .unwrap()
+            .all(|entry| !entry.unwrap().path().is_dir()));
+    }
+    store.discard_owned(&JobControl::default()).unwrap();
+    assert!(fs::read_dir(store.path().parent().unwrap())
+        .unwrap()
+        .all(|entry| !entry.unwrap().path().is_dir()));
+    drop(store);
+    let next = RecoveryStore::open_at(&temp.0).unwrap();
+    assert!(next.list().unwrap().is_empty());
+}
+#[test]
+fn explicit_discard_of_recovered_entry_leaves_no_snapshot_backups() {
+    let temp = Temp::new();
+    let first = RecoveryStore::open_at(&temp.0).unwrap();
+    first
+        .checkpoint(&project("Private snapshot"), 1, &JobControl::default())
+        .unwrap();
+    let session = first.path().parent().unwrap().to_owned();
+    drop(first);
+    let second = RecoveryStore::open_at(&temp.0).unwrap();
+    let entries = second.list().unwrap();
+    second
+        .discard_entry(&entries[0], &JobControl::default(), &[], 0)
+        .unwrap();
+    assert!(fs::read_dir(session)
+        .unwrap()
+        .all(|entry| !entry.unwrap().path().is_dir()));
+}
+#[test]
 fn live_sessions_are_hidden_and_crashed_sessions_recover() {
     let temp = Temp::new();
     let store = RecoveryStore::open_at(&temp.0).unwrap();

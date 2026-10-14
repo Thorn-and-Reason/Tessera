@@ -122,7 +122,7 @@ pub(super) fn export_batch(
                 return Err(AppError::invalid(
                     "figure export",
                     format!(
-                        "Export stopped after {} figures. Completed files remain in {}. {error}",
+                        "{error}. Export stopped after {} figures. Completed files remain in {}.",
                         outcomes
                             .iter()
                             .filter(|o| o.committed_stamp.is_some())
@@ -138,6 +138,78 @@ pub(super) fn export_batch(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    #[cfg(unix)]
+    fn partial_export_reports_the_cause_before_a_long_directory() {
+        let base = std::env::temp_dir().canonicalize().unwrap().join(format!(
+            "tessera-batch-cause-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let directory = base.join("long-folder/".repeat(50));
+        std::fs::create_dir_all(&directory).unwrap();
+        let data = Dataset::new(vec![crate::data::Column::numeric(
+            crate::data::ColumnId(1),
+            "Score",
+            vec![Some(1.), Some(2.), Some(3.)],
+        )
+        .unwrap()])
+        .unwrap();
+        let request =
+            crate::analysis::AnalysisRequest::Histogram(crate::analysis::HistogramRequest {
+                variable: crate::data::ColumnId(1),
+                bins: crate::analysis::HistogramBins::Count(2),
+                filter: Default::default(),
+                frequency_weight: None,
+            });
+        let analysis = crate::analysis::analyze_with_budget(
+            &data,
+            &request,
+            &JobControl::default(),
+            &[],
+            4096,
+        )
+        .unwrap();
+        let project = Project::new("Figures", data)
+            .unwrap()
+            .with_run(analysis.clone())
+            .unwrap()
+            .with_run(analysis)
+            .unwrap();
+        let keys = [
+            FigureKey {
+                run: 1,
+                kind: FigureKind::Histogram,
+                variant: 0,
+            },
+            FigureKey {
+                run: 2,
+                kind: FigureKind::Histogram,
+                variant: 0,
+            },
+        ];
+        std::fs::create_dir(directory.join("run-2-histogram-0.svg")).unwrap();
+        let error = export_batch(
+            &project,
+            &directory,
+            &keys,
+            FigureFormat::Svg,
+            &JobControl::default(),
+            &[],
+            0,
+        )
+        .unwrap_err()
+        .to_string();
+        let summary = error.chars().take(256).collect::<String>();
+        assert!(summary.contains("Choose a regular file"), "{summary}");
+        assert!(error.contains("after 1 figures"));
+        assert!(error.contains(&directory.display().to_string()));
+        assert!(directory.join("run-1-histogram-0.svg").is_file());
+        std::fs::remove_dir_all(base).unwrap();
+    }
     #[test]
     fn stable_names_include_column_and_variant() {
         assert_eq!(

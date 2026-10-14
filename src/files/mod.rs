@@ -313,7 +313,7 @@ fn precheck(
 ) -> AppResult<()> {
     let actual = optional_stamp(parent, leaf, control)?;
     if actual.as_ref() != expected {
-        return Err(AppError::Conflict("The destination changed or already exists. Review it, then choose Save as or confirm its current version.".into()));
+        return Err(AppError::Conflict("The destination changed or already exists. Existing files are preserved. Review the destination, then choose a new filename. To continue working on an externally changed project, open that file and review it before saving.".into()));
     }
     Ok(())
 }
@@ -567,20 +567,42 @@ fn publish_validated(
         }
         if sync.is_err() {
             outcome.warning=warning("Publication completed. Directory persistence could not be verified; power-loss durability is not guaranteed.");
+            return Ok(outcome);
         }
         let cleanup = hook(Stage::Cleanup, &destination, &tx.path);
         // Keep the independent revision until every preceding operation has left verified paths.
         if !reconcile_paths(&parent, &tx, &leaf, &mut outcome) {
             return Ok(outcome);
         }
-        if cleanup
-            .and_then(|_| tx.remove(OsStr::new("frozen"), false))
-            .is_err()
-        {
+        if cleanup.is_err() {
             outcome.warning=warning("Publication completed, but recovery cleanup failed. Keep the recovery folder until the saved file is checked.");
             return Ok(outcome);
         }
-        outcome.recovery = expected.map(|_| recovery(&tx, true, &staged));
+        let current = stamp_at(&parent, &leaf, &JobControl::default());
+        let recovery_copy = stamp_at(&tx, OsStr::new("frozen"), &JobControl::default());
+        if !current.is_ok_and(|actual| actual == staged)
+            || !displaced_matches(&tx, expected)
+            || !recovery_copy.is_ok_and(|actual| actual == frozen)
+        {
+            outcome.publication = Publication::Conflict;
+            outcome.warning = warning("The destination or recovery files changed during cleanup. All surviving recovery files were retained.");
+            outcome.recovery = Some(recovery(&tx, expected.is_some(), &staged));
+            return Ok(outcome);
+        }
+        // Only a verified durable commit releases the exact owned previous version and recovery copy.
+        let cleanup = (|| {
+            if expected.is_some() {
+                tx.remove(OsStr::new(native::DISPLACED), false)?;
+            }
+            tx.remove(OsStr::new("frozen"), false)?;
+            tx.sync()
+        })();
+        if cleanup.is_err() {
+            outcome.recovery = Some(recovery(&tx, expected.is_some(), &staged));
+            outcome.warning = warning("Publication completed, but recovery cleanup could not be confirmed. Check the surviving recovery files before removing their folder.");
+            return Ok(outcome);
+        }
+        outcome.recovery = None;
         reconcile_paths(&parent, &tx, &leaf, &mut outcome);
         Ok(outcome)
     })();
@@ -600,7 +622,9 @@ fn publish_validated(
         .and_then(|path| tx.verify_path(&path.join(&tx_leaf)));
     drop(tx);
     let cleanup = if remove_dir {
-        removable.and_then(|_| parent.remove(&tx_leaf, true))
+        removable
+            .and_then(|_| parent.remove(&tx_leaf, true))
+            .and_then(|_| parent.sync())
     } else {
         Ok(())
     };
@@ -613,7 +637,7 @@ fn publish_validated(
                 prepared: None,
             });
             outcome.warning = warning(
-                "Publication completed, but the empty transaction folder could not be removed.",
+                "Publication completed, but transaction folder cleanup could not be confirmed. Any unrelated files were left in place.",
             );
             Ok(outcome)
         }

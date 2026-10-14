@@ -275,9 +275,10 @@ class PackageTests(unittest.TestCase):
                     if args[0] == "cargo":
                         self.assertEqual(kwargs["env"]["CARGO_TARGET_DIR"], str(module.ROOT / "target"))
                     return subprocess.CompletedProcess(args, 0)
-                with self.subTest(platform=platform), patch.object(module, "command", native_command), patch.object(module, "dependency_notices", return_value="notices"):
+                with self.subTest(platform=platform), patch.object(module, "command", native_command), patch.object(module, "dependency_notices", return_value="notices") as dependency_notices:
                     binary, worker, notices = module.build(platform)
                     self.assertEqual(notices, "notices")
+                    dependency_notices.assert_called_once_with(*targets)
                     builds = [args for args in calls if args[0] == "cargo"]
                     self.assertEqual(len(builds), 2 * len(targets))
                     for target in targets:
@@ -321,6 +322,42 @@ class PackageTests(unittest.TestCase):
             self.assertIn(str(root / "crates/tessera-workbook/Cargo.toml"), calls[1])
             self.assertTrue(all("--locked" in args and "--offline" in args for args in calls))
             for name in ("shared 1.0", "worker-only 2.0", "syn 2.0", "syn 3.0"):
+                self.assertEqual(notices.count("\n" + name + "\n"), 1)
+
+    def test_universal_mac_notices_include_intel_only_dependencies(self):
+        spec = importlib.util.spec_from_file_location("package", Path(__file__).with_name("package.py"))
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            folder = root / "dependency"
+            folder.mkdir()
+            (folder / "LICENSE").write_text("fixture license")
+            def dependency(name, version):
+                return {"id": name + version, "name": name, "version": version,
+                        "source": "registry+fixture", "license": "MIT", "authors": [],
+                        "manifest_path": str(folder / "Cargo.toml")}
+            shared = dependency("shared", "1.0")
+            intel_only = dependency("core_detect", "1.0.0")
+            worker_only = dependency("worker-only", "2.0")
+            old_syn = dependency("syn", "2.0")
+            new_syn = dependency("syn", "3.0")
+            calls = []
+            def metadata(args, **kwargs):
+                calls.append((args[3], args[-1]))
+                packages = [shared, worker_only, new_syn] if "tessera-workbook" in args[3] else [shared, old_syn]
+                if args[-1] == "x86_64-apple-darwin":
+                    packages = [*packages, intel_only]
+                content = {"packages": packages, "resolve": {"nodes": [{"id": package["id"]} for package in packages]}}
+                return subprocess.CompletedProcess(args, 0, stdout=json.dumps(content))
+            targets = ("aarch64-apple-darwin", "x86_64-apple-darwin")
+            with patch.object(module, "ROOT", root), patch.object(module, "command", metadata):
+                notices = module.dependency_notices(*targets)
+            self.assertEqual(set(calls), {(str(root / manifest), target)
+                                        for manifest in ("Cargo.toml", "crates/tessera-workbook/Cargo.toml")
+                                        for target in targets})
+            self.assertEqual(len(calls), 4)
+            for name in ("shared 1.0", "core_detect 1.0.0", "worker-only 2.0", "syn 2.0", "syn 3.0"):
                 self.assertEqual(notices.count("\n" + name + "\n"), 1)
 
     def test_missing_worker_fails_before_creation_and_preserves_existing_output(self):

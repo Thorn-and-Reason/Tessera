@@ -215,7 +215,7 @@ mod native {
                     ("Import Data…", Import, "i", false),
                     ("Save", Save, "s", false),
                     ("Save As…", SaveAs, "s", true),
-                    ("Export Report…", ExportReport, "e", true),
+                    ("Export All Results…", ExportReport, "e", true),
                 ],
             ),
             (

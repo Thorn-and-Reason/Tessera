@@ -48,17 +48,18 @@ def command(args, **kwargs):
     return subprocess.run(args, cwd=ROOT, check=True, **kwargs)
 
 
-def dependency_notices(target):
+def dependency_notices(*targets):
     packages = {}
-    for manifest in (ROOT / "Cargo.toml", ROOT / "crates/tessera-workbook/Cargo.toml"):
-        result = command(["cargo", "metadata", "--manifest-path", str(manifest),
-                          "--offline", "--locked", "--format-version", "1",
-                          "--filter-platform", target], capture_output=True, text=True)
-        metadata = json.loads(result.stdout)
-        active = {node["id"] for node in metadata["resolve"]["nodes"]}
-        for package in metadata["packages"]:
-            if package["id"] in active and package["source"] is not None:
-                packages[(package["name"], package["version"], package["source"])] = package
+    for target in targets:
+        for manifest in (ROOT / "Cargo.toml", ROOT / "crates/tessera-workbook/Cargo.toml"):
+            result = command(["cargo", "metadata", "--manifest-path", str(manifest),
+                              "--offline", "--locked", "--format-version", "1",
+                              "--filter-platform", target], capture_output=True, text=True)
+            metadata = json.loads(result.stdout)
+            active = {node["id"] for node in metadata["resolve"]["nodes"]}
+            for package in metadata["packages"]:
+                if package["id"] in active and package["source"] is not None:
+                    packages[(package["name"], package["version"], package["source"])] = package
     notices = ["Tessera — third-party dependency notices\n",
                "Font notices accompany this file in assets/fonts/.\n"]
     for package in sorted(packages.values(), key=lambda value: (value["name"], value["version"])):
@@ -249,7 +250,7 @@ def build(platform):
         command(["lipo", "-create", *(str(ROOT / "target" / target / "release" / name) for target in targets),
                  "-output", str(destination)])
         command(["codesign", "--force", "--sign", "-", str(destination)])
-    return universal, worker, dependency_notices(targets[0])
+    return universal, worker, dependency_notices(*targets)
 
 
 def main():

@@ -186,7 +186,7 @@ pub(super) fn settings(ui: &mut egui::Ui, state: &mut DesktopState, draft: &mut 
             data.columns().iter().filter(|c| {
                 c.kind() == ColumnKind::Number
                     && !draft.items.contains(&c.id())
-                    && query.matches(c.name())
+                    && super::analyses::variable_matches(c, &query)
             })
         };
         let count = candidates().count();
@@ -208,22 +208,24 @@ pub(super) fn settings(ui: &mut egui::Ui, state: &mut DesktopState, draft: &mut 
             ui,
             "reliability-picker",
             "available items",
-            28.,
+            40.,
             count,
             (168., 56.),
             |ui, range| {
                 for c in candidates().skip(range.start).take(range.len()) {
                     let label = format!("Add item: {}", c.id().0);
-                    if action(
-                        ui,
-                        state,
-                        &label,
-                        &theme::caption_limit(
-                            format_args!("Column {} · {}", c.id().0, c.name()),
-                            128,
-                        ),
-                        true,
-                    ) {
+                    let response = ui
+                        .push_id(c.id(), |ui| {
+                            theme::list_row(
+                                ui,
+                                false,
+                                &theme::caption_limit(c.name(), 128),
+                                Some(&super::analyses::variable_context(c)),
+                            )
+                        })
+                        .inner;
+                    record(state, &label, &response);
+                    if response.clicked() {
                         selected = Some(c.id());
                     }
                 }
@@ -242,7 +244,7 @@ pub(super) fn settings(ui: &mut egui::Ui, state: &mut DesktopState, draft: &mut 
                 draft.items.reserve_exact(count);
                 for c in data.columns() {
                     if c.kind() == ColumnKind::Number
-                        && query.matches(c.name())
+                        && super::analyses::variable_matches(c, &query)
                         && !draft.items.contains(&c.id())
                     {
                         draft.items.push(c.id());

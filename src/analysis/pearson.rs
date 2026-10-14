@@ -1,8 +1,9 @@
 //! Ordered, pair-specific Pearson estimates over a shared eligible-row cohort.
+mod inference;
 use super::{
-    inference::{student_t_two_sided_p, INFERENCE_WORK_BYTES},
+    inference::INFERENCE_WORK_BYTES,
     model::{checked_product, checked_sum},
-    moments::Moments,
+    moments::{BoundedSum, Moments},
     selection::{select_rows, Eligible},
     support, AnalysisRequestRef, ComputedPearson, CorrelationMissingPolicy, CorrelationRow,
     Estimate, PearsonRequest,
@@ -44,6 +45,8 @@ pub fn pearson_with_budget(
         checked_product(dataset.row_count(), size_of::<Eligible>())?,
         // Three raw/normalized/cross moment pairs coexist while computing a pair.
         checked_product(8, size_of::<Moments>())?,
+        size_of::<inference::Inference>(),
+        size_of::<BoundedSum>(),
     ])?;
     // Keep validator storage live while reserving snapshots, cloned request, results and selection.
     Budget::dataset_bytes_iter(datasets, checked_sum([base, result_bytes, work])?)?;
@@ -64,7 +67,7 @@ pub fn pearson_with_budget(
     let mut rows = Vec::with_capacity(pairs);
     for (i, first) in request.columns.iter().enumerate() {
         for second in &request.columns[i + 1..] {
-            let progress = dataset.row_count() * (1 + 3 * rows.len());
+            let progress = dataset.row_count() * (1 + 4 * rows.len());
             rows.push(pair(
                 dataset.column(*first)?,
                 dataset.column(*second)?,
@@ -88,7 +91,7 @@ pub fn pearson_with_budget(
 // Progress counts visits, not owned bytes. Every later offset is bounded by this total.
 fn progress_total(rows: usize, pairs: usize) -> AppResult<usize> {
     pairs
-        .checked_mul(3)
+        .checked_mul(4)
         .and_then(|passes| passes.checked_add(1))
         .and_then(|passes| rows.checked_mul(passes))
         .ok_or_else(|| AppError::invalid("Pearson", "Progress count exceeds its numeric range."))
@@ -111,6 +114,9 @@ fn pair(
     total: usize,
 ) -> AppResult<CorrelationRow> {
     let (mut x, mut y) = (Moments::default(), Moments::default());
+    let mut bounds = [[f64::INFINITY, f64::NEG_INFINITY]; 2];
+    let mut anchor = None;
+    let mut endpoint = None;
     let (mut missing_rows, mut complete_case_excluded_rows) = (0, 0);
     for (i, entry) in eligible.iter().enumerate() {
         if i.is_multiple_of(4096) {
@@ -126,7 +132,22 @@ fn pair(
         }
         x.add(a, entry.weight);
         y.add(b, entry.weight);
+        if a < bounds[0][0] {
+            anchor = Some([a, b]);
+        }
+        if a > bounds[0][1] {
+            endpoint = Some([a, b]);
+        }
+        for (range, value) in bounds.iter_mut().zip([a, b]) {
+            range[0] = range[0].min(value);
+            range[1] = range[1].max(value);
+        }
     }
+    let mut inference = inference::Inference::new(
+        if x.n == 0 { [[0.; 2]; 2] } else { bounds },
+        anchor.unwrap_or([0.; 2]),
+        endpoint.unwrap_or([0.; 2]),
+    );
     let (mut mx, mut my) = (Moments::default(), Moments::default());
     for (i, entry) in eligible.iter().enumerate() {
         if i.is_multiple_of(4096) {
@@ -138,8 +159,10 @@ fn pair(
         if let Some((a, b)) = values(first, second, entry.row)? {
             mx.add(x.normalized(a), entry.weight);
             my.add(y.normalized(b), entry.weight);
+            inference.add_means(a, b, entry.weight);
         }
     }
+    inference.center(x.n);
     let (cx, cy) = (mx.mean().unwrap_or(0.), my.mean().unwrap_or(0.));
     let (mut xx, mut yy, mut xy) = (Moments::default(), Moments::default(), Moments::default());
     for (i, entry) in eligible.iter().enumerate() {
@@ -155,9 +178,10 @@ fn pair(
             xx.add(dx * dx, entry.weight);
             yy.add(dy * dy, entry.weight);
             xy.add(dx * dy, entry.weight);
+            inference.add_cross(a, b, entry.weight);
         }
     }
-    let r = if x.n < 2 {
+    let mut r = if x.n < 2 {
         Estimate::unavailable("At least two observations are required.")
     } else if xx.mean() == Some(0.) || yy.mean() == Some(0.) {
         Estimate::unavailable("Both variables must vary.")
@@ -169,19 +193,29 @@ fn pair(
             xy.mean().unwrap() / (xx.mean().unwrap() * yy.mean().unwrap()).sqrt(),
         )?)
     };
-    let p = match r.value {
+    for (i, entry) in eligible.iter().enumerate() {
+        if i.is_multiple_of(4096) {
+            control.checkpoint(progress + 3 * first.len() + i, Some(total))?;
+        }
+        if entry.complete {
+            if let Some((a, b)) = values(first, second, entry.row)? {
+                inference.add_residual(a, b, entry.weight)?;
+            }
+        }
+    }
+    let mut p = match r.value {
         None => Estimate::unavailable("Correlation is unavailable."),
         Some(_) if x.n < 3 => {
             Estimate::unavailable("At least three observations are required for inference.")
         }
-        Some(value) if value.abs() == 1. => Estimate::available(0.),
-        Some(value) => {
-            let df = (x.n - 2) as f64;
-            let t = value.abs() * (df / ((1. - value.abs()) * (1. + value.abs()))).sqrt();
-            student_t_two_sided_p(t, df, control)?
-        }
+        Some(_) => inference.probability(x.n, control)?,
     };
-    control.checkpoint(progress + 3 * first.len(), Some(total))?;
+    if inference.is_perfect() && p.value == Some(0.) {
+        r = Estimate::available(r.value.unwrap().signum());
+    } else if p.value == Some(0.) {
+        p = Estimate::unavailable(inference::UNRESOLVED);
+    }
+    control.checkpoint(progress + 4 * first.len(), Some(total))?;
     Ok(CorrelationRow {
         first: first.id(),
         second: second.id(),
@@ -209,11 +243,11 @@ mod tests {
     use super::*;
     #[test]
     fn progress_count_checks_usize_overflow_without_a_byte_limit() {
-        assert_eq!(progress_total(15_625, 8128).unwrap(), 381_015_625);
+        assert_eq!(progress_total(15_625, 8128).unwrap(), 508_015_625);
         assert_eq!(progress_total(0, 8128).unwrap(), 0);
         assert_eq!(progress_total(7, 0).unwrap(), 7);
         assert!(progress_total(1, usize::MAX).is_err());
-        assert!(progress_total(1, usize::MAX / 3).is_err());
+        assert!(progress_total(1, usize::MAX / 4 + 1).is_err());
         assert!(progress_total(usize::MAX, 1).is_err());
     }
     #[test]
@@ -255,6 +289,44 @@ mod tests {
         assert!(matches!(result, Err(AppError::Cancelled)));
     }
     #[test]
+    fn cancellation_during_direct_residual_visits() {
+        let d = Dataset::new(vec![
+            Column::numeric(
+                crate::data::ColumnId(1),
+                "X",
+                (0..4097).map(|i| Some((i % 3) as f64)).collect(),
+            )
+            .unwrap(),
+            Column::numeric(
+                crate::data::ColumnId(2),
+                "Y",
+                (0..4097)
+                    .map(|i| Some((i % 3) as f64 + (i % 2) as f64 * 1e-7))
+                    .collect(),
+            )
+            .unwrap(),
+        ])
+        .unwrap();
+        let r = PearsonRequest {
+            columns: vec![crate::data::ColumnId(1), crate::data::ColumnId(2)],
+            missing_policy: CorrelationMissingPolicy::PairwiseComplete,
+            filter: super::super::RowFilter::default(),
+            frequency_weight: None,
+        };
+        let c = JobControl::default();
+        let hook_control = c.clone();
+        crate::operation::CHECKPOINT_HOOK.with(|h| {
+            *h.borrow_mut() = Some(Box::new(move |p| {
+                if p.done >= 4 * 4097 {
+                    hook_control.cancel();
+                }
+            }))
+        });
+        let result = pearson_with_budget(&d, &r, &c, &[], 0);
+        crate::operation::CHECKPOINT_HOOK.with(|h| *h.borrow_mut() = None);
+        assert!(matches!(result, Err(AppError::Cancelled)));
+    }
+    #[test]
     fn wide_progress_reaches_selection_within_allocation_budget() {
         let d = Dataset::new(
             (1..=128)
@@ -275,7 +347,7 @@ mod tests {
             filter: super::super::RowFilter::default(),
             frequency_weight: None,
         };
-        let total = 381_015_625;
+        let total = 508_015_625;
         assert!(total > crate::data::MAX_OWNED_BYTES);
         let c = JobControl::default();
         let hook_control = c.clone();

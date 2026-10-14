@@ -133,14 +133,7 @@ impl Step {
         Ok(n.bytes)
     }
     pub(crate) fn validate_shape(&self) -> AppResult<()> {
-        let name = match self {
-            Self::Compute { name, .. }
-            | Self::Mean { name, .. }
-            | Self::Recode { name, .. }
-            | Self::CleanText { name, .. } => Some(name),
-            _ => None,
-        };
-        if let Some(n) = name {
+        if let Some(n) = self.output_name() {
             ColumnMetadata::validate_name(n)?;
             if n.len() > 1024 {
                 return Err(invalid("Variable names are limited to 1024 bytes."));
@@ -193,6 +186,15 @@ impl Step {
         }
         Ok(())
     }
+    pub(crate) fn output_name(&self) -> Option<&str> {
+        match self {
+            Self::Compute { name, .. }
+            | Self::Mean { name, .. }
+            | Self::Recode { name, .. }
+            | Self::CleanText { name, .. } => Some(name),
+            _ => None,
+        }
+    }
     pub(crate) fn source_ids(&self) -> impl Iterator<Item = ColumnId> + '_ {
         let (a, b) = match self {
             Self::Compute { left, right, .. } => (
@@ -217,8 +219,15 @@ impl Step {
         };
         a.into_iter().chain(b).chain(columns.iter().copied())
     }
-    fn validate_current(&self, d: &Dataset) -> AppResult<()> {
+    pub(crate) fn validate_current(&self, d: &Dataset) -> AppResult<()> {
         self.validate_shape()?;
+        if let Some(name) = self.output_name() {
+            if d.columns().iter().any(|column| column.name() == name) {
+                return Err(invalid(&format!(
+                    "This variable name already exists. Enter a different name: “{name}”."
+                )));
+            }
+        }
         for id in self.source_ids() {
             d.column(id)?;
         }

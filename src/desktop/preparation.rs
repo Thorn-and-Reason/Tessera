@@ -137,6 +137,34 @@ fn comparisons() -> [(NumericComparison, &'static str); 6] {
         (NumericComparison::GreaterOrEqual, "At least"),
     ]
 }
+pub(crate) fn outcome(project: &crate::project::Project, previous_rows: usize) -> String {
+    let dataset = project.dataset();
+    let step = project.steps().last().map(|record| &record.step);
+    let change = if let Some(name) = step.and_then(Step::output_name) {
+        let name = theme::caption_limit(name, 80);
+        format!(
+            "Created variable “{name}” for {} rows.",
+            dataset.row_count()
+        )
+    } else {
+        match step {
+            Some(Step::Filter { .. }) => {
+                format!("Kept {} of {previous_rows} rows.", dataset.row_count())
+            }
+            Some(Step::Sort { .. }) => format!("Sorted {} rows.", dataset.row_count()),
+            _ => format!(
+                "Prepared {} rows and {} variables.",
+                dataset.row_count(),
+                dataset.column_count()
+            ),
+        }
+    };
+    if matches!(step, Some(Step::Filter { .. })) {
+        format!("{change} Inspect the rows in Data; use Undo to restore removed rows.")
+    } else {
+        format!("{change} Inspect the result in Data; use Undo if needed.")
+    }
+}
 fn text(ui: &mut egui::Ui, label: &str, value: &mut String) {
     let labelled = ui.label(label);
     ui.add(
@@ -313,7 +341,7 @@ pub(crate) fn show(ui: &mut egui::Ui, state: &mut DesktopState, jobs: &mut JobRu
     });
     ui.separator();
     let current_request = form.step(state).and_then(|step| {
-        step.validate_shape()?;
+        step.validate_current(state.project().dataset())?;
         Ok(step)
     });
     if state.active {
@@ -351,6 +379,11 @@ pub(crate) fn show(ui: &mut egui::Ui, state: &mut DesktopState, jobs: &mut JobRu
     let response = ui
         .horizontal_wrapped(|ui| {
             let response = ui.add_enabled(ready, theme::primary(ui, "Apply preparation"));
+            if !state.project().steps().is_empty()
+                && super::button(ui, state, "Inspect prepared data").clicked()
+            {
+                state.act(super::UiAction::Navigate(super::Workspace::Data));
+            }
             if ui
                 .add_enabled(
                     !state.active
@@ -439,6 +472,82 @@ mod tests {
     }
 
     #[test]
+    fn created_compute_name_stays_visible_but_cannot_be_applied_again() {
+        use crate::data::{Column, Dataset};
+        let project = crate::project::Project::new(
+            "Draft",
+            Dataset::new(vec![
+                Column::numeric(ColumnId(1), "Age", vec![Some(25.0)]).unwrap()
+            ])
+            .unwrap(),
+        )
+        .unwrap();
+        let mut state = DesktopState::from_project(project).unwrap();
+        state.preparation.source = Some(ColumnId(1));
+        state.preparation.name = "Age_plus_one".into();
+        let mut jobs = JobRunner::default();
+        let operation = JobOperation::Prepare {
+            project: Arc::clone(state.project()),
+            step: state.preparation.step(&state).unwrap(),
+        };
+        state.start_operation(&mut jobs, operation).unwrap();
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+        while jobs.is_running() {
+            state.poll(&mut jobs);
+            assert!(std::time::Instant::now() < deadline);
+            std::thread::yield_now();
+        }
+        assert!(state.error().is_none(), "{:?}", state.error());
+        let ctx = egui::Context::default();
+        ctx.enable_accesskit();
+        let mut output = ctx.run_ui(Default::default(), |ui| show(ui, &mut state, &mut jobs));
+        output.textures_delta.clear();
+        let update = output.platform_output.accesskit_update.unwrap();
+        let apply = update
+            .nodes
+            .iter()
+            .find(|(_, node)| node.label() == Some("Apply preparation"))
+            .unwrap();
+        assert!(
+            apply.1.is_disabled(),
+            "an existing output name must not look ready"
+        );
+        assert!(
+            update
+                .nodes
+                .iter()
+                .any(
+                    |(_, node)| node.label().or(node.value()).is_some_and(|text| text
+                        .contains("Age_plus_one")
+                        && text.contains("already exists"))
+                ),
+            "visible preparation feedback: {:?}",
+            update
+                .nodes
+                .iter()
+                .filter_map(|(_, node)| node.label().or(node.value()))
+                .collect::<Vec<_>>()
+        );
+        assert_eq!(state.preparation.name, "Age_plus_one");
+        assert_eq!(state.project().dataset().column_count(), 2);
+        assert!(!jobs.is_running());
+
+        state.preparation.name = "Age_plus_two".into();
+        let mut output = ctx.run_ui(Default::default(), |ui| show(ui, &mut state, &mut jobs));
+        output.textures_delta.clear();
+        let update = output.platform_output.accesskit_update.unwrap();
+        let apply = update
+            .nodes
+            .iter()
+            .find(|(_, node)| node.label() == Some("Apply preparation"))
+            .unwrap();
+        assert!(
+            !apply.1.is_disabled(),
+            "a different output name can be applied"
+        );
+    }
+
+    #[test]
     fn domain_form_uses_all_items_without_a_single_source() {
         let state = DesktopState::new().unwrap();
         let form = PreparationForm {
@@ -461,6 +570,58 @@ mod tests {
             ..form
         };
         assert!(empty.step(&state).unwrap().validate_shape().is_err());
+    }
+
+    #[test]
+    fn preparation_outcome_names_the_output_and_reports_filter_row_counts() {
+        use crate::data::{Column, Dataset};
+        let project = crate::project::Project::new(
+            "Prepare",
+            Dataset::new(vec![Column::numeric(
+                ColumnId(1),
+                "Age",
+                vec![Some(20.0), Some(30.0)],
+            )
+            .unwrap()])
+            .unwrap(),
+        )
+        .unwrap();
+        let prepared = crate::preparation::prepare_with_budget(
+            &project,
+            &Step::Compute {
+                name: "Age_plus_one".into(),
+                left: Operand::Column(ColumnId(1)),
+                operator: Arithmetic::Add,
+                right: Operand::Constant(1.0),
+            },
+            &crate::operation::JobControl::default(),
+            &[],
+            0,
+        )
+        .unwrap();
+        let message = outcome(&prepared, 2);
+        assert!(message.contains("Created variable “Age_plus_one”"));
+        assert!(message.contains("2 rows"));
+        assert!(
+            message.contains("Inspect") && message.contains("Data") && message.contains("Undo")
+        );
+        let filtered = crate::preparation::prepare_with_budget(
+            &project,
+            &Step::Filter {
+                source: ColumnId(1),
+                predicate: FilterPredicate::Compare {
+                    comparison: NumericComparison::Greater,
+                    value: Cell::Number(25.0),
+                },
+            },
+            &crate::operation::JobControl::default(),
+            &[],
+            0,
+        )
+        .unwrap();
+        let message = outcome(&filtered, 2);
+        assert!(message.contains("Kept 1 of 2 rows"));
+        assert!(message.contains("Undo") && message.contains("restore"));
     }
 
     #[test]

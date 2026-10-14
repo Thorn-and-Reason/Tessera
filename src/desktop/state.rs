@@ -1,9 +1,11 @@
 use super::draft::AnalysisDraft;
 mod accounting;
+mod analysis_ux;
 mod chart_roles;
 #[path = "excel.rs"]
 pub(crate) mod excel;
 mod figure_edit;
+mod file_feedback;
 mod frequency_search;
 mod group_lookup;
 mod operations;
@@ -54,6 +56,8 @@ impl Workspace {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Dialog {
     About,
+    UserGuide,
+    ErrorDetails,
     Prepare,
     Properties,
     Settings,
@@ -158,6 +162,7 @@ pub struct DesktopState {
     analysis_mode: super::AnalysisMode,
     pub(crate) selected_column: Option<ColumnId>,
     selected_run: Option<RunId>,
+    pub(crate) report_selection: Vec<RunId>,
     pub(crate) draft: AnalysisDraft,
     pub(crate) active_regression_reference: Option<ColumnId>,
     pub(crate) lookup: LookupState,
@@ -195,6 +200,7 @@ pub struct DesktopState {
     pub(crate) operation_name: &'static str,
     pub(crate) progress: Option<Progress>,
     pub(crate) cancelled: bool,
+    abandoned_import: Option<JobToken>,
     pub(crate) modal_file_dialog: bool,
     pub(crate) shutdown: bool,
     error: Option<String>,
@@ -206,6 +212,9 @@ pub struct DesktopState {
     pub(crate) import_delimiter: Delimiter,
     preview_delimiter: Delimiter,
     pub(crate) file_outcome: Option<SaveOutcome>,
+    pub(crate) recovery_outcome: Option<SaveOutcome>,
+    file_outcome_kind: file_feedback::FileOutcomeKind,
+    show_recovery_outcome: bool,
     pub(crate) export_confirmation: Option<(PathBuf, Delimiter, JobToken)>,
     pub(crate) controls: BTreeMap<String, Rect>,
     pub(crate) control_ids: BTreeMap<String, Id>,
@@ -238,6 +247,7 @@ impl DesktopState {
             analysis_mode: super::AnalysisMode::Guided,
             selected_column,
             selected_run: None,
+            report_selection: Vec::new(),
             active_regression_reference: None,
             draft: AnalysisDraft::Describe(DescribeRequest {
                 columns: vec![],
@@ -286,6 +296,7 @@ impl DesktopState {
             operation_name: "",
             progress: None,
             cancelled: false,
+            abandoned_import: None,
             modal_file_dialog: false,
             shutdown: false,
             error: None,
@@ -297,6 +308,9 @@ impl DesktopState {
             import_delimiter: Delimiter::Comma,
             preview_delimiter: Delimiter::Comma,
             file_outcome: None,
+            recovery_outcome: None,
+            file_outcome_kind: file_feedback::FileOutcomeKind::Project,
+            show_recovery_outcome: false,
             export_confirmation: None,
             controls: BTreeMap::new(),
             control_ids: BTreeMap::new(),
@@ -660,7 +674,11 @@ impl DesktopState {
         }
     }
     pub(crate) fn fail(&mut self, error: AppError) {
-        self.error = Some(super::theme::caption(error));
+        if matches!(error, AppError::Cancelled) {
+            self.status = "Operation cancelled.".into();
+            return;
+        }
+        self.error = Some(file_feedback::bounded_error(error));
     }
     fn replace_new(&mut self) -> AppResult<()> {
         self.ensure_frequency_invalidation()?;
@@ -669,11 +687,15 @@ impl DesktopState {
             .checked_add(1)
             .ok_or(AppError::IdentityExhausted)?;
         let outcome = self.file_outcome.take();
+        let recovery_outcome = self.recovery_outcome.take();
+        let outcome_kind = self.file_outcome_kind;
         let mut state = Self::new()?;
         state.document = document;
         state.analysis_mode = self.analysis_mode;
         state.inherit_frequency_generation(self.frequency_query_generation())?;
         state.file_outcome = outcome;
+        state.recovery_outcome = recovery_outcome;
+        state.file_outcome_kind = outcome_kind;
         *self = state;
         Ok(())
     }
@@ -700,6 +722,7 @@ impl DesktopState {
         self.saved = self.stamp.as_ref().map(|_| self.identity());
         self.selected_column = self.project.dataset().columns().first().map(|c| c.id());
         self.selected_run = self.project.runs().last().map(|r| r.id);
+        self.report_selection.clear();
         self.figure_editor = None;
         self.figure_work_bytes = 0;
         self.selected_figure = None;

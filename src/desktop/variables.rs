@@ -13,17 +13,25 @@ use std::sync::Arc;
 pub fn show(ui: &mut egui::Ui, state: &mut DesktopState, jobs: &mut JobRunner) {
     ui.horizontal_wrapped(|ui| {
         ui.heading("Variables");
-        if ui
-            .add_enabled(!state.active, egui::Button::new("Add variable"))
-            .clicked()
-        {
+        let add_variable = ui.add_enabled(
+            !state.active,
+            egui::Button::new("Add variable").wrap_mode(egui::TextWrapMode::Extend),
+        );
+        super::procedure_forms::record(state, "Add variable", &add_variable);
+        if add_variable.clicked() {
+            state.return_focus = Some(add_variable.id);
             state.dialog = Some(Dialog::AddVariable);
         }
         ui.add_enabled_ui(
             !state.active && state.project().dataset().column_count() > 0,
             |ui| {
-                if super::command(ui, state, "Analyse data").clicked() {
+                let analyse = super::command(ui, state, "Analyse data");
+                if analyse.clicked() {
+                    state.return_focus = Some(analyse.id);
                     state.act(UiAction::Navigate(Workspace::Analyses));
+                    if state.dialog != Some(Dialog::PropertyChanges) {
+                        state.return_focus = None;
+                    }
                 }
             },
         );
@@ -52,10 +60,14 @@ pub fn show(ui: &mut egui::Ui, state: &mut DesktopState, jobs: &mut JobRunner) {
         ui.heading("Define your variables");
         ui.label("Import Excel (.xlsx), CSV or TSV data, or add a variable to start your dataset.");
         ui.horizontal(|ui| {
-            if button(ui, state, "Import data…").clicked() {
+            let import = button(ui, state, "Import data…");
+            if import.clicked() {
+                state.return_focus = Some(import.id);
                 super::dialogs::import(state);
             }
-            if button(ui, state, "Create first variable").clicked() {
+            let create = button(ui, state, "Create first variable");
+            if create.clicked() {
+                state.return_focus = Some(create.id);
                 state.dialog = Some(Dialog::AddVariable);
             }
         });
@@ -114,7 +126,11 @@ pub fn show(ui: &mut egui::Ui, state: &mut DesktopState, jobs: &mut JobRunner) {
                 &response,
             );
             if response.clicked() {
+                state.return_focus = Some(response.id);
                 state.act(UiAction::SelectColumn(column.id()));
+                if state.dialog != Some(Dialog::PropertyChanges) {
+                    state.return_focus = None;
+                }
             }
         }
     });

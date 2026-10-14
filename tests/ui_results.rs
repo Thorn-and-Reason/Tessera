@@ -221,7 +221,7 @@ fn choosing_a_saved_result_closes_history_popup() {
     let nodes = output.platform_output.accesskit_update.unwrap().nodes;
     assert!(nodes
         .iter()
-        .any(|(_, n)| n.label() == Some("Search saved results")));
+        .any(|(_, n)| n.label() == Some("Search analysis history")));
     let bounds = nodes
         .iter()
         .find(|(_, n)| {
@@ -249,7 +249,7 @@ fn choosing_a_saved_result_closes_history_popup() {
             .unwrap()
             .nodes
             .iter()
-            .any(|(_, n)| n.label() == Some("Search saved results")),
+            .any(|(_, n)| n.label() == Some("Search analysis history")),
         "choosing a run dismisses the popup"
     );
 }
@@ -301,11 +301,11 @@ fn results_have_visible_history_and_clear_analysis_actions() {
     ctx.enable_accesskit();
     let mut jobs = JobRunner::default();
     let output = result_frame(&ctx, &mut state, &mut jobs, vec![]);
-    assert!(state.control_rect("Search saved results").is_some());
+    assert!(state.control_rect("Search analysis history").is_some());
     assert!(state.control_rect("New analysis").is_some());
     assert!(state.control_rect("Edit selected analysis").is_some());
     assert!(output.shapes.iter().any(|shape| matches!(&shape.shape,
-        egui::Shape::Text(text) if text.galley.text().contains("Saved results"))));
+        egui::Shape::Text(text) if text.galley.text().contains("Analysis history"))));
     let nodes = &output
         .platform_output
         .accesskit_update
@@ -315,12 +315,21 @@ fn results_have_visible_history_and_clear_analysis_actions() {
     let saved_rows = nodes
         .iter()
         .filter(|(_, node)| {
-            node.label()
-                .or_else(|| node.value())
-                .is_some_and(|label| label.contains(" · Run ") && label.ends_with("Current data"))
+            node.role() == egui::accesskit::Role::Button
+                && node.label().or_else(|| node.value()).is_some_and(|label| {
+                    label.contains(" · Run ") && label.ends_with("Current data")
+                })
         })
         .collect::<Vec<_>>();
-    assert_eq!(saved_rows.len(), state.project().runs().len());
+    assert_eq!(
+        saved_rows.len(),
+        state.project().runs().len(),
+        "{:?}",
+        saved_rows
+            .iter()
+            .map(|(_, node)| (node.role(), node.label(), node.value()))
+            .collect::<Vec<_>>()
+    );
     assert!(
         saved_rows
             .iter()

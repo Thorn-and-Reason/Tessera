@@ -117,6 +117,17 @@ fn required(role: Option<ColumnId>) -> AppResult<ColumnId> {
     role.ok_or_else(|| AppError::invalid("roles", "Select every required variable."))
 }
 impl AnalysisDraft {
+    /// Build the usual procedure defaults without carrying roles or sample settings.
+    pub fn fresh(procedure: Procedure) -> Self {
+        Self::Describe(DescribeRequest {
+            columns: vec![],
+            statistics: vec![],
+            missing_policy: MissingPolicy::PerVariable,
+            filter: RowFilter::default(),
+            frequency_weight: None,
+        })
+        .for_procedure(procedure)
+    }
     pub fn procedure(&self) -> Procedure {
         match self {
             Self::Anova(_) => Procedure::Anova,

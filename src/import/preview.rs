@@ -1,8 +1,8 @@
 use super::{
     check_bytes, grow,
     records::{Field, Scanner},
-    Delimiter, ImportColumnChoice, ImportColumnPreview, ImportPreview, ImportWarning,
-    MAX_INPUT_BYTES,
+    Delimiter, ImportColumnChoice, ImportColumnPreview, ImportColumnReview,
+    ImportConversionExample, ImportConversionNote, ImportPreview, ImportWarning, MAX_INPUT_BYTES,
 };
 use crate::{
     data::{parse_number, Budget, ColumnKind, Dataset, MissingRules, MAX_CELLS},
@@ -14,6 +14,8 @@ use std::{collections::HashSet, mem::size_of, sync::Arc};
 const SAMPLE_ROWS: usize = 20;
 const SAMPLE_BYTES: usize = 64 * 1024;
 const SAMPLE_CHARS: usize = 120;
+// Three complete examples, their stored values and bounded formatting.
+pub(crate) const REVIEW_WORK_BYTES: usize = 8 * 1024;
 
 impl ImportPreview {
     pub fn columns(&self) -> &[ImportColumnPreview] {
@@ -64,6 +66,168 @@ impl ImportPreview {
             })
             .collect())
     }
+    /// Bounded source-to-stored examples for the currently selected import decisions.
+    ///
+    /// Examples are drawn from the retained sample rows only, but each conversion uses the
+    /// same numeric parser and blank handling as `commit_preview`.
+    pub fn review_choices(
+        &self,
+        choices: &[ImportColumnChoice],
+    ) -> AppResult<Vec<ImportColumnReview>> {
+        if choices.len() != self.columns.len() {
+            return Err(AppError::invalid(
+                "import columns",
+                "Choose a type and unique name for every column.",
+            ));
+        }
+        let baseline = check_bytes(self.owned_bytes, super::choice_bytes(choices)?)?;
+        let mut work = choices
+            .len()
+            .checked_mul(size_of::<ImportColumnReview>() + REVIEW_WORK_BYTES)
+            .ok_or(AppError::SizeLimit {
+                limit: crate::data::MAX_OWNED_BYTES,
+            })?;
+        for choice in choices {
+            work = check_bytes(work, choice.name.len())?;
+        }
+        check_bytes(baseline, work)?;
+        let mut reviews = Vec::with_capacity(choices.len());
+        for (index, choice) in choices.iter().enumerate() {
+            reviews.push(self.review_choice(index, choice)?);
+        }
+        Ok(reviews)
+    }
+
+    /// Build the conversion review for a single rendered column. This avoids allocating
+    /// review copies for every column while the import dialog virtualizes the list.
+    pub fn review_choice(
+        &self,
+        index: usize,
+        choice: &ImportColumnChoice,
+    ) -> AppResult<ImportColumnReview> {
+        if index >= self.columns.len() {
+            return Err(AppError::invalid(
+                "import columns",
+                "Choose a type and unique name for every column.",
+            ));
+        }
+        super::validate_missing(&choice.missing_rules, choice.kind, "Conversion preview")?;
+        let baseline = check_bytes(
+            self.owned_bytes,
+            super::choice_bytes(std::slice::from_ref(choice))?,
+        )?;
+        check_bytes(check_bytes(baseline, choice.name.len())?, REVIEW_WORK_BYTES)?;
+        let mut notes = Vec::new();
+        if self.samples.len() < self.rows.min(SAMPLE_ROWS) {
+            push_note(&mut notes, ImportConversionNote::ShortenedOrOmittedSamples);
+        }
+        if choice.kind == ColumnKind::Number
+            && self.columns[index]
+                .warnings
+                .contains(&ImportWarning::PrecisionRisk)
+        {
+            push_note(&mut notes, ImportConversionNote::NumericPrecisionMayRound);
+        }
+        let mut examples = Vec::new();
+        for (row, complete) in self.samples.iter().zip(&self.sample_complete) {
+            let Some(source) = row.get(index) else {
+                push_note(&mut notes, ImportConversionNote::ShortenedOrOmittedSamples);
+                continue;
+            };
+            if !complete.get(index).copied().unwrap_or(false) {
+                push_note(&mut notes, ImportConversionNote::ShortenedOrOmittedSamples);
+                continue;
+            }
+            match review_example(source, choice, &mut notes) {
+                Ok(example) => examples.push(example),
+                Err(_)
+                    if choice.kind == ColumnKind::Number
+                        && !choice.acknowledge_precision_loss
+                        && super::import_number(source, true).is_ok() =>
+                {
+                    // Retain the warning without inventing a stored value or suppressing
+                    // unrelated valid examples. Commit still requires acknowledgement.
+                    push_note(&mut notes, ImportConversionNote::NumericPrecisionMayRound);
+                    continue;
+                }
+                Err(error) => return Err(error),
+            }
+            if examples.len() == 3 {
+                break;
+            }
+        }
+        Ok(ImportColumnReview {
+            name: choice.name.clone(),
+            kind: choice.kind,
+            examples,
+            notes,
+        })
+    }
+}
+
+fn review_example(
+    source: &str,
+    choice: &ImportColumnChoice,
+    notes: &mut Vec<ImportConversionNote>,
+) -> AppResult<ImportConversionExample> {
+    match choice.kind {
+        ColumnKind::Number => review_number_example(source, choice, notes),
+        ColumnKind::Text => Ok(review_text_example(source, choice, notes)),
+    }
+}
+
+fn review_number_example(
+    source: &str,
+    choice: &ImportColumnChoice,
+    notes: &mut Vec<ImportConversionNote>,
+) -> AppResult<ImportConversionExample> {
+    if source.trim().is_empty() {
+        push_note(notes, ImportConversionNote::BlankNumberImportsAsMissing);
+        return Ok(ImportConversionExample {
+            source: source.to_owned(),
+            stored: "Missing".into(),
+            marked_missing: true,
+        });
+    }
+    let number = super::import_number(source, choice.acknowledge_precision_loss)?;
+    let stored = number.to_string();
+    if source.trim() != stored {
+        push_note(
+            notes,
+            ImportConversionNote::KeepAsTextToPreserveExactCharacters,
+        );
+    }
+    Ok(ImportConversionExample {
+        source: source.to_owned(),
+        stored,
+        marked_missing: matches!(&choice.missing_rules, MissingRules::Number { values, ranges }
+            if values.contains(&number) || ranges.iter().any(|(lo, hi)| *lo <= number && number <= *hi)),
+    })
+}
+
+fn review_text_example(
+    source: &str,
+    choice: &ImportColumnChoice,
+    notes: &mut Vec<ImportConversionNote>,
+) -> ImportConversionExample {
+    let marked_missing = matches!(
+        &choice.missing_rules,
+        MissingRules::Text(tokens) if tokens.iter().any(|token| token == source)
+    );
+    if marked_missing && source.is_empty() {
+        push_note(notes, ImportConversionNote::EmptyTextMarkedMissing);
+    }
+    ImportConversionExample {
+        source: source.to_owned(),
+        stored: source.to_owned(),
+        marked_missing,
+    }
+}
+
+fn push_note(notes: &mut Vec<ImportConversionNote>, note: ImportConversionNote) {
+    if !notes.contains(&note) {
+        notes.push(note);
+    }
 }
 
 pub fn preview(
@@ -97,13 +261,14 @@ pub fn preview_with_budget(
     let mut scanner = Scanner::new(&bytes, delimiter, control, base)?;
     let (mut columns, live) = headers(&mut scanner, base)?;
     mark_headers(&mut columns, live)?;
-    let (samples, rows, truncated) = scan_data(&mut scanner, &mut columns, live)?;
+    let (samples, sample_complete, rows, truncated) = scan_data(&mut scanner, &mut columns, live)?;
     control.checkpoint(bytes.len(), Some(bytes.len()))?;
     let mut result = ImportPreview {
         bytes,
         delimiter,
         columns,
         samples,
+        sample_complete,
         rows,
         samples_truncated: truncated,
         owned_bytes: 0,
@@ -117,11 +282,13 @@ fn scan_data(
     scanner: &mut Scanner<'_>,
     columns: &mut [ImportColumnPreview],
     live: usize,
-) -> AppResult<(Vec<Vec<String>>, usize, bool)> {
+) -> AppResult<(Vec<Vec<String>>, Vec<Vec<bool>>, usize, bool)> {
     // Reserve the sample ceiling before decoding any data. Samples never hold complete large fields.
     scanner.budget_bytes = check_bytes(live, SAMPLE_BYTES)?;
     let mut samples = Vec::new();
+    let mut sample_complete_rows = Vec::new();
     let mut sample = Vec::new();
+    let mut sample_complete = Vec::new();
     let mut sample_bytes = 0;
     let mut sample_live = 0;
     let mut truncated = false;
@@ -132,6 +299,7 @@ fn scan_data(
             collect_sample(
                 &field,
                 &mut sample,
+                &mut sample_complete,
                 &mut sample_live,
                 sample_bytes,
                 &mut truncated,
@@ -141,10 +309,12 @@ fn scan_data(
         }
         if field.end_record {
             if sample.len() == columns.len() {
-                sample_bytes += sample_live + size_of::<Vec<String>>();
+                sample_bytes += sample_live + size_of::<Vec<String>>() + size_of::<Vec<bool>>();
                 samples.push(std::mem::take(&mut sample));
+                sample_complete_rows.push(std::mem::take(&mut sample_complete));
             } else {
                 sample = Vec::new();
+                sample_complete = Vec::new();
             }
             sample_live = 0;
         }
@@ -154,7 +324,7 @@ fn scan_data(
             column.inferred_kind = ColumnKind::Text;
         }
     }
-    Ok((samples, rows, truncated))
+    Ok((samples, sample_complete_rows, rows, truncated))
 }
 
 fn observe(field: &Field<'_>, columns: &mut [ImportColumnPreview]) -> AppResult<usize> {
@@ -268,6 +438,7 @@ pub(super) fn validate_width(field: &Field<'_>, columns: usize) -> AppResult<()>
 fn collect_sample(
     field: &Field<'_>,
     sample: &mut Vec<String>,
+    sample_complete: &mut Vec<bool>,
     live: &mut usize,
     retained: usize,
     truncated: &mut bool,
@@ -280,14 +451,17 @@ fn collect_sample(
         .char_indices()
         .nth(SAMPLE_CHARS)
         .map_or(field.text.len(), |(index, _)| index);
-    *truncated |= end < field.text.len();
+    let complete = end == field.text.len();
+    *truncated |= !complete;
     let old_capacity = sample.capacity();
     let next_capacity = if sample.len() == old_capacity {
         old_capacity.saturating_mul(2).max(4)
     } else {
         old_capacity
     };
-    let needed = end + (next_capacity - old_capacity) * size_of::<String>();
+    let needed = end
+        + (next_capacity - old_capacity) * size_of::<String>()
+        + (next_capacity - old_capacity) * size_of::<bool>();
     // Check descriptor capacity before growth, as well as the copied field text.
     if retained + *live + needed + size_of::<Vec<String>>() * SAMPLE_ROWS * 2 > SAMPLE_BYTES {
         *truncated = true;
@@ -295,9 +469,13 @@ fn collect_sample(
     }
     if next_capacity > old_capacity {
         sample.reserve_exact(next_capacity - sample.len());
+        sample_complete.reserve_exact(next_capacity - sample_complete.len());
     }
     sample.push(field.text[..end].to_owned());
-    *live += end + (sample.capacity() - old_capacity) * size_of::<String>();
+    sample_complete.push(complete);
+    *live += end
+        + (sample.capacity() - old_capacity) * size_of::<String>()
+        + (sample_complete.capacity() - old_capacity) * size_of::<bool>();
 }
 fn retained_preview_bytes(preview: &ImportPreview) -> AppResult<usize> {
     let mut bytes = check_bytes(
@@ -315,11 +493,18 @@ fn retained_preview_bytes(preview: &ImportPreview) -> AppResult<usize> {
         )?;
     }
     bytes = check_bytes(bytes, preview.samples.capacity() * size_of::<Vec<String>>())?;
+    bytes = check_bytes(
+        bytes,
+        preview.sample_complete.capacity() * size_of::<Vec<bool>>(),
+    )?;
     for row in &preview.samples {
         bytes = check_bytes(bytes, row.capacity() * size_of::<String>())?;
         for value in row {
             bytes = check_bytes(bytes, value.capacity())?;
         }
+    }
+    for row in &preview.sample_complete {
+        bytes = check_bytes(bytes, row.capacity() * size_of::<bool>())?;
     }
     Ok(bytes)
 }
@@ -328,6 +513,108 @@ fn retained_preview_bytes(preview: &ImportPreview) -> AppResult<usize> {
 mod tests {
     use super::*;
     use std::borrow::Cow;
+
+    #[test]
+    fn precision_blocked_sample_preserves_other_valid_conversion_examples() {
+        let control = JobControl::default();
+        let preview = preview(
+            Arc::from(&b"Identifier\n99999999999999999999\n1\n2\n"[..]),
+            Delimiter::Comma,
+            &control,
+        )
+        .unwrap();
+        let mut choices = preview.default_choices().unwrap();
+        choices[0].kind = ColumnKind::Number;
+        let review = preview.review_choice(0, &choices[0]).unwrap();
+        assert!(review
+            .notes
+            .contains(&ImportConversionNote::NumericPrecisionMayRound));
+        assert_eq!(
+            review
+                .examples
+                .iter()
+                .map(|example| example.stored.as_str())
+                .collect::<Vec<_>>(),
+            vec!["1", "2"]
+        );
+        assert!(super::super::commit_preview(&preview, &choices, &control).is_err());
+        choices[0].acknowledge_precision_loss = true;
+        assert_eq!(
+            preview
+                .review_choice(0, &choices[0])
+                .unwrap()
+                .examples
+                .len(),
+            3
+        );
+        for invalid in ["invalid", "inf", "NaN"] {
+            let source = format!("Number\n{invalid}\n1\n");
+            let invalid_preview =
+                super::preview(Arc::from(source.as_bytes()), Delimiter::Comma, &control).unwrap();
+            let mut invalid_choices = invalid_preview.default_choices().unwrap();
+            invalid_choices[0].kind = ColumnKind::Number;
+            assert!(invalid_preview
+                .review_choice(0, &invalid_choices[0])
+                .is_err());
+        }
+    }
+
+    #[test]
+    fn reviewed_numeric_missing_values_and_ranges_match_committed_data() {
+        let control = JobControl::default();
+        let preview = preview(
+            Arc::from(&b"Score\n99\n5\n12\n"[..]),
+            Delimiter::Comma,
+            &control,
+        )
+        .unwrap();
+        let mut choices = preview.default_choices().unwrap();
+        choices[0].missing_rules = MissingRules::Number {
+            values: vec![99.0],
+            ranges: vec![(1.0, 5.0)],
+        };
+        let review = preview.review_choice(0, &choices[0]).unwrap();
+        let data = super::super::commit_preview(&preview, &choices, &control).unwrap();
+        for (row, example) in review.examples.iter().enumerate() {
+            assert_eq!(
+                example.marked_missing,
+                data.columns()[0].is_missing(row).unwrap(),
+                "{example:?}"
+            );
+        }
+        assert_eq!(review.examples[0].stored, "99");
+        assert_eq!(review.examples[1].stored, "5");
+    }
+
+    #[test]
+    fn incomplete_conversion_samples_are_disclosed_without_invented_examples() {
+        let control = JobControl::default();
+        let text = format!("Text\n{}\n", "x".repeat(SAMPLE_CHARS + 1));
+        let preview = preview(Arc::from(text.as_bytes()), Delimiter::Comma, &control).unwrap();
+        let choice = preview.default_choices().unwrap().remove(0);
+        let review = preview.review_choice(0, &choice).unwrap();
+        assert!(review.examples.is_empty());
+        assert!(
+            !review.notes.is_empty(),
+            "shortened samples need an explanation"
+        );
+
+        let headers = (0..3000)
+            .map(|i| format!("C{i}"))
+            .collect::<Vec<_>>()
+            .join(",");
+        let row = std::iter::repeat_n("x", 3000).collect::<Vec<_>>().join(",");
+        let source = format!("{headers}\n{row}\n");
+        let wide =
+            super::preview(Arc::from(source.as_bytes()), Delimiter::Comma, &control).unwrap();
+        let choices = wide.default_choices().unwrap();
+        let review = wide.review_choice(2999, &choices[2999]).unwrap();
+        assert!(review.examples.is_empty());
+        assert!(
+            !review.notes.is_empty(),
+            "omitted samples are not blank values"
+        );
+    }
 
     // Catches vector growth that excludes the already-owned current decoded header.
     #[test]
@@ -354,6 +641,7 @@ mod tests {
     #[test]
     fn sample_vector_never_allocates_above_ceiling() {
         let mut sample = Vec::new();
+        let mut complete = Vec::new();
         let mut live = 0;
         let mut truncated = false;
         for column in 1..=3000 {
@@ -363,7 +651,14 @@ mod tests {
                 column,
                 end_record: column == 3000,
             };
-            collect_sample(&field, &mut sample, &mut live, 0, &mut truncated);
+            collect_sample(
+                &field,
+                &mut sample,
+                &mut complete,
+                &mut live,
+                0,
+                &mut truncated,
+            );
             assert!(sample.capacity() * size_of::<String>() <= SAMPLE_BYTES);
         }
         assert!(truncated);

@@ -205,8 +205,8 @@ pub enum JobOperation {
 #[derive(Debug)]
 pub enum JobOutput {
     RecoveryEntries(Vec<RecoveryEntry>),
-    RecoveryRetired,
-    RecoveryDiscarded,
+    RecoveryRetired(Option<SaveOutcome>),
+    RecoveryDiscarded(SaveOutcome),
     Prepared(Arc<Project>),
     Checkpoint(SaveOutcome),
     Recovered(Arc<Project>),
@@ -247,9 +247,12 @@ pub enum JobOutput {
 impl JobOutput {
     pub fn file_outcome(&self) -> Option<&SaveOutcome> {
         match self {
-            Self::Saved(outcome) | Self::Exported(outcome) | Self::SurveyRecipeSaved(outcome) => {
-                Some(outcome)
-            }
+            Self::Saved(outcome)
+            | Self::Exported(outcome)
+            | Self::SurveyRecipeSaved(outcome)
+            | Self::Checkpoint(outcome)
+            | Self::RecoveryDiscarded(outcome) => Some(outcome),
+            Self::RecoveryRetired(outcome) => outcome.as_ref(),
             _ => None,
         }
     }

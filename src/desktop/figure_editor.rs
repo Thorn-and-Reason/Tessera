@@ -59,7 +59,23 @@ impl FigureEditor {
             + usize::from(self.texture.is_some()) * 2_000_000
     }
 }
-fn label(key: &FigureKey) -> String {
+fn label(key: &FigureKey, project: &crate::project::Project) -> String {
+    let captured_name = |id| {
+        project
+            .runs()
+            .iter()
+            .find(|run| run.id.0 == key.run)
+            .and_then(|run| {
+                run.analysis
+                    .columns()
+                    .iter()
+                    .find(|column| column.id.0 == id)
+            })
+            .map_or_else(
+                || "Unavailable captured variable".into(),
+                |column| theme::caption_limit(&column.name, 96),
+            )
+    };
     let kind = match key.kind {
         FigureKind::Histogram => "Histogram".into(),
         FigureKind::Scatter => "Scatterplot".into(),
@@ -68,8 +84,8 @@ fn label(key: &FigureKey) -> String {
         FigureKind::Likert => "Combined Likert chart".into(),
         FigureKind::Residual => "Residual plot".into(),
         FigureKind::Qq => "Normal Q–Q plot".into(),
-        FigureKind::Distribution(c) => format!("Distribution · variable {c}"),
-        FigureKind::Frequency(c) => format!("Bar chart · variable {c}"),
+        FigureKind::Distribution(c) => format!("Distribution · {}", captured_name(c)),
+        FigureKind::Frequency(c) => format!("Bar chart · {}", captured_name(c)),
     };
     format!(
         "Run {} · {kind}{}",
@@ -115,10 +131,15 @@ pub(super) fn toolbar(ui: &mut egui::Ui, state: &mut DesktopState, jobs: &mut Jo
                 let combo = egui::ComboBox::from_id_salt("report-figure")
                     .width(ui.available_width().min(220.))
                     .truncate()
-                    .selected_text(label(&selected))
+                    .selected_text(label(&selected, state.project()))
                     .show_ui(ui, |ui| {
                         for key in &available {
-                            theme::selectable_value(ui, &mut selected, *key, label(key));
+                            theme::selectable_value(
+                                ui,
+                                &mut selected,
+                                *key,
+                                label(key, state.project()),
+                            );
                         }
                     });
                 record(state, "Report figure", &combo.response);
@@ -144,6 +165,7 @@ pub(super) fn toolbar(ui: &mut egui::Ui, state: &mut DesktopState, jobs: &mut Jo
                     }
                 }
             });
+            ui.small("Export figures with a new filename. Existing files are preserved.");
         });
     record(state, "Figures", &section.header_response);
     state.selected_figure = Some(selected);
@@ -162,6 +184,7 @@ fn export_one(
     };
     state.modal_file_dialog = true;
     if let Some(path) = rfd::FileDialog::new()
+        .set_title("Export figure — choose a new filename")
         .add_filter("Figure", &[extension])
         .set_file_name(format!("figure-{}.{}", key.run, extension))
         .save_file()
@@ -205,10 +228,8 @@ fn editor(ui: &mut egui::Ui, state: &mut DesktopState, jobs: &mut JobRunner) {
         .constrain_to(available)
         .resizable(true)
         .show(ui.ctx(), |ui| {
-            ui.label(label(&edit.key));
-            ui.small(
-                "Edit labels and appearance, then apply the changes to save them in your project.",
-            );
+            ui.label(label(&edit.key, state.project()));
+            ui.small("Edit labels and appearance, then apply the changes to save them in your project. Export with a new filename; existing files are preserved.");
             ui.add_enabled_ui(!state.active, |ui| {
                 egui::ScrollArea::vertical()
                     .id_salt("figure-properties-scroll")
@@ -227,6 +248,7 @@ fn editor(ui: &mut egui::Ui, state: &mut DesktopState, jobs: &mut JobRunner) {
                     });
                 ui.separator();
                 ui.horizontal_wrapped(|ui| {
+                    ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Extend);
                     if button(ui, state, "Apply figure").clicked() {
                         if let Err(e) = apply_edit(state, &mut edit) {
                             edit.error = e.to_string();
@@ -502,7 +524,7 @@ fn properties(
             .show_rows(ui, 24., all.len(), |ui, range| {
                 for k in &all[range] {
                     let mut selected = edit.targets.contains(k);
-                    if ui.checkbox(&mut selected, label(k)).changed() {
+                    if ui.checkbox(&mut selected, label(k, state.project())).changed() {
                         if selected && edit.targets.len() < 256 {
                             edit.targets.push(*k);
                         } else if !selected {
@@ -527,7 +549,7 @@ fn properties(
             .clicked()
         {
             state.modal_file_dialog = true;
-            if let Some(directory) = rfd::FileDialog::new().pick_folder() {
+            if let Some(directory) = rfd::FileDialog::new().set_title("Export selected figures — choose a new empty folder").pick_folder() {
                 start(
                     state,
                     jobs,
@@ -540,6 +562,7 @@ fn properties(
                 );
             }
         }
+        ui.small("Choose a new, empty folder for batch exports. Existing output filenames are preserved.");
     });
 }
 fn number(ui: &mut egui::Ui, state: &mut DesktopState, label: &str, v: &mut f64, lo: f64, hi: f64) {
