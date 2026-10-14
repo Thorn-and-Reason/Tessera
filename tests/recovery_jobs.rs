@@ -89,7 +89,11 @@ fn checkpoint_never_reports_a_user_save_and_budget_fails_before_writing() {
     else {
         panic!("checkpoint failed")
     };
-    assert!(out.file_outcome().is_none());
+    let outcome = out
+        .file_outcome()
+        .expect("Checkpoint must report its publication facts");
+    assert_eq!(outcome.publication, tessera::files::Publication::Committed);
+    assert!(outcome.committed_stamp.is_some());
     assert!(matches!(out, JobOutput::Checkpoint(_)));
     assert!(store.path().exists());
     let before = std::fs::read(store.path()).unwrap();
@@ -155,8 +159,14 @@ fn retire_checkpoint_is_a_background_non_save_outcome() {
     else {
         panic!("retire failed")
     };
-    assert!(out.file_outcome().is_none());
-    assert!(matches!(out, JobOutput::RecoveryRetired));
+    let outcome = out
+        .file_outcome()
+        .expect("Retirement must report its publication facts");
+    assert_eq!(outcome.publication, tessera::files::Publication::Committed);
+    assert!(outcome.committed_stamp.is_some());
+    assert!(
+        matches!(out, JobOutput::RecoveryRetired(Some(outcome)) if outcome.warning.is_none() && outcome.recovery.is_none())
+    );
     assert!(!String::from_utf8(std::fs::read(&path).unwrap())
         .unwrap()
         .contains("Recovery"));
@@ -188,8 +198,14 @@ fn discard_recovery_removes_snapshot_from_discovery() {
     else {
         panic!("discard failed")
     };
-    assert!(out.file_outcome().is_none());
-    assert!(matches!(out, JobOutput::RecoveryDiscarded));
+    let outcome = out
+        .file_outcome()
+        .expect("Discard must report its publication facts");
+    assert_eq!(outcome.publication, tessera::files::Publication::Committed);
+    assert!(outcome.committed_stamp.is_some());
+    assert!(
+        matches!(out, JobOutput::RecoveryDiscarded(outcome) if outcome.warning.is_none() && outcome.recovery.is_none())
+    );
     assert!(store.list().unwrap().is_empty());
 }
 #[test]

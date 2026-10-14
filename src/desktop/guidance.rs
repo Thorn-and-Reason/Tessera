@@ -148,9 +148,24 @@ fn footer(ui: &mut egui::Ui, state: &mut DesktopState, answers: Answers) -> bool
             if button(ui, state, "Choose manually").clicked() {
                 leave = true;
             }
+            if button(ui, state, "Open linear regression form").clicked() {
+                open_procedure(state, Procedure::Regression);
+                leave = state.error().is_none();
+            }
+            if button(ui, state, "Open scale reliability form").clicked() {
+                open_procedure(state, Procedure::Reliability);
+                leave = state.error().is_none();
+            }
         });
     });
     leave
+}
+
+fn open_procedure(state: &mut DesktopState, procedure: Procedure) {
+    match state.checked_editable_draft() {
+        Ok(draft) => state.act(UiAction::SetDraft(draft.for_procedure(procedure))),
+        Err(error) => state.fail(error),
+    }
 }
 
 fn questionnaire(ui: &mut egui::Ui, state: &mut DesktopState, answers: &mut Answers) {

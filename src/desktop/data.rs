@@ -21,33 +21,56 @@ pub fn show(ui: &mut egui::Ui, state: &mut DesktopState, jobs: &mut JobRunner) {
             state.project().dataset().column_count()
         ));
     });
+    if !has_data || state.project().dataset().row_count() == 0 {
+        empty_data(ui, state, has_data);
+        return;
+    }
     ui.horizontal_wrapped(|ui| {
-        if has_data && button(ui, state, "Import data…").clicked() {
+        let import = button(ui, state, "Import data…");
+        if import.clicked() {
+            state.return_focus = Some(import.id);
             dialogs::import(state);
         }
+        if state.active {
+            ui.disable();
+        }
         if ui
-            .add_enabled(!state.active && has_data, egui::Button::new("Add row"))
+            .add(egui::Button::new("Add row").wrap_mode(egui::TextWrapMode::Extend))
             .clicked()
         {
             state.act(UiAction::AppendRow);
         }
-        if ui
-            .add_enabled(!state.active, egui::Button::new("Add variable"))
-            .clicked()
-        {
+        let add_variable =
+            ui.add(egui::Button::new("Add variable").wrap_mode(egui::TextWrapMode::Extend));
+        super::procedure_forms::record(state, "Add variable", &add_variable);
+        if add_variable.clicked() {
+            state.return_focus = Some(add_variable.id);
             state.dialog = Some(Dialog::AddVariable);
         }
-        ui.add_enabled_ui(!state.active && has_data, |ui| {
-            if button(ui, state, "Variable details").clicked() {
-                state.act(UiAction::Navigate(Workspace::Variables));
+        let analyse = super::command(ui, state, "Analyse data");
+        if analyse.clicked() {
+            state.return_focus = Some(analyse.id);
+            state.act(UiAction::Navigate(Workspace::Analyses));
+            if state.dialog != Some(Dialog::PropertyChanges) {
+                state.return_focus = None;
             }
-            if button(ui, state, "Prepare data").clicked() {
-                state.act(UiAction::Navigate(Workspace::Prepare));
+        }
+        let variables = button(ui, state, "Variable details");
+        if variables.clicked() {
+            state.return_focus = Some(variables.id);
+            state.act(UiAction::Navigate(Workspace::Variables));
+            if state.dialog != Some(Dialog::PropertyChanges) {
+                state.return_focus = None;
             }
-            if super::command(ui, state, "Analyse data").clicked() {
-                state.act(UiAction::Navigate(Workspace::Analyses));
+        }
+        let prepare = button(ui, state, "Prepare data");
+        if prepare.clicked() {
+            state.return_focus = Some(prepare.id);
+            state.act(UiAction::Navigate(Workspace::Prepare));
+            if state.dialog != Some(Dialog::PropertyChanges) {
+                state.return_focus = None;
             }
-        });
+        }
     });
     super::survey::entry(ui, state);
     ui.separator();
@@ -97,37 +120,57 @@ pub fn show(ui: &mut egui::Ui, state: &mut DesktopState, jobs: &mut JobRunner) {
     exact_value(ui, state);
     grid(ui, state);
 }
+fn empty_data(ui: &mut egui::Ui, state: &mut DesktopState, has_variables: bool) {
+    egui::ScrollArea::vertical()
+        .id_salt("empty-data")
+        .auto_shrink([false, false])
+        .show(ui, |ui| {
+            ui.horizontal_wrapped(|ui| {
+                let import = button(ui, state, "Import data…");
+                if import.clicked() {
+                    state.return_focus = Some(import.id);
+                    dialogs::import(state);
+                }
+                if state.active {
+                    ui.disable();
+                }
+                if has_variables {
+                    if button(ui, state, "Create first row").clicked() {
+                        state.act(UiAction::AppendRow);
+                    }
+                } else {
+                    let create = ui.add_enabled(
+                        !state.active,
+                        egui::Button::new("Create first variable")
+                            .wrap_mode(egui::TextWrapMode::Extend),
+                    );
+                    super::procedure_forms::record(state, "Create first variable", &create);
+                    if create.clicked() {
+                        state.return_focus = Some(create.id);
+                        state.dialog = Some(Dialog::AddVariable);
+                    }
+                }
+            });
+            ui.separator();
+            ui.heading("Bring your data into Tessera");
+            ui.label("Import an Excel workbook (.xlsx), CSV or TSV file. Review the columns before importing, then check your data here. You can also enter data by hand.");
+        });
+}
 fn grid(ui: &mut egui::Ui, state: &mut DesktopState) {
     let project = std::sync::Arc::clone(state.project());
     let dataset = project.dataset();
     let count = dataset.column_count();
     let rows = dataset.row_count();
-    if count == 0 || rows == 0 {
-        ui.add_space(24.0);
-        ui.heading("Bring your data into Tessera");
-        ui.label("Import an Excel workbook (.xlsx), CSV or TSV file. Review the columns before importing, then check your data here. You can also enter data by hand.");
-        ui.horizontal(|ui| {
-            if button(ui, state, "Import data…").clicked() {
-                dialogs::import(state);
-            }
-            if count == 0 {
-                if button(ui, state, "Create first variable").clicked() {
-                    state.dialog = Some(Dialog::AddVariable);
-                }
-            } else if button(ui, state, "Create first row").clicked() {
-                state.act(UiAction::AppendRow);
-            }
-        });
-        if count == 0 {
-            return;
-        }
-    }
-    ui.interact(
+    let worksheet_response = ui.interact(
         ui.available_rect_before_wrap(),
         Id::new("worksheet-focus"),
         Sense::focusable_noninteractive(),
     );
+    super::procedure_forms::record(state, "Worksheet", &worksheet_response);
     let focused = ui.memory(|m| m.has_focus(Id::new("worksheet-focus")));
+    if focused {
+        ui.small("Arrow keys move between cells. Enter edits. Escape leaves the worksheet.");
+    }
     if focused {
         ui.memory_mut(|m| {
             m.set_focus_lock_filter(
@@ -151,11 +194,15 @@ fn grid(ui: &mut egui::Ui, state: &mut DesktopState) {
                 (Key::Enter, 0, 0, true),
             ] {
                 if ui.input_mut(|i| i.consume_key(egui::Modifiers::NONE, key)) {
+                    state.return_focus = Some(worksheet_response.id);
                     state.act(UiAction::MoveCell {
                         columns,
                         rows,
                         edit,
                     });
+                    if state.dialog != Some(Dialog::PropertyChanges) {
+                        state.return_focus = None;
+                    }
                     if !edit && state.dialog.is_none() {
                         ui.memory_mut(|m| {
                             m.move_focus(egui::FocusDirection::None);
@@ -210,6 +257,13 @@ fn grid(ui: &mut egui::Ui, state: &mut DesktopState) {
             }
         }
     }
+    worksheet_response.widget_info(|| {
+        egui::WidgetInfo::labeled(
+            egui::WidgetType::Other,
+            true,
+            worksheet_focus_label(state, dataset),
+        )
+    });
     let total_width = GUTTER
         + COLUMN * count as f32
         + state
@@ -318,6 +372,17 @@ fn grid(ui: &mut egui::Ui, state: &mut DesktopState) {
                                     .char_limit(TEXT_LIMIT)
                                     .font(egui::TextStyle::Monospace),
                             );
+                            response.widget_info(|| {
+                                egui::WidgetInfo::labeled(
+                                    egui::WidgetType::TextEdit,
+                                    true,
+                                    format!(
+                                        "Edit {}, row {}",
+                                        theme::caption_limit(column.name(), 128),
+                                        row + 1
+                                    ),
+                                )
+                            });
                             if edit.focus {
                                 response.request_focus();
                                 edit.focus = false;
@@ -391,27 +456,14 @@ fn grid(ui: &mut egui::Ui, state: &mut DesktopState) {
                         state
                             .controls
                             .insert(format!("Cell {}:{}", column.id().0, row), response.rect);
-                        let value = match column.kind() {
-                            ColumnKind::Text => match column.text_value(row).ok().flatten() {
-                                None => "Missing".into(),
-                                Some("") => "Empty text".into(),
-                                Some(text) => theme::caption_limit(text, 128),
-                            },
-                            ColumnKind::Number => match column.cell(row) {
-                                Ok(Cell::Number(value)) => value.to_string(),
-                                _ => "Missing".into(),
-                            },
-                        };
+                        let accessible_label = cell_accessible_label(column, row);
+                        let selected = state.selected_cell == Some((column.id(), row));
                         response.widget_info(|| {
-                            egui::WidgetInfo::labeled(
+                            egui::WidgetInfo::selected(
                                 egui::WidgetType::Button,
                                 true,
-                                theme::caption(format_args!(
-                                    "{}, row {}: {}",
-                                    theme::caption_limit(column.name(), 64),
-                                    row + 1,
-                                    theme::caption_limit(&value, 128)
-                                )),
+                                selected,
+                                accessible_label.clone(),
                             )
                         });
                         if response.clicked() {
@@ -427,10 +479,14 @@ fn grid(ui: &mut egui::Ui, state: &mut DesktopState) {
                                     },
                                 );
                             });
+                            state.return_focus = Some(Id::new("worksheet-focus"));
                             state.act(UiAction::SelectCell {
                                 column: column.id(),
                                 row,
                             });
+                            if state.dialog != Some(Dialog::PropertyChanges) {
+                                state.return_focus = None;
+                            }
                         }
                         if (response.double_clicked()
                             || (response.has_focus() && cells.input(|i| i.key_pressed(Key::Enter))))
@@ -497,13 +553,22 @@ fn grid(ui: &mut egui::Ui, state: &mut DesktopState) {
             for &(index, x, width) in &visible {
                 let column = &dataset.columns()[index];
                 let rect = Rect::from_min_size(Pos2::new(origin.x + x, top), Vec2::new(width, ROW));
-                let response = headers.put(
-                    rect,
-                    egui::Button::new(theme::caption(column.name()))
-                        .truncate()
-                        .selected(state.selected_column == Some(column.id())),
-                );
+                let response = headers
+                    .push_id(("column-header", column.id()), |ui| {
+                        ui.put(
+                            rect,
+                            egui::Button::new(theme::caption(column.name()))
+                                .truncate()
+                                .selected(state.selected_column == Some(column.id())),
+                        )
+                    })
+                    .inner;
                 let response = response.on_hover_text(column.name());
+                super::procedure_forms::record(
+                    state,
+                    &format!("Column header {}", column.id().0),
+                    &response,
+                );
                 let handle = headers
                     .interact(
                         Rect::from_min_max(
@@ -521,7 +586,11 @@ fn grid(ui: &mut egui::Ui, state: &mut DesktopState) {
                     }
                 }
                 if response.clicked() {
+                    state.return_focus = Some(response.id);
                     state.act(UiAction::SelectColumn(column.id()));
+                    if state.dialog != Some(Dialog::PropertyChanges) {
+                        state.return_focus = None;
+                    }
                 }
             }
             painter.text(
@@ -538,6 +607,35 @@ fn grid(ui: &mut egui::Ui, state: &mut DesktopState) {
             )
             .on_hover_text("Row");
         });
+}
+
+fn worksheet_focus_label(state: &DesktopState, dataset: &crate::data::Dataset) -> String {
+    if let Some((id, row)) = state.selected_cell {
+        if let Ok(column) = dataset.column(id) {
+            return format!("Worksheet · {}", cell_accessible_label(column, row));
+        }
+    }
+    "Worksheet".into()
+}
+
+fn cell_accessible_label(column: &crate::data::Column, row: usize) -> String {
+    let value = match column.kind() {
+        ColumnKind::Text => match column.text_value(row).ok().flatten() {
+            None => "Missing".into(),
+            Some("") => "Empty text".into(),
+            Some(text) => theme::caption_limit(text, 128),
+        },
+        ColumnKind::Number => match column.cell(row) {
+            Ok(Cell::Number(value)) => value.to_string(),
+            _ => "Missing".into(),
+        },
+    };
+    theme::caption(format_args!(
+        "{}, row {}: {}",
+        theme::caption_limit(column.name(), 64),
+        row + 1,
+        theme::caption_limit(&value, 128)
+    ))
 }
 
 fn exact_value(ui: &mut egui::Ui, state: &DesktopState) {

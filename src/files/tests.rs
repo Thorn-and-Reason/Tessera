@@ -52,6 +52,136 @@ fn run(
         hook,
     )
 }
+#[cfg(unix)]
+#[test]
+fn durable_successful_replacements_remove_owned_recovery_copies() {
+    let t = Temp::new();
+    std::fs::write(t.dest(), b"sensitive original").unwrap();
+    for _ in 0..3 {
+        let expected = stamp(&t.dest()).unwrap();
+        let outcome = run(
+            &t,
+            &JobControl::default(),
+            Some(&expected),
+            |_, _, _| Ok(()),
+        )
+        .unwrap();
+        assert_eq!(outcome.publication, Publication::Committed);
+        assert!(outcome.warning.is_none());
+        assert!(outcome.recovery.is_none());
+        assert_eq!(std::fs::read(t.dest()).unwrap(), b"new complete revision");
+        assert!(std::fs::read_dir(&t.0)
+            .unwrap()
+            .all(|entry| !entry.unwrap().path().is_dir()));
+    }
+}
+#[test]
+fn failed_directory_sync_preserves_independent_recovery_copy() {
+    let t = Temp::new();
+    let outcome = run(&t, &JobControl::default(), None, |stage, _, _| {
+        if stage == Stage::DirectorySync {
+            Err(io_error())
+        } else {
+            Ok(())
+        }
+    })
+    .unwrap();
+    assert_eq!(outcome.publication, Publication::Committed);
+    assert!(outcome.warning.is_some());
+    assert_eq!(
+        std::fs::read(outcome.recovery.unwrap().frozen_revision.unwrap()).unwrap(),
+        b"new complete revision"
+    );
+}
+#[cfg(unix)]
+#[test]
+fn cleanup_rechecks_destination_and_displaced_versions_before_deleting() {
+    for replace_destination in [true, false] {
+        let t = Temp::new();
+        std::fs::write(t.dest(), b"prior complete").unwrap();
+        let expected = stamp(&t.dest()).unwrap();
+        let outcome = run(
+            &t,
+            &JobControl::default(),
+            Some(&expected),
+            |stage, destination, tx| {
+                if stage == Stage::Cleanup {
+                    std::fs::write(
+                        if replace_destination {
+                            destination.to_owned()
+                        } else {
+                            tx.join(native::DISPLACED)
+                        },
+                        b"external complete version",
+                    )?;
+                }
+                Ok(())
+            },
+        )
+        .unwrap();
+        assert_eq!(outcome.publication, Publication::Conflict);
+        assert!(outcome.committed_stamp.is_some());
+        let paths = outcome.recovery.unwrap();
+        assert_eq!(
+            std::fs::read(paths.frozen_revision.unwrap()).unwrap(),
+            b"new complete revision"
+        );
+        assert_eq!(
+            std::fs::read(paths.displaced.unwrap()).unwrap(),
+            if replace_destination {
+                &b"prior complete"[..]
+            } else {
+                &b"external complete version"[..]
+            }
+        );
+        assert_eq!(
+            std::fs::read(t.dest()).unwrap(),
+            if replace_destination {
+                &b"external complete version"[..]
+            } else {
+                &b"new complete revision"[..]
+            }
+        );
+    }
+}
+#[cfg(unix)]
+#[test]
+fn cleanup_preserves_substituted_frozen_file() {
+    let t = Temp::new();
+    let outcome = run(&t, &JobControl::default(), None, |stage, _, tx| {
+        if stage == Stage::Cleanup {
+            std::fs::write(tx.join("frozen"), b"external recovery content")?;
+        }
+        Ok(())
+    })
+    .unwrap();
+    assert!(outcome.warning.is_some());
+    assert_eq!(
+        std::fs::read(outcome.recovery.unwrap().frozen_revision.unwrap()).unwrap(),
+        b"external recovery content"
+    );
+}
+#[cfg(unix)]
+#[test]
+fn cleanup_never_sweeps_unknown_transaction_files() {
+    let t = Temp::new();
+    let mut unrelated = None;
+    let outcome = run(&t, &JobControl::default(), None, |stage, _, tx| {
+        if stage == Stage::Cleanup {
+            let path = tx.join("unrelated");
+            std::fs::write(&path, b"keep unrelated content")?;
+            unrelated = Some(path);
+        }
+        Ok(())
+    })
+    .unwrap();
+    assert!(outcome.warning.is_some());
+    assert!(outcome.recovery.is_some());
+    assert_eq!(
+        std::fs::read(unrelated.unwrap()).unwrap(),
+        b"keep unrelated content"
+    );
+}
 #[test]
 fn late_races_preserve_frozen_displaced_and_third_destination() {
     let t = Temp::new();
@@ -564,7 +694,7 @@ fn late_external_version_is_reported_even_when_native_api_returns_an_error() {
 
 #[cfg(any(target_os = "macos", target_os = "linux"))]
 #[test]
-fn renamed_parent_returns_verified_destination_and_displaced_paths() {
+fn renamed_parent_returns_verified_destination_and_cleans_owned_backups() {
     for race in [
         Stage::Precheck,
         Stage::Publish,
@@ -612,12 +742,10 @@ fn renamed_parent_returns_verified_destination_and_displaced_paths() {
             outcome.committed_stamp,
             Some(stamp(&outcome.destination).unwrap())
         );
-        let paths = outcome.recovery.unwrap();
-        assert!(paths.directory.starts_with(&moved));
-        assert_eq!(
-            std::fs::read(paths.displaced.unwrap()).unwrap(),
-            b"prior complete"
-        );
+        assert!(outcome.recovery.is_none());
+        assert!(std::fs::read_dir(&moved)
+            .unwrap()
+            .all(|entry| !entry.unwrap().path().is_dir()));
         assert_eq!(std::fs::read(path).unwrap(), b"unrelated complete");
     }
 }

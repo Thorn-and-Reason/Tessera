@@ -6,6 +6,15 @@ Tessera provides Data, Prepare, Analyse and Results workspaces. Open a
 
 ## Import and inspect data
 
+CSV and TSV use their first row as variable names. Review the named sample
+columns and their selected stored interpretation before **Import data**.
+Numeric conversion is shown explicitly, including changes such as `001 → 1`;
+choose **Text** when the original spelling matters. Empty text and missing
+values remain distinct. Long or omitted samples are identified; their stored
+conversion is not presented as known. Changing the delimiter resets names, types and missing
+choices, so review them again before importing. Close, Escape and **Cancel
+import** cancel active import work; late results cannot replace the dataset.
+
 For Excel, choose a worksheet and whether its first row contains variable
 names, then select **Review worksheet**. The default selects the entire
 worksheet when it fits the import limits; a warning identifies a limited
@@ -58,8 +67,11 @@ Choose **Create report** after review, then edit its ordinary results and
 figures. Report colours and High contrast provide presentation defaults.
 Captions explain valid/missing counts and percentage denominators.
 **Export survey report** selects the generated batch. This temporary batch
-selection is not saved in the project; after reopening, use the ordinary saved
-history and report-export controls.
+selection is not saved in the project. After reopening, tick the intended runs
+in **Analysis history**, then choose **Export selected results…**. This exports
+the chosen outputs without recalculating them or including unrelated history.
+The review's membership summary identifies included, excluded and unresolved
+variables, blank-response policy and original/reviewed column relationships.
 
 The automatic workflow is descriptive. It does not infer repeated measurements,
 split multiple-answer cells, score questionnaires or choose inferential tests
@@ -73,6 +85,9 @@ stably or keep rows matching a condition. These operations retain validated
 preparation records. Filtering shows its condition before Apply and the
 resulting row count afterwards; Undo is immediately available. Manual edits
 retain coalesced descriptive records rather than replayable edit payloads.
+Output-name uniqueness is checked before Apply; the worker repeats validation.
+Completion names the created variable or affected rows and offers **Inspect
+prepared data** and Undo. Undo changes the project; save it when required.
 
 For domain scores, use **Prepare → Domain average**, select 2–64 numeric items
 and name the new variable. A respondent receives a score only when every
@@ -97,9 +112,20 @@ designs receive an explanation. Selecting a recommendation never runs a test.
 The procedure catalogue sits beside the form on larger windows; Run stays
 visible when the form scrolls. Analysis requirements appear beside Run, and the
 run shortcut works only from Analyse. Successful analyses open Results
-automatically. Select a saved result, use **Edit selected analysis** to reuse
-its settings, or choose **New analysis**. Saved results identify their
-procedure, variables and data status.
+automatically. **Analysis history** identifies each recorded result's procedure,
+variables and data status. **Edit and rerun** loads a result's captured settings;
+running appends a new result. **Continue current setup** preserves the current
+draft. **New analysis** clears that procedure's roles, filter and frequency
+weight while retaining earlier results.
+
+Actual filter conditions and the weight variable remain visible before Run.
+**Clear filter and weight** returns to the whole, unweighted dataset. Variable
+selectors search descriptions as well as names and show measurement meaning;
+numeric storage alone does not establish that a variable is a measurement.
+**Required fields complete** confirms inputs, not methodological suitability.
+Read the method's assumptions before running. Guided controls options density;
+the separate question-led helper supports choosing a method and links to the
+existing regression and scale-reliability forms.
 
 ### Statistical scope
 
@@ -111,6 +137,12 @@ with a separate complete-case option. One-sample, paired and independent t-tests
 provide two-sided inference and 90%, 95% or 99% confidence intervals.
 Independent comparisons use Welch by default; pooled inference requires an
 explicit choice. Ordered roles determine the sign of differences.
+
+The comprehensive-audit update improves inference for nearly perfect Pearson
+correlations. Existing saved results are preserved; they are not recalculated
+when a project opens. Use **Rerun** to update earlier near-perfect Pearson
+results before using them in a new report. If the available precision cannot
+resolve inference, Tessera gives an explanation instead of an exact zero.
 
 Linear regression is available under **Analyse → Explore relationships**.
 Choose one numeric outcome, ordered numeric or categorical predictors, and an
@@ -144,7 +176,17 @@ Use **Reuse styles / batch export** to save a named style, apply it to selected
 figures, or export the selection with stable filenames. Batch exports use
 applied settings. Duplicate a figure to keep an alternative presentation of
 the same result. The HTML report uses the same figure renderer and retains
-exact tables. **Export all results…** includes every saved run.
+exact tables. **Export all results…** includes every recorded run, including
+earlier or changed-data results. **Export selected results…** includes only the
+history entries ticked for this session. The File menu uses the same explicit
+all-results wording.
+
+Use a new filename for CSV/TSV, HTML, figure and recipe exports; existing files
+are protected. Batch figures use stable filenames, so choose a new empty folder
+for a repeat export. A partial failure can leave completed files: inspect
+**Error details**, completed count and destination before retrying. Error
+details can be copied and are bounded to 32 KiB; a final ellipsis identifies
+shortening.
 
 Report tables use readable numeric precision; focus or hover a number to inspect
 its exact captured value. P-values retain dedicated precision near common
@@ -195,10 +237,35 @@ preparation records. Earlier readers reject projects containing the new
 `clean_text` records even though the version remains 3; keep original projects
 when sharing with an older reader. See the [project format](project-format.md).
 
+The interface distinguishes **Unsaved project**, **Unsaved changes** and
+**Project saved**. The project title's details include its full current path.
+**File details** preserves the last explicit save/export receipt; clean
+background checkpoints do not replace it. **Recovery details** keeps recovery
+warnings and protective paths separately available. A report export or recovery
+checkpoint does not save the project.
+
+**Save as…** to the current project uses its existing version stamp and retains
+external-change protection. For a different destination, choose a new filename.
+An existing file or a changed version is preserved, with a concrete resolution
+rather than an unreviewed overwrite.
+
 **Undo** and **Redo** share a maximum of 32 session history entries within the
 data budget. They restore data with a fresh revision and preserve retained
 analyses, figures and issued column identities; earlier analyses remain stale.
 History stacks are not saved in the project.
+
+Previous-file copies are temporary safeguards during publication, not a saved
+version history. After a replacement is verified and durable, Tessera removes
+its verified temporary copies. A conflict, uncertain write or cleanup failure
+retains surviving files for inspection; **File details** or **Recovery details**
+shows the relevant paths. Keep separate backups when you need earlier versions.
+
+Older builds may already have left private `.tessera-recovery-*` folders beside
+saved files or inside recovery storage. This update does not automatically
+remove them: some contain work retained after a conflict or failed save. Review
+their contents before deliberately removing copies you no longer need. Deleting
+data from a project does not erase copies in earlier backups, retained results
+or exported files.
 
 Private crash checkpoints run through the single worker after two seconds of
 idle time following a dirty change. Recovery offers explicit Open or Discard
@@ -206,11 +273,16 @@ decisions; it never marks the user's project file saved. A failed checkpoint
 or retirement keeps the editing session available and offers a retry or a
 decision to keep the checkpoint. Recovery uses per-user folders rather than
 the executable directory. Checkpoints do not replace explicit project saves.
+Successful checkpoint replacement and Discard remove verified superseded
+payloads. If cleanup cannot complete, Tessera reports the retained material
+rather than claiming it was removed.
 
 Recovery is implemented on macOS and Linux. Windows refuses to initialise its
 recovery store because directory durability has not been verified; editing
 and explicit project saves remain available. Do not rely on automatic recovery
-on Windows. Verified Linux graphical delivery, AppImage, portable user-data
+on Windows. Windows also retains protective publication copies when directory
+durability cannot be confirmed; inspect the warning and **File details**.
+Verified Linux graphical delivery, AppImage, portable user-data
 mode and replay of manual edit summaries remain unfinished. Workbook memory
 accounting limits requested Rust heap and retained work; it does not cap total
 process resident memory (RSS).
@@ -221,6 +293,12 @@ The workspace supports light, dark and system appearance, with interface
 scaling in **View**. Compact windows keep workflow navigation above the
 workspace. On macOS, Command-1 through Command-4 follow Data, Prepare, Analyse
 and Results; Command-5 opens Variable details.
+
+**Help → User guide** provides offline task guidance in the installed app.
+Worksheet keyboard focus identifies the current variable, row and value.
+Dialogs return focus to their opener or a surviving workspace control after
+dismissal or completion. **Cancel operation** immediately shows **Cancelling…**;
+wait for completion before starting replacement work.
 
 For builds, packaging and Python verification, see
 [build and distribution instructions](build-and-distribution.md). For platform

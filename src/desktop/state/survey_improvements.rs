@@ -216,6 +216,13 @@ impl DesktopState {
     pub fn survey_order(&self) -> &[usize] {
         &self.survey.enhancements.order
     }
+    pub fn survey_reviewed_sources(&self) -> impl Iterator<Item = (ColumnId, ColumnId)> + '_ {
+        self.survey
+            .enhancements
+            .cleanings
+            .iter()
+            .map(|(source, reviewed, _)| (*source, *reviewed))
+    }
     pub fn survey_presentation(&self) -> SurveyPresentation {
         self.survey.enhancements.presentation
     }

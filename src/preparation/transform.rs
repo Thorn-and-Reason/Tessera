@@ -131,9 +131,6 @@ fn admit_output(
             Step::CleanText { source, name, .. } => (name, d.column(*source)?.kind()),
             _ => unreachable!(),
         };
-        if d.columns().iter().any(|col| col.name() == name) {
-            return Err(invalid("The new variable name must be unique."));
-        }
         p.next_column_id().next()?;
         reserve_column(
             &mut budget,

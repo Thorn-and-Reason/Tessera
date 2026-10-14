@@ -1,5 +1,185 @@
 use super::*;
 
+fn cleaning_review_with_recipe() -> (DesktopState, JobRunner) {
+    use tessera::survey::{
+        recipe::{encode_with_budget, RecipeColumn, SurveyRecipe},
+        SurveyPresentation, SurveyRole,
+    };
+    let mut state = state();
+    let mut jobs = JobRunner::default();
+    state.enter_survey().unwrap();
+    state.service_survey(&mut jobs).unwrap();
+    while jobs.is_running() {
+        state.poll(&mut jobs);
+        std::thread::yield_now();
+    }
+    let recipe = SurveyRecipe {
+        name: "Reviewed report".into(),
+        presentation: SurveyPresentation::HighContrast,
+        columns: vec![
+            RecipeColumn {
+                name: "Sgôr ŵ".into(),
+                kind: tessera::data::ColumnKind::Number,
+                role: SurveyRole::NumericMeasure,
+                cleaning: None,
+            },
+            RecipeColumn {
+                name: "Enw".into(),
+                kind: tessera::data::ColumnKind::Text,
+                role: SurveyRole::Categories,
+                cleaning: None,
+            },
+        ],
+    };
+    let path = std::env::temp_dir().canonicalize().unwrap().join(format!(
+        "tessera-compact-recipe-{}-{:?}.json",
+        std::process::id(),
+        std::thread::current().id()
+    ));
+    std::fs::write(
+        &path,
+        encode_with_budget(&recipe, &JobControl::default(), &[], 0).unwrap(),
+    )
+    .unwrap();
+    state.load_survey_recipe(&mut jobs, path.clone()).unwrap();
+    while jobs.is_running() {
+        state.poll(&mut jobs);
+        std::thread::yield_now();
+    }
+    std::fs::remove_file(path).unwrap();
+    assert!(state.survey_recipe().is_some());
+    let mut draft = state.copy_survey_cleaning_draft().unwrap();
+    draft.column = Some(ColumnId(2));
+    draft.replacement = true;
+    draft.from = "Carys".into();
+    draft.to = "Reviewed".into();
+    state.set_survey_cleaning_draft(draft).unwrap();
+    state.preview_survey_cleaning_draft(&mut jobs).unwrap();
+    while jobs.is_running() {
+        state.poll(&mut jobs);
+        std::thread::yield_now();
+    }
+    assert_eq!(state.survey_cleaning_preview().unwrap().changed, 1);
+    assert!(state.error().is_none(), "{:?}", state.error());
+    (state, jobs)
+}
+
+pub(super) fn review_frame(
+    ctx: &egui::Context,
+    state: &mut DesktopState,
+    jobs: &mut JobRunner,
+    size: Vec2,
+    events: Vec<Event>,
+) -> egui::FullOutput {
+    let mut output = ctx.run_ui(
+        egui::RawInput {
+            screen_rect: Some(Rect::from_min_size(Pos2::ZERO, size)),
+            events,
+            ..Default::default()
+        },
+        |ui| render(ui, state, jobs),
+    );
+    output.textures_delta.clear();
+    output
+}
+
+fn control_is_visible(output: &egui::FullOutput, state: &DesktopState, label: &str) -> bool {
+    state.control_rect(label).is_some_and(|rect| {
+        output.shapes.iter().any(|shape| {
+            matches!(&shape.shape, egui::Shape::Text(text) if text.galley.text() == label)
+                && shape.clip_rect.contains_rect(rect)
+        })
+    })
+}
+
+#[test]
+fn survey_replacement_editors_have_bound_accessible_names() {
+    let (mut state, mut jobs) = cleaning_review_with_recipe();
+    let ctx = egui::Context::default();
+    ctx.enable_accesskit();
+    ctx.all_styles_mut(|style| style.animation_time = 0.);
+    let size = Vec2::new(1180., 900.);
+    frame(&ctx, &mut state, &mut jobs, size, vec![]);
+    click(&ctx, &mut state, &mut jobs, "Prepare response labels", size);
+    let output = review_frame(&ctx, &mut state, &mut jobs, size, vec![]);
+    let tree = output.platform_output.accesskit_update.unwrap();
+    for (value, label) in [("Carys", "From"), ("Reviewed", "To")] {
+        let editor = tree
+            .nodes
+            .iter()
+            .find(|(_, node)| {
+                node.role() == egui::accesskit::Role::TextInput && node.value() == Some(value)
+            })
+            .map(|(_, node)| node)
+            .expect("replacement editor is in the accessibility tree");
+        assert!(
+            editor.labelled_by().iter().any(|id| {
+                tree.nodes.iter().any(|(node_id, node)| {
+                    node_id == id && node.label().or_else(|| node.value()) == Some(label)
+                })
+            }),
+            "replacement {label} has no bound accessible name"
+        );
+    }
+}
+
+#[test]
+fn compact_loaded_recipe_cleaning_preview_can_scroll_into_view() {
+    for zoom in [1., 1.5] {
+        let (mut state, mut jobs) = cleaning_review_with_recipe();
+        let ctx = egui::Context::default();
+        tessera::desktop::configure_context(&ctx);
+        ctx.enable_accesskit();
+        ctx.all_styles_mut(|style| style.animation_time = 0.);
+        let wide = Vec2::new(1180., 900.);
+        frame(&ctx, &mut state, &mut jobs, wide, vec![]);
+        click(&ctx, &mut state, &mut jobs, "Prepare response labels", wide);
+        ctx.set_zoom_factor(zoom);
+        let compact = Vec2::new(640., 440.);
+        let mut preview_visible = false;
+        let mut apply_visible = false;
+        for _ in 0..60 {
+            let output = review_frame(&ctx, &mut state, &mut jobs, compact, vec![]);
+            assert!(control_is_visible(&output, &state, "Create report"));
+            preview_visible |= control_is_visible(&output, &state, "Preview label changes");
+            apply_visible |= control_is_visible(&output, &state, "Apply reviewed copy");
+            if preview_visible && apply_visible {
+                break;
+            }
+            frame(
+                &ctx,
+                &mut state,
+                &mut jobs,
+                compact,
+                vec![
+                    Event::PointerMoved(Pos2::new(300., 250.)),
+                    Event::MouseWheel {
+                        unit: egui::MouseWheelUnit::Point,
+                        phase: egui::TouchPhase::Move,
+                        delta: Vec2::new(0., -40.),
+                        modifiers: Modifiers::NONE,
+                    },
+                ],
+            );
+        }
+        assert!(
+            preview_visible,
+            "preview is unreachable at zoom {zoom}: {:?}",
+            state.control_rect("Preview label changes")
+        );
+        assert!(
+            apply_visible,
+            "apply is unreachable at zoom {zoom}: {:?}",
+            state.control_rect("Apply reviewed copy")
+        );
+        assert_eq!(
+            state.project().dataset().cell(ColumnId(2), 2).unwrap(),
+            Cell::Text("Carys".into())
+        );
+        assert!(!jobs.is_running());
+    }
+}
+
 #[test]
 fn loaded_recipe_shows_saved_settings_before_execution() {
     use tessera::survey::{

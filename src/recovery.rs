@@ -42,14 +42,17 @@ struct CheckpointState {
     stamp: Option<FileStamp>,
     retired: bool,
     uncertain: bool,
+    retirement_incomplete: bool,
 }
 impl CheckpointState {
     fn observe(&mut self, outcome: &SaveOutcome, retired: bool) {
         if let Some(stamp) = &outcome.committed_stamp {
             self.stamp = Some(stamp.clone());
         }
-        self.uncertain =
-            outcome.publication != Publication::Committed || outcome.committed_stamp.is_none();
+        self.retirement_incomplete = retired && outcome.warning.is_some();
+        self.uncertain = outcome.publication != Publication::Committed
+            || outcome.committed_stamp.is_none()
+            || self.retirement_incomplete;
         self.retired = retired && !self.uncertain;
     }
 }
@@ -391,7 +394,7 @@ impl RecoveryStore {
         control: &JobControl,
         retained: &[&Dataset],
         extra_bytes: usize,
-    ) -> AppResult<()> {
+    ) -> AppResult<SaveOutcome> {
         if entry.path != entry.owner.directory.path.join(CHECKPOINT)
             || entry.path.parent().and_then(Path::parent) != Some(self.0.root.path.as_path())
         {
@@ -409,12 +412,9 @@ impl RecoveryStore {
                 Ok(())
             },
         )?;
-        if outcome.publication != Publication::Committed || outcome.committed_stamp.is_none() {
-            return Err(conflict());
-        }
-        Ok(())
+        Ok(outcome)
     }
-    pub fn discard_owned(&self, control: &JobControl) -> AppResult<()> {
+    pub fn discard_owned(&self, control: &JobControl) -> AppResult<Option<SaveOutcome>> {
         self.discard_owned_with_budget(control, &[], 0)
     }
     pub fn discard_owned_with_budget(
@@ -422,21 +422,27 @@ impl RecoveryStore {
         control: &JobControl,
         retained: &[&Dataset],
         extra_bytes: usize,
-    ) -> AppResult<()> {
+    ) -> AppResult<Option<SaveOutcome>> {
         files::work_budget(retained, extra_bytes)?;
         let mut state = self.state(control)?;
         control.checkpoint(0, None)?;
         private(&self.0.session)?;
+        if state.retirement_incomplete {
+            return Err(AppError::Conflict(format!(
+                "Recovery cleanup is incomplete in {}. Inspect the retained files before continuing.",
+                self.0.session.path.display()
+            )));
+        }
         let Some(expected) = state.stamp.as_ref() else {
             return if state.uncertain {
                 Err(conflict())
             } else {
-                Ok(())
+                Ok(None)
             };
         };
         if state.retired {
             return if files::stamp_with_control(&self.0.path, control)? == *expected {
-                Ok(())
+                Ok(None)
             } else {
                 Err(conflict())
             };
@@ -446,10 +452,7 @@ impl RecoveryStore {
             Ok(())
         })?;
         state.observe(&outcome, true);
-        if state.uncertain {
-            return Err(conflict());
-        }
-        Ok(())
+        Ok(Some(outcome))
     }
 }
 
@@ -503,6 +506,32 @@ mod outcome_tests {
     }
     fn project(title: &str) -> Project {
         Project::new(title, Dataset::new(vec![]).unwrap()).unwrap()
+    }
+    #[test]
+    fn retirement_warning_never_marks_cleanup_complete_or_allows_new_checkpoint() {
+        let temp = Temp::new();
+        let store = RecoveryStore::open_at(&temp.0).unwrap();
+        let mut outcome = files::save_project(
+            store.path(),
+            &project("Retirement warning"),
+            None,
+            &JobControl::default(),
+        )
+        .unwrap();
+        outcome.warning = Some("Recovery cleanup failed; surviving files require review.".into());
+        store.0.state.lock().unwrap().observe(&outcome, true);
+        let state = store.0.state.lock().unwrap();
+        assert!(state.uncertain);
+        assert!(!state.retired);
+        drop(state);
+        assert!(store.discard_owned(&JobControl::default()).is_err());
+        assert!(store
+            .checkpoint(
+                &project("Must not replace retained recovery"),
+                1,
+                &JobControl::default()
+            )
+            .is_err());
     }
     #[test]
     fn uncertain_published_first_checkpoint_remains_retirable_and_blocks_new_writes() {

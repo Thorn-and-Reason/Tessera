@@ -48,6 +48,10 @@ pub(crate) fn mode_switch(ui: &mut egui::Ui, state: &mut DesktopState) {
         egui::WidgetInfo::labeled(egui::WidgetType::ComboBox, true, "Analysis mode")
     });
     super::procedure_forms::record(state, "Analysis mode", &response);
+    ui.small(match state.analysis_mode() {
+        AnalysisMode::Guided => "Guided keeps optional settings under More settings. Help choose an analysis offers question-led guidance.",
+        AnalysisMode::Advanced => "Advanced shows optional settings directly. Both modes use the same calculations and preserve your setup.",
+    });
 }
 pub(crate) fn mode_choices(ui: &mut egui::Ui, state: &mut DesktopState) {
     let mut mode = state.analysis_mode();
@@ -112,6 +116,22 @@ pub(crate) fn description(procedure: Procedure) -> &'static str {
         Procedure::Reliability => {
             "Assess the internal consistency of a scale made from numeric items."
         }
+    }
+}
+pub(crate) fn method_help(procedure: Procedure) -> &'static str {
+    match procedure {
+        Procedure::Pearson => crate::export::report_analyses::PEARSON_METHOD,
+        Procedure::Regression => crate::export::report_regression::METHOD,
+        Procedure::Anova => crate::export::report_anova::METHOD,
+        Procedure::Frequencies => crate::export::report_exploration::FREQUENCY_METHOD,
+        Procedure::Histogram => crate::export::report_exploration::HISTOGRAM_METHOD,
+        Procedure::Scatter => crate::export::report_exploration::SCATTER_METHOD,
+        Procedure::Boxplot => crate::export::report_exploration::BOXPLOT_METHOD,
+        Procedure::OneSampleT => "Compare the sample mean with the reference value. Observations must be independent; classical small-sample inference assumes a normally distributed outcome. Check unusual values and the missing-data rules. Inference is two-sided.",
+        Procedure::PairedT => "Compare First minus Second within complete pairs. Pairs must be independent of one another; classical small-sample inference assumes normally distributed differences. Confirm that paired columns measure comparable quantities. Inference is two-sided.",
+        Procedure::IndependentT => "Compare First group minus Second group. Observations must be independent within and between groups. Classical inference assumes normally distributed within-group errors. Welch permits unequal variances; pooled inference assumes equal variances. Inference is two-sided.",
+        Procedure::Reliability => "Use scored numeric items intended to form a scale. All summaries use the same complete-case cohort. Review reverse-scoring bounds. Alpha measures internal consistency; it does not establish validity or unidimensionality.",
+        Procedure::Describe => "Summaries describe the included observations. Numeric codes are treated as quantities; check their meaning and units. Missing rules, filters and integer frequency weights determine which observations enter each summary.",
     }
 }
 pub(crate) fn procedure_matches(procedure: Procedure, query: &theme::NameQuery) -> bool {
@@ -234,12 +254,19 @@ pub(crate) fn reading_aid(request: AnalysisRequestRef<'_>) -> &'static str {
 }
 pub(crate) fn guidance(ui: &mut egui::Ui, mode: AnalysisMode, request: AnalysisRequestRef<'_>) {
     if mode == AnalysisMode::Guided {
-        ui.label(reading_aid(request));
+        prose(ui, reading_aid(request));
     } else {
         ui.collapsing("Reading these results", |ui| {
-            ui.label(reading_aid(request));
+            prose(ui, reading_aid(request));
         });
     }
+}
+
+pub(crate) fn prose(ui: &mut egui::Ui, text: &str) {
+    ui.scope(|ui| {
+        ui.set_max_width(ui.available_width().min(640.));
+        ui.label(text);
+    });
 }
 
 #[cfg(test)]

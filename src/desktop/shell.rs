@@ -36,15 +36,29 @@ pub(super) fn show(ui: &mut egui::Ui, state: &mut DesktopState, jobs: &mut JobRu
                         dialogs::open(state);
                     }
                     let help = ui.menu_button("Help", |ui| {
+                        let mut opened = false;
+                        if button(ui, state, "User guide").clicked() {
+                            state.dialog = Some(Dialog::UserGuide);
+                            opened = true;
+                            ui.close();
+                        }
                         let response = button(ui, state, "About Tessera");
                         if response.clicked() {
                             state.dialog = Some(Dialog::About);
-                            state.return_focus = Some(response.id);
+                            opened = true;
                             ui.close();
                         }
+                        opened
                     });
+                    if help.inner == Some(true) {
+                        state.return_focus = Some(help.response.id);
+                    }
                     procedure_forms::record(state, "Help", &help.response);
-                    ui.menu_button("View", |ui| {
+                    if state.dialog.is_none() && state.return_focus == Some(help.response.id) {
+                        ui.ctx().memory_mut(|memory| memory.request_focus(help.response.id));
+                        state.return_focus = None;
+                    }
+                    let view = ui.menu_button("View", |ui| {
                         ui.label("Analysis detail");
                         experience::mode_choices(ui, state);
                         ui.separator();
@@ -53,10 +67,13 @@ pub(super) fn show(ui: &mut egui::Ui, state: &mut DesktopState, jobs: &mut JobRu
                         preference.radio_buttons(ui);
                         ui.ctx().set_theme(preference);
                         ui.separator();
-                        ui.label("Text and interface size");
-                        let mut zoom = ui.ctx().zoom_factor();
-                        if ui.add(egui::Slider::new(&mut zoom, 0.85..=1.5).step_by(0.05).suffix("×")).changed() {
-                            ui.ctx().set_zoom_factor(zoom);
+                        let label = ui.label("Text and interface size");
+                        let mut zoom = f64::from(ui.ctx().zoom_factor());
+                        let size = ui.add(egui::Slider::new(&mut zoom, 0.85..=1.5).step_by(0.05).suffix("×")).labelled_by(label.id);
+                        size.widget_info(|| egui::WidgetInfo::slider(size.enabled(), zoom as f64, "Text and interface size"));
+                        procedure_forms::record(state, "Text and interface size", &size);
+                        if size.changed() {
+                            ui.ctx().set_zoom_factor(zoom as f32);
                         }
                         if ui.button("Reset size").clicked() { ui.ctx().set_zoom_factor(1.); }
                         ui.separator();
@@ -64,6 +81,7 @@ pub(super) fn show(ui: &mut egui::Ui, state: &mut DesktopState, jobs: &mut JobRu
                         ui.small("In Analyse. In Data, use arrows to move, Enter to edit, Tab to advance, and Escape to cancel.");
                         ui.small("Paste TSV into existing cells: up to 4,096 cells / 512 KiB. Blank numbers become missing; blank text stays empty.");
                     });
+                    procedure_forms::record(state, "View", &view.response);
                     ui.menu_button("Edit", |ui| {
                         if ui.add_enabled(state.can_undo(), egui::Button::new("Undo").shortcut_text(ui.ctx().format_shortcut(&egui::KeyboardShortcut::new(Modifiers::COMMAND, Key::Z)))).clicked() { state.act(UiAction::Undo); ui.close(); }
                         if ui.add_enabled(state.can_redo(), egui::Button::new("Redo").shortcut_text(ui.ctx().format_shortcut(&egui::KeyboardShortcut::new(Modifiers::COMMAND | Modifiers::SHIFT, Key::Z)))).clicked() { state.act(UiAction::Redo); ui.close(); }
@@ -71,6 +89,7 @@ pub(super) fn show(ui: &mut egui::Ui, state: &mut DesktopState, jobs: &mut JobRu
                         if ui.add_enabled(!state.active, egui::Button::new("Prepare data…")).clicked() { state.act(UiAction::Navigate(Workspace::Prepare)); ui.close(); }
                     });
                     ui.menu_button("File", |ui| {
+                        ui.small("For a different destination, use a new filename. Exports never replace existing files.");
                         if ui.add(egui::Button::new("New project").shortcut_text(ui.ctx().format_shortcut(&egui::KeyboardShortcut::new(Modifiers::COMMAND, Key::N)))).clicked() {
                             state.act(UiAction::Request(PendingAction::New));
                             ui.close();
@@ -116,7 +135,7 @@ pub(super) fn show(ui: &mut egui::Ui, state: &mut DesktopState, jobs: &mut JobRu
                         if ui
                             .add_enabled(
                                 !state.active && !state.project().runs().is_empty(),
-                                egui::Button::new("Export report…"),
+                                egui::Button::new("Export all results…"),
                             )
                             .clicked()
                         {
@@ -126,7 +145,11 @@ pub(super) fn show(ui: &mut egui::Ui, state: &mut DesktopState, jobs: &mut JobRu
                     });
                     let response = ui.add_sized([ui.available_width().max(0.), 28.], egui::Label::new(egui::RichText::new(theme::caption(state.project().title())).small()).truncate().sense(egui::Sense::drag()));
                     if response.drag_started() { ui.ctx().send_viewport_cmd(egui::ViewportCommand::StartDrag); }
-                    response.on_hover_text(if state.is_dirty() { "Unsaved changes" } else { "Project saved" });
+                    let identity = state.path.as_ref().map_or_else(
+                        || state.save_state_label().to_owned(),
+                        |path| format!("{}\n{}", state.save_state_label(), path.display()),
+                    );
+                    response.on_hover_text(identity);
                 });
             });
         });
@@ -148,23 +171,50 @@ pub(super) fn show(ui: &mut egui::Ui, state: &mut DesktopState, jobs: &mut JobRu
                     .small()
                     .color(theme::muted(ui)),
                 );
+                let save_state = state.save_state_label();
+                let save_label =
+                    ui.add(egui::Button::new(egui::RichText::new(save_state).small()).frame(false));
+                save_label.widget_info(|| {
+                    egui::WidgetInfo::labeled(egui::WidgetType::Button, true, save_state)
+                });
                 if state.active {
                     ui.spinner();
-                    ui.label(state.operation_name);
+                    ui.label(if state.cancelled {
+                        "Cancelling…"
+                    } else {
+                        state.operation_name
+                    });
                     if let Some(p) = state.progress {
                         if let Some(total) = p.total {
                             ui.label(format!("{}%", p.done.saturating_mul(100) / total.max(1)));
                         }
                     }
-                    if button(ui, state, "Cancel operation").clicked() {
-                        jobs.cancel();
-                        state.cancelled = true;
+                    let cancel = ui.add_enabled(
+                        !state.cancelled,
+                        egui::Button::new("Cancel operation").wrap_mode(egui::TextWrapMode::Extend),
+                    );
+                    procedure_forms::record(state, "Cancel operation", &cancel);
+                    if cancel.clicked() {
+                        state.request_cancel(jobs);
                     }
                 } else {
                     ui.add(egui::Label::new(theme::caption(&state.status)).truncate());
                 }
-                if state.file_outcome.is_some() && ui.small_button("File details").clicked() {
-                    state.dialog = Some(Dialog::FileOutcome);
+                if state.has_file_receipt() {
+                    let details = ui.small_button("File details");
+                    procedure_forms::record(state, "File details", &details);
+                    if details.clicked() {
+                        state.return_focus = Some(details.id);
+                        state.show_file_receipt();
+                    }
+                }
+                if state.has_recovery_receipt() {
+                    let details = ui.small_button("Recovery details");
+                    procedure_forms::record(state, "Recovery details", &details);
+                    if details.clicked() {
+                        state.return_focus = Some(details.id);
+                        state.show_recovery_receipt();
+                    }
                 }
             });
             if let Some(error) = state.error() {
@@ -172,6 +222,12 @@ pub(super) fn show(ui: &mut egui::Ui, state: &mut DesktopState, jobs: &mut JobRu
                     egui::RichText::new(format!("Needs attention: {}", theme::caption(error)))
                         .color(ui.visuals().error_fg_color),
                 );
+                let details = ui.small_button("Error details");
+                procedure_forms::record(state, "Error details", &details);
+                if details.clicked() {
+                    state.return_focus = Some(details.id);
+                    state.show_error_details();
+                }
             }
         });
     navigation(ui, state);

@@ -92,7 +92,7 @@ fn add_predictor(
                 data.columns().iter().filter(|c| {
                     Some(c.id()) != draft.outcome
                         && !draft.predictors.iter().any(|p| p.column == c.id())
-                        && query.matches(c.name())
+                        && super::analyses::variable_matches(c, &query)
                 })
             };
             let label = if state.search.trim().is_empty() {
@@ -117,17 +117,18 @@ fn add_predictor(
                 ui,
                 "regression-predictor-picker",
                 "predictor candidates",
-                28.,
+                40.,
                 candidates().count(),
                 (168., 56.),
                 |ui, range| {
                     for column in candidates().skip(range.start).take(range.len()) {
                         let response = ui
                             .push_id(column.id(), |ui| {
-                                theme::selectable_label(
+                                theme::list_row(
                                     ui,
                                     false,
-                                    theme::caption_limit(column.name(), 128),
+                                    &theme::caption_limit(column.name(), 128),
+                                    Some(&super::analyses::variable_context(column)),
                                 )
                             })
                             .inner;
@@ -158,7 +159,7 @@ fn add_predictor(
         let eligible = |c: &&crate::data::Column| {
             Some(c.id()) != draft.outcome
                 && !draft.predictors.iter().any(|p| p.column == c.id())
-                && query.matches(c.name())
+                && super::analyses::variable_matches(c, &query)
         };
         let count = data.columns().iter().filter(eligible).count();
         let size = std::mem::size_of::<RegressionPredictorDraft>();
@@ -174,7 +175,7 @@ fn add_predictor(
                 draft.predictors.reserve_exact(count);
                 for c in data.columns() {
                     if Some(c.id()) != draft.outcome
-                        && query.matches(c.name())
+                        && super::analyses::variable_matches(c, &query)
                         && !draft.predictors.iter().any(|p| p.column == c.id())
                     {
                         draft.predictors.push(RegressionPredictorDraft {
@@ -350,6 +351,11 @@ fn predictors(
                 |_| format!("Unavailable variable {}", column.0),
                 |c| theme::caption(c.name()),
             ));
+            if let Ok(variable) = data.column(column) {
+                let metadata = super::analyses::variable_context(variable);
+                ui.add(egui::Label::new(egui::RichText::new(&metadata).small()).truncate())
+                    .on_hover_text(metadata);
+            }
             ui.horizontal(|ui| {
                 if action(ui, state, "↑", "Move up", column, index > 0) {
                     reorder = Some((index, index - 1));
@@ -390,6 +396,9 @@ fn predictors(
                         }
                     }
                 });
+            }
+            if matches!(draft.predictors[index].role, RegressionDraftRole::Numeric) {
+                super::analyses::quantity_advice(ui, data, &[column]);
             }
             references(ui, state, draft, active, lookup, index);
         });

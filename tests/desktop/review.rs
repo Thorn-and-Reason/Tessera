@@ -174,6 +174,40 @@ pub(super) fn access_labels(
         .collect()
 }
 #[test]
+fn worksheet_editor_keeps_variable_and_row_accessible_name() {
+    let mut state = state()
+        .apply_action(UiAction::BeginCell {
+            column: ColumnId(1),
+            row: 0,
+        })
+        .unwrap();
+    let mut jobs = JobRunner::default();
+    let ctx = egui::Context::default();
+    ctx.enable_accesskit();
+    let mut output = ctx.run_ui(
+        egui::RawInput {
+            screen_rect: Some(Rect::from_min_size(Pos2::ZERO, Vec2::new(760., 520.))),
+            ..Default::default()
+        },
+        |ui| render(ui, &mut state, &mut jobs),
+    );
+    output.textures_delta.clear();
+    let tree = output.platform_output.accesskit_update.unwrap();
+    let editor = tree
+        .nodes
+        .iter()
+        .find(|(_, node)| node.role() == egui::accesskit::Role::TextInput)
+        .map(|(_, node)| node)
+        .expect("worksheet editor is reachable in the accessibility tree");
+    assert_eq!(editor.label(), Some("Edit Sgôr ŵ, row 1"));
+    assert_eq!(editor.value(), Some("17"));
+    assert_eq!(
+        state.project().dataset().cell(ColumnId(1), 0).unwrap(),
+        Cell::Number(17.)
+    );
+}
+
+#[test]
 fn cell_accessibility_values_and_click_enter() {
     let mut state = state();
     let mut jobs = JobRunner::default();
@@ -311,7 +345,7 @@ fn near_ceiling_render_child() {
     drop(owner);
     drop(state);
     // Retained controls and overlapping navigation copies receive separate headroom.
-    state = near_ceiling(256 * 1024);
+    state = near_ceiling(512 * 1024);
     for view in [
         Workspace::Data,
         Workspace::Prepare,

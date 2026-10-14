@@ -162,6 +162,7 @@ impl DesktopState {
         self.progress = None;
         self.error = None;
         self.cancelled = false;
+        self.abandoned_import = None;
         Ok(())
     }
     pub fn poll(&mut self, jobs: &mut JobRunner) {
@@ -248,6 +249,10 @@ impl DesktopState {
                     self.cancel_for_pending = false;
                     self.progress = None;
                 }
+                if self.abandoned_import == Some(token) {
+                    self.status = "Import cancelled. Current data unchanged.".into();
+                    return Ok(());
+                }
                 let output = match result {
                     Ok(output) => output,
                     Err(error) => {
@@ -285,31 +290,49 @@ impl DesktopState {
                     }
                 };
                 if let Some(outcome) = output.file_outcome() {
-                    let verb = match outcome.publication {
-                        crate::files::Publication::Committed
-                            if matches!(
-                                output,
-                                JobOutput::Saved(_) | JobOutput::SurveyRecipeSaved(_)
-                            ) =>
-                        {
-                            "Saved"
+                    let recovery = matches!(
+                        output,
+                        JobOutput::Checkpoint(_)
+                            | JobOutput::RecoveryRetired(_)
+                            | JobOutput::RecoveryDiscarded(_)
+                    );
+                    let needs_review = outcome.publication != crate::files::Publication::Committed
+                        || outcome.warning.is_some();
+                    if recovery {
+                        if needs_review {
+                            self.recovery_outcome = Some(outcome.clone());
+                            self.status = "Recovery files need review.".into();
+                            self.show_recovery_receipt();
                         }
-                        crate::files::Publication::Committed => "Exported",
-                        crate::files::Publication::Conflict => "File conflict:",
-                        crate::files::Publication::Uncertain => "Check file:",
-                    };
-                    let filename = outcome
-                        .destination
-                        .file_name()
-                        .map(std::path::Path::new)
-                        .unwrap_or(&outcome.destination);
-                    self.status =
-                        super::super::theme::caption(format_args!("{verb} {}", filename.display()));
-                    self.file_outcome = Some(outcome.clone());
-                    if outcome.warning.is_some()
-                        || outcome.publication != crate::files::Publication::Committed
-                    {
-                        self.dialog = Some(Dialog::FileOutcome);
+                    } else {
+                        self.file_outcome_kind = match output {
+                            JobOutput::Saved(_) => super::file_feedback::FileOutcomeKind::Project,
+                            JobOutput::SurveyRecipeSaved(_) => {
+                                super::file_feedback::FileOutcomeKind::Recipe
+                            }
+                            _ => super::file_feedback::FileOutcomeKind::Export,
+                        };
+                        let verb = match outcome.publication {
+                            crate::files::Publication::Committed => match output {
+                                JobOutput::Saved(_) | JobOutput::SurveyRecipeSaved(_) => "Saved",
+                                _ => "Exported",
+                            },
+                            crate::files::Publication::Conflict => "File conflict:",
+                            crate::files::Publication::Uncertain => "Check file:",
+                        };
+                        let filename = outcome
+                            .destination
+                            .file_name()
+                            .map(std::path::Path::new)
+                            .unwrap_or(&outcome.destination);
+                        self.status = super::super::theme::caption(format_args!(
+                            "{verb} {}",
+                            filename.display()
+                        ));
+                        self.file_outcome = Some(outcome.clone());
+                        if needs_review {
+                            self.show_file_receipt();
+                        }
                     }
                 }
                 if saved {
@@ -349,9 +372,13 @@ impl DesktopState {
                         self.accept_survey_report(project, control)?
                     }
                     JobOutput::Prepared(project) => {
+                        let status = super::super::preparation::outcome(
+                            &project,
+                            self.project.dataset().row_count(),
+                        );
                         self.adopt_prepared_project_arc(project)?;
                         self.metadata_editor = None;
-                        self.status = "Data prepared.".into();
+                        self.status = status;
                     }
                     JobOutput::Recovered(project) => {
                         self.adopt(project, None, None)?;
@@ -368,11 +395,16 @@ impl DesktopState {
                         {
                             return Err(AppError::Conflict("Recovery checkpoint could not be confirmed. Your earlier checkpoint is preserved.".into()));
                         }
-                        self.status.clear();
                         self.recovery_finished = Some((token, true));
                     }
-                    JobOutput::RecoveryRetired | JobOutput::RecoveryDiscarded => {
-                        self.status.clear();
+                    output @ (JobOutput::RecoveryRetired(_) | JobOutput::RecoveryDiscarded(_)) => {
+                        if output.file_outcome().is_some_and(|outcome| {
+                            outcome.publication != crate::files::Publication::Committed
+                                || outcome.committed_stamp.is_none()
+                                || outcome.warning.is_some()
+                        }) {
+                            return Err(AppError::Conflict("Recovery cleanup could not be confirmed. Inspect the surviving recovery files before continuing.".into()));
+                        }
                         self.recovery_finished = Some((token, true));
                     }
                     JobOutput::ExcelWorkbook(workbook) => self.accept_excel_workbook(workbook)?,
@@ -454,21 +486,18 @@ impl DesktopState {
                             .iter()
                             .filter(|o| o.committed_stamp.is_some())
                             .count();
-                        self.status = format!(
-                            "Exported {completed} figures: {}",
-                            outcomes
-                                .iter()
-                                .filter(|o| o.committed_stamp.is_some())
-                                .map(|o| o.destination.display().to_string())
-                                .collect::<Vec<_>>()
-                                .join(", ")
-                        );
+                        self.status = format!("Exported {completed} figures. Use File details to inspect the destination.");
+                        if let Some(outcome) = outcomes.last() {
+                            self.file_outcome_kind = super::file_feedback::FileOutcomeKind::Export;
+                            self.file_outcome = Some(outcome.clone());
+                        }
                         if let Some(outcome) = outcomes.iter().find(|o| {
                             o.publication != crate::files::Publication::Committed
                                 || o.warning.is_some()
                         }) {
+                            self.file_outcome_kind = super::file_feedback::FileOutcomeKind::Export;
                             self.file_outcome = Some(outcome.clone());
-                            self.dialog = Some(Dialog::FileOutcome);
+                            self.show_file_receipt();
                         }
                     }
                     JobOutput::Saved(_) | JobOutput::Exported(_) => {}
@@ -483,6 +512,129 @@ impl DesktopState {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn clean_background_checkpoint_preserves_actionable_previous_file_outcome() {
+        let mut state = DesktopState::from_project(
+            Project::new(
+                "Unsaved project",
+                crate::data::Dataset::new(vec![]).unwrap(),
+            )
+            .unwrap(),
+        )
+        .unwrap();
+        assert!(state.is_dirty());
+        let prior_path = std::env::temp_dir().join("prior-file-warning");
+        let mut outcome = crate::files::SaveOutcome {
+            publication: crate::files::Publication::Committed,
+            revision: None,
+            committed_stamp: Some(crate::files::FileStamp {
+                identity: crate::files::FileIdentity { volume: 1, file: 1 },
+                digest: [0; 32],
+                size: 40,
+            }),
+            destination: prior_path.clone(),
+            recovery: None,
+            warning: Some("Earlier recovery files need review.".into()),
+        };
+        state.file_outcome = Some(outcome.clone());
+        state.dialog = Some(Dialog::FileOutcome);
+        state.active = true;
+        state.operation_name = "Recovery checkpoint";
+        outcome.destination = std::env::temp_dir().join("checkpoint.tessera");
+        outcome.warning = None;
+        let token = state.token();
+        state
+            .handle_event(JobEvent::Completed {
+                token,
+                cancelled: false,
+                result: Ok(JobOutput::Checkpoint(outcome)),
+            })
+            .unwrap();
+        assert_eq!(state.file_outcome.as_ref().unwrap().destination, prior_path);
+        assert!(state.file_outcome.as_ref().unwrap().warning.is_some());
+        assert!(state.path.is_none());
+        assert!(state.is_dirty());
+        assert!(!state.status.starts_with("Saved"));
+    }
+    #[test]
+    fn recovery_warning_keeps_paths_visible_and_never_reports_cleanup_success() {
+        for operation in [
+            "Recovery checkpoint",
+            "Retire checkpoint",
+            "Discard recovery",
+        ] {
+            let mut state = DesktopState::new().unwrap();
+            state.active = true;
+            state.operation_name = operation;
+            let token = state.token();
+            let directory = std::env::temp_dir().join("retirement-warning-recovery");
+            let outcome = crate::files::SaveOutcome {
+                publication: crate::files::Publication::Committed,
+                revision: None,
+                committed_stamp: Some(crate::files::FileStamp {
+                    identity: crate::files::FileIdentity { volume: 1, file: 1 },
+                    digest: [0; 32],
+                    size: 40,
+                }),
+                destination: directory.join("checkpoint.tessera"),
+                recovery: Some(crate::files::RecoveryPaths {
+                    directory: directory.clone(),
+                    frozen_revision: None,
+                    displaced: Some(directory.join("prepared")),
+                    prepared: None,
+                }),
+                warning: Some(
+                    "Recovery cleanup failed; surviving copies require inspection.".into(),
+                ),
+            };
+            let output = match operation {
+                "Recovery checkpoint" => JobOutput::Checkpoint(outcome),
+                "Retire checkpoint" => JobOutput::RecoveryRetired(Some(outcome)),
+                _ => JobOutput::RecoveryDiscarded(outcome),
+            };
+            assert!(state
+                .handle_event(JobEvent::Completed {
+                    token,
+                    cancelled: false,
+                    result: Ok(output)
+                })
+                .is_err());
+            assert_eq!(state.recovery_finished, Some((token, false)));
+            assert_eq!(
+                state
+                    .recovery_outcome
+                    .as_ref()
+                    .unwrap()
+                    .recovery
+                    .as_ref()
+                    .unwrap()
+                    .directory,
+                directory
+            );
+            assert_eq!(state.dialog, Some(Dialog::FileOutcome));
+            assert!(!state.status.starts_with("Saved"));
+            assert!(state
+                .handle_event(JobEvent::Completed {
+                    token,
+                    cancelled: false,
+                    result: Err(AppError::Conflict(
+                        "Inspect retained recovery files before retrying.".into()
+                    ))
+                })
+                .is_err());
+            assert_eq!(
+                state
+                    .recovery_outcome
+                    .as_ref()
+                    .unwrap()
+                    .recovery
+                    .as_ref()
+                    .unwrap()
+                    .directory,
+                directory
+            );
+        }
+    }
     #[test]
     fn export_acknowledgement_cannot_outlive_document_revision_or_generation() {
         for identity in 0..3 {
@@ -558,3 +710,7 @@ mod tests {
         assert_eq!(state.active_recipe_bytes, 12345);
     }
 }
+
+#[cfg(test)]
+#[path = "operations/ux_tests.rs"]
+mod ux_tests;

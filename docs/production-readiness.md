@@ -43,6 +43,29 @@ fixtures; never overwrite a user's working project.
 9. Repeat principal controls with keyboard and VoiceOver; check light/dark,
    640×440, 1180×780 and 150% scaling.
 
+For the comprehensive-audit fixes, also verify a loaded survey recipe with
+expanded response replacements and a completed preview at both compact scales.
+Preview and Apply must remain reachable, and the worksheet and replacement
+editors must announce their purpose. Check that verified durable saves and
+recovery Discard remove their superseded temporary payloads, while cleanup
+failures expose surviving paths before any decision to continue. Repeat Open,
+Cancel and Quit with verified access to protected folders such as Documents;
+the earlier directory-opening wait remains an unresolved native observation.
+
+For the UI/workflow changes, test the actual minimum native window at 150%,
+including first-use instructions, whole action labels and dialog footers. Check
+worksheet arrow announcements and focus return after both dismissal and successful
+completion. Save a project, allow recovery to run, and confirm the explicit
+receipt still names the project. Close/Escape/Cancel active CSV and Excel work,
+then verify no late preview or dataset is adopted.
+
+Review `001 → 1` versus Text preservation and shortened/omitted samples before
+import. Check actual filter/weight values before Run, fresh versus continued
+drafts, duplicate preparation names, offline help and copied error details.
+Save/reopen mixed analysis history, select only the intended runs and export
+that subset. Existing-target refusals must explain the supported new-filename
+route without weakening file-identity or partial-publication protection.
+
 On 11 October, native desktop control verified mode persistence, CSV import,
 dirty Quit cancellation, project saving and deliberate crash/recovery with
 disposable data. This closes those observed scenarios for the tested build;

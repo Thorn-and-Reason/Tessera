@@ -5,6 +5,18 @@ mod export_confirmation;
 mod guidance;
 #[path = "desktop/survey_improvements.rs"]
 mod survey_improvements;
+#[path = "desktop/ux_access.rs"]
+mod ux_access;
+#[path = "desktop/ux_analysis.rs"]
+mod ux_analysis;
+#[path = "desktop/ux_import.rs"]
+mod ux_import;
+#[path = "desktop/ux_preparation.rs"]
+mod ux_preparation;
+#[path = "desktop/ux_shell.rs"]
+mod ux_shell;
+#[path = "desktop/ux_state.rs"]
+mod ux_state;
 use eframe::egui::{self, Event, Key, Modifiers, Pos2, Rect, Vec2};
 use std::{
     sync::Arc,

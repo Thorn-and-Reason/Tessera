@@ -4,7 +4,7 @@ use tessera::{
     error::AppError,
     import::{
         commit_preview, commit_preview_with_budget, preview, preview_with_budget, Delimiter,
-        ImportPreview, ImportWarning, MAX_INPUT_BYTES,
+        ImportConversionNote, ImportPreview, ImportWarning, MAX_INPUT_BYTES,
     },
     operation::JobControl,
 };
@@ -20,6 +20,40 @@ fn inspect(text: &str) -> ImportPreview {
 fn import(text: &str) -> Dataset {
     let p = inspect(text);
     commit_preview(&p, &p.default_choices().unwrap(), &JobControl::default()).unwrap()
+}
+
+// Catches preview text that diverges from the importer, especially identifier coercion
+// and blank-cell missingness decisions selected in the dialog.
+#[test]
+fn selected_conversion_review_matches_committed_cells() {
+    let p = inspect("Identifier,Amount,Comment\n00123,,\n00007,3.50,\n");
+    let mut choices = p.default_choices().unwrap();
+    choices[2].missing_rules = MissingRules::Text(vec![String::new()]);
+
+    let review = p.review_choices(&choices).unwrap();
+    assert_eq!(review.len(), 3);
+    assert_eq!(review[0].examples[0].source, "00123");
+    assert_eq!(review[0].examples[0].stored, "123");
+    assert!(review[0]
+        .notes
+        .contains(&ImportConversionNote::KeepAsTextToPreserveExactCharacters));
+    assert_eq!(review[1].examples[0].source, "");
+    assert_eq!(review[1].examples[0].stored, "Missing");
+    assert!(review[1].examples[0].marked_missing);
+    assert!(review[1]
+        .notes
+        .contains(&ImportConversionNote::BlankNumberImportsAsMissing));
+    assert_eq!(review[2].examples[0].stored, "");
+    assert!(review[2].examples[0].marked_missing);
+    assert!(review[2]
+        .notes
+        .contains(&ImportConversionNote::EmptyTextMarkedMissing));
+
+    let ds = commit_preview(&p, &choices, &JobControl::default()).unwrap();
+    assert_eq!(ds.cell(ColumnId(1), 0).unwrap(), Cell::Number(123.0));
+    assert_eq!(ds.cell(ColumnId(2), 0).unwrap(), Cell::Missing);
+    assert_eq!(ds.cell(ColumnId(3), 0).unwrap(), Cell::Text(String::new()));
+    assert!(ds.column(ColumnId(3)).unwrap().is_missing(0).unwrap());
 }
 
 // Catches incorrect quote, BOM, UTF-8, CRLF, TSV and final-field decoding.
@@ -320,4 +354,41 @@ fn cancelled_import_preserves_source() {
     assert!(matches!(worker.join().unwrap(), Err(AppError::Cancelled)));
     assert_eq!(original[0], b'T');
     assert_eq!(*original.last().unwrap(), b'"');
+}
+
+#[test]
+fn conversion_review_skips_shortened_numeric_prefixes() {
+    let source_value = format!("0.{}1", "0".repeat(121));
+    let p = inspect(&format!("Tiny\n{source_value}\n"));
+    assert!(p.samples_truncated());
+    assert!(p.sample_rows()[0][0].len() < source_value.len());
+    let mut choices = p.default_choices().unwrap();
+    choices[0].kind = ColumnKind::Number;
+    choices[0].acknowledge_precision_loss = true;
+
+    let review = p.review_choice(0, &choices[0]).unwrap();
+    assert!(
+        review.examples.is_empty(),
+        "shortened prefixes must not be reparsed as complete numeric source: {review:?}"
+    );
+
+    let ds = commit_preview(&p, &choices, &JobControl::default()).unwrap();
+    assert_ne!(ds.cell(ColumnId(1), 0).unwrap(), Cell::Number(0.0));
+}
+
+#[test]
+fn conversion_review_does_not_invent_blank_examples_for_omitted_sample_cells() {
+    let headers = (0..3000)
+        .map(|i| format!("C{i}"))
+        .collect::<Vec<_>>()
+        .join(",");
+    let row = std::iter::repeat_n("x", 3000).collect::<Vec<_>>().join(",");
+    let p = inspect(&format!("{headers}\n{row}\n"));
+    assert!(p.samples_truncated());
+    let choices = p.default_choices().unwrap();
+    let review = p.review_choice(2999, &choices[2999]).unwrap();
+    assert!(
+        review.examples.is_empty(),
+        "omitted cells are not blank cells: {review:?}"
+    );
 }

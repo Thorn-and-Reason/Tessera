@@ -5,7 +5,7 @@ use super::{
 };
 use crate::{
     analysis::{MissingPolicy, NumericComparison, RowPredicate, Statistic},
-    data::ColumnKind,
+    data::{ColumnKind, Measurement},
     jobs::{JobOperation, JobRunner},
 };
 use eframe::egui;
@@ -45,22 +45,26 @@ pub fn show(ui: &mut egui::Ui, state: &mut DesktopState, jobs: &mut JobRunner) {
 }
 
 pub fn settings(ui: &mut egui::Ui, state: &mut DesktopState, jobs: &mut JobRunner) {
-    egui::Panel::bottom("analysis-run-footer").show(ui, |ui| {
-        let label = if state.draft.procedure() == super::draft::Procedure::Describe {
-            "Run descriptives"
-        } else {
-            "Run analysis"
-        };
-        run_button(ui, state, jobs, label);
-    });
+    egui::Panel::bottom("analysis-run-footer")
+        .exact_size(126.)
+        .show(ui, |ui| {
+            let label = if state.draft.procedure() == super::draft::Procedure::Describe {
+                "Run descriptives"
+            } else {
+                "Run analysis"
+            };
+            run_button(ui, state, jobs, label);
+        });
     if state.project().dataset().columns().is_empty() {
         ui.label("Import CSV, TSV or Excel (.xlsx), or add a variable to start your dataset.");
         ui.horizontal(|ui| {
             if button(ui, state, "Import data…").clicked() {
                 super::dialogs::import(state);
             }
-            if button(ui, state, "Add variable").clicked() {
+            let add_variable = button(ui, state, "Add variable");
+            if add_variable.clicked() {
                 state.act(UiAction::Navigate(super::Workspace::Data));
+                state.return_focus = Some(add_variable.id);
                 state.dialog = Some(Dialog::AddVariable);
             }
         });
@@ -81,11 +85,105 @@ pub fn settings(ui: &mut egui::Ui, state: &mut DesktopState, jobs: &mut JobRunne
         .show(ui, |ui| form(ui, state, jobs));
 }
 
+pub(super) fn variable_matches(column: &crate::data::Column, query: &theme::NameQuery) -> bool {
+    query.matches(column.name()) || query.matches(&column.metadata().description)
+}
+
+pub(super) fn variable_context(column: &crate::data::Column) -> String {
+    let measurement = match column.metadata().measurement {
+        Measurement::Unknown => "Measurement not set",
+        Measurement::Scale => "Scale",
+        Measurement::Ordinal => "Ordinal",
+        Measurement::Nominal => "Nominal",
+    };
+    if column.metadata().description.trim().is_empty() {
+        measurement.into()
+    } else {
+        format!(
+            "{measurement} · {}",
+            theme::caption_limit(&column.metadata().description, 128)
+        )
+    }
+}
+pub(super) fn quantity_advice(
+    ui: &mut egui::Ui,
+    data: &crate::data::Dataset,
+    ids: &[crate::data::ColumnId],
+) {
+    let mut coded = 0;
+    let mut undeclared = 0;
+    for id in ids {
+        if let Ok(column) = data.column(*id) {
+            match column.metadata().measurement {
+                Measurement::Nominal | Measurement::Ordinal => coded += 1,
+                Measurement::Unknown => undeclared += 1,
+                Measurement::Scale => {}
+            }
+        }
+    }
+    if coded != 0 {
+        ui.small(format!("{coded} selected variables have Nominal or Ordinal measurement. This method uses numeric codes as quantities; check whether that matches their meaning."));
+    } else if undeclared != 0 {
+        ui.small("Measurement levels are not declared for some selected variables. Check their coding and units before treating them as quantities.");
+    }
+}
+
+pub(super) fn filter_summary(
+    ui: &mut egui::Ui,
+    project: &crate::project::Project,
+    filter: &crate::analysis::RowFilter,
+) {
+    if filter.predicates.is_empty() {
+        ui.small("Filter: all eligible rows.");
+        return;
+    }
+    egui::ScrollArea::vertical()
+        .id_salt("active-filter-summary")
+        .max_height(44.)
+        .show_rows(ui, 22., filter.predicates.len(), |ui, range| {
+            for predicate in &filter.predicates[range] {
+                let name = project.dataset().column(predicate.column()).map_or_else(
+                    |_| format!("Unavailable variable {}", predicate.column().0),
+                    |column| theme::caption(column.name()),
+                );
+                let text = match predicate {
+                    RowPredicate::Text { value, equal, .. } => format!(
+                        "{name} {} {}",
+                        if *equal { "=" } else { "≠" },
+                        theme::caption_limit(format_args!("{value:?}"), 160)
+                    ),
+                    RowPredicate::Missing { missing, .. } => {
+                        format!("{name} is {}", if *missing { "missing" } else { "present" })
+                    }
+                    RowPredicate::Number {
+                        comparison, value, ..
+                    } => format!("{name} {} {value}", comparison_label(*comparison)),
+                };
+                ui.add(
+                    egui::Label::new(egui::RichText::new(&text).small())
+                        .wrap_mode(egui::TextWrapMode::Extend),
+                )
+                .on_hover_text(text);
+            }
+        });
+}
+
+fn comparison_label(comparison: NumericComparison) -> &'static str {
+    match comparison {
+        NumericComparison::Equal => "=",
+        NumericComparison::NotEqual => "≠",
+        NumericComparison::Less => "<",
+        NumericComparison::LessOrEqual => "≤",
+        NumericComparison::Greater => ">",
+        NumericComparison::GreaterOrEqual => "≥",
+    }
+}
+
 fn form(ui: &mut egui::Ui, state: &mut DesktopState, jobs: &mut JobRunner) {
     let project = Arc::clone(state.project());
     let columns = project.dataset().columns();
     ui.strong(state.draft.procedure().label());
-    ui.label(super::experience::description(state.draft.procedure()));
+    super::experience::prose(ui, super::experience::description(state.draft.procedure()));
     ui.separator();
     let super::draft::AnalysisDraft::Describe(_) = &state.draft else {
         super::procedure_forms::settings(ui, state, jobs);
@@ -154,6 +252,7 @@ fn form(ui: &mut egui::Ui, state: &mut DesktopState, jobs: &mut JobRunner) {
             if let Some(index) = remove {
                 draft.columns.remove(index);
             }
+            quantity_advice(ui, project.dataset(), &draft.columns);
             {
                 ui.small("Available numeric variables");
                 let response = ui.add(
@@ -189,14 +288,14 @@ fn form(ui: &mut egui::Ui, state: &mut DesktopState, jobs: &mut JobRunner) {
                     label,
                     columns
                         .iter()
-                        .filter(|c| c.kind() == ColumnKind::Number && query.matches(c.name()))
+                        .filter(|c| c.kind() == ColumnKind::Number && variable_matches(c, &query))
                         .map(|c| c.id()),
                 );
                 let candidates = || {
                     columns.iter().filter(|c| {
                         c.kind() == ColumnKind::Number
                             && !draft.columns.contains(&c.id())
-                            && query.matches(c.name())
+                            && variable_matches(c, &query)
                     })
                 };
                 let mut selected = None;
@@ -204,7 +303,7 @@ fn form(ui: &mut egui::Ui, state: &mut DesktopState, jobs: &mut JobRunner) {
                     ui,
                     "describe-picker",
                     "describe candidates",
-                    28.,
+                    40.,
                     candidates().count(),
                     (168., 56.),
                     |ui, range| {
@@ -215,7 +314,7 @@ fn form(ui: &mut egui::Ui, state: &mut DesktopState, jobs: &mut JobRunner) {
                                         ui,
                                         false,
                                         &theme::caption_limit(column.name(), 128),
-                                        None,
+                                        Some(&variable_context(column)),
                                     )
                                 })
                                 .inner;
@@ -322,6 +421,45 @@ pub(super) fn run_button(
     label: &str,
 ) {
     ui.separator();
+    let project = Arc::clone(state.project());
+    filter_summary(ui, &project, state.draft.common().0);
+    let weight = state.draft.common().1;
+    let weighting = weight.map_or_else(
+        || "Unweighted observations".into(),
+        |id| {
+            let name = project.dataset().column(id).map_or_else(
+                |_| "Unavailable variable".into(),
+                |c| theme::caption_limit(c.name(), 128),
+            );
+            format!("Weight variable: {name} · frequency weights")
+        },
+    );
+    ui.add(egui::Label::new(egui::RichText::new(&weighting).small()).truncate())
+        .on_hover_text(format!(
+            "{weighting}. Frequency weights represent repeated observations, not survey weights."
+        ));
+    ui.horizontal_wrapped(|ui| {
+        ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Extend);
+        let method = ui.menu_button("Assumptions and method", |ui| {
+            ui.set_max_width(420.);
+            ui.label(super::experience::method_help(state.draft.procedure()));
+            ui.small("Required fields being complete does not establish whether the method suits your study.");
+        });
+        super::procedure_forms::record(state, "Assumptions and method", &method.response);
+        if (!state.draft.common().0.predicates.is_empty() || weight.is_some())
+            && button(ui, state, "Clear filter and weight").clicked()
+        {
+            match state.checked_editable_draft() {
+                Ok(mut draft) => {
+                    let (filter, weight) = draft.common_mut();
+                    *filter = crate::analysis::RowFilter::default();
+                    *weight = None;
+                    state.act(UiAction::SetDraft(draft));
+                }
+                Err(error) => state.fail(error),
+            }
+        }
+    });
     let requirement = state.draft_requirement();
     let response = ui
         .horizontal(|ui| {
@@ -333,7 +471,7 @@ pub(super) fn run_button(
                 let message = requirement.unwrap_or(if state.active {
                     "Analysis running…"
                 } else {
-                    "Ready to run"
+                    "Required fields complete"
                 });
                 ui.add(
                     egui::Label::new(egui::RichText::new(message).color(theme::muted(ui)))

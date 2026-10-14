@@ -12,6 +12,7 @@ use crate::{
     error::{AppError, AppResult},
     operation::JobControl,
 };
+pub(crate) use preview::REVIEW_WORK_BYTES;
 pub use preview::{preview, preview_with_budget};
 pub(crate) use records::Scanner;
 use std::{collections::HashSet, mem::size_of, sync::Arc};
@@ -48,9 +49,31 @@ pub struct ImportPreview {
     delimiter: Delimiter,
     columns: Vec<ImportColumnPreview>,
     samples: Vec<Vec<String>>,
+    sample_complete: Vec<Vec<bool>>,
     rows: usize,
     samples_truncated: bool,
     owned_bytes: usize,
+}
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ImportColumnReview {
+    pub name: String,
+    pub kind: ColumnKind,
+    pub examples: Vec<ImportConversionExample>,
+    pub notes: Vec<ImportConversionNote>,
+}
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ImportConversionExample {
+    pub source: String,
+    pub stored: String,
+    pub marked_missing: bool,
+}
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ImportConversionNote {
+    BlankNumberImportsAsMissing,
+    EmptyTextMarkedMissing,
+    KeepAsTextToPreserveExactCharacters,
+    NumericPrecisionMayRound,
+    ShortenedOrOmittedSamples,
 }
 
 enum Values {

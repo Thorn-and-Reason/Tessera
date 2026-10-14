@@ -1,9 +1,9 @@
 //! Advisory survey review; only visible variable metadata is read while drawing.
 use super::{
-    button, command, paged_rows, procedure_forms::record, DesktopState, UiAction, Workspace,
+    button, command, paged_rows, procedure_forms::record, theme, DesktopState, UiAction, Workspace,
 };
 use crate::{
-    data::ColumnKind,
+    data::{ColumnKind, MissingRules},
     jobs::JobRunner,
     survey::{SurveyFinding, SurveyRole},
 };
@@ -22,6 +22,7 @@ pub(super) fn entry(ui: &mut egui::Ui, state: &mut DesktopState) {
 pub(super) fn show(ui: &mut egui::Ui, state: &mut DesktopState, jobs: &mut JobRunner) {
     egui::Panel::bottom("survey-review-footer").show(ui, |ui| {
         ui.horizontal_wrapped(|ui| {
+            ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Extend);
             ui.add_enabled_ui(state.survey_ready(), |ui| {
                 if command(ui, state, "Create report").clicked() {
                     if let Err(error) = state.submit_survey(jobs) {
@@ -59,11 +60,18 @@ pub(super) fn show(ui: &mut egui::Ui, state: &mut DesktopState, jobs: &mut JobRu
             }
         });
     });
+    ui.small("Save report recipes with a new filename. Existing recipe files are preserved.");
     let Some(review) = state.survey_review().cloned() else {
         ui.heading("Instant survey report");
         ui.label("Import data, then review the suggested reporting roles.");
         return;
     };
+    let viewport_height = ui.available_height().max(0.);
+    egui::ScrollArea::vertical()
+        .id_salt("survey-review-body")
+        .auto_shrink([false, false])
+        .show(ui, |ui| {
+    let body_top = ui.cursor().top();
     let project = Arc::clone(state.project());
     ui.heading("Instant survey report");
     recipe_summary(ui, state);
@@ -81,9 +89,10 @@ pub(super) fn show(ui: &mut egui::Ui, state: &mut DesktopState, jobs: &mut JobRu
     ui.weak(format!(
         "{unresolved} actions still need your choice. Include at least one variable."
     ));
+    membership_summary(ui, state);
     presentation(ui, state);
     cleaning(ui, state, jobs);
-    let height = (ui.available_height() - 32.).max(50.);
+    let height = (viewport_height - (ui.cursor().top() - body_top) - 32.).max(50.);
     let controls = paged_rows::show_rows(
         ui,
         "survey-variable-review",
@@ -197,6 +206,58 @@ pub(super) fn show(ui: &mut egui::Ui, state: &mut DesktopState, jobs: &mut JobRu
         },
     );
     controls.record(state);
+        });
+}
+fn membership_summary(ui: &mut egui::Ui, state: &mut DesktopState) {
+    let choices = state.survey_choices();
+    let included = choices
+        .iter()
+        .filter(|c| matches!(c.role, SurveyRole::Categories | SurveyRole::NumericMeasure))
+        .count();
+    let excluded = choices
+        .iter()
+        .filter(|c| c.role == SurveyRole::Exclude)
+        .count();
+    ui.strong(format!(
+        "Report membership: {included} included · {excluded} excluded · {} unresolved",
+        choices.len() - included - excluded
+    ));
+    let panel = egui::CollapsingHeader::new("Review membership and blank responses").show(ui, |ui| {
+        let project = Arc::clone(state.project());
+        let pages = paged_rows::show_rows(ui, "survey-membership", "report membership", 96., state.survey_choices().len(), (192., 96.), |ui, range| {
+            for choice in &state.survey_choices()[range] {
+                if let Ok(column) = project.dataset().column(choice.column) {
+                    let status = match choice.role {
+                        SurveyRole::Exclude => "Excluded",
+                        SurveyRole::Unresolved => "Unresolved",
+                        _ => "Included",
+                    };
+                    let membership = theme::caption_limit(format_args!("{status}: {} · {}", column.name(), choice.role.label()), 192);
+                    ui.add(egui::Label::new(&membership).truncate()).on_hover_text(membership);
+                    let metadata = super::analyses::variable_context(column);
+                    ui.add(egui::Label::new(egui::RichText::new(&metadata).small()).truncate()).on_hover_text(metadata);
+                    if let Some((source, _)) = state.survey_reviewed_sources().find(|(_, reviewed)| *reviewed == choice.column) {
+                        if let Ok(original) = project.dataset().column(source) {
+                            let relationship = theme::caption_limit(format_args!("Original {} → reviewed copy {}", original.name(), column.name()), 192);
+                            ui.add(egui::Label::new(egui::RichText::new(&relationship).small()).truncate()).on_hover_text(relationship);
+                        }
+                    }
+                    if column.kind() == ColumnKind::Text {
+                        let missing = matches!(&column.metadata().missing_rules, MissingRules::Text(values) if values.iter().any(String::is_empty));
+                        let policy = if missing { "Empty text is declared missing." } else { "Empty text counts as valid under the current missing rules." };
+                        ui.add(egui::Label::new(egui::RichText::new(policy).small()).truncate()).on_hover_text(policy);
+                    }
+                }
+            }
+        });
+        pages.record(state);
+        ui.small("Missing cells remain missing. Spaces are distinct responses unless a reviewed copy trims them. Originals remain in the data.");
+    });
+    record(
+        state,
+        "Review membership and blank responses",
+        &panel.header_response,
+    );
 }
 
 fn recipe_summary(ui: &mut egui::Ui, state: &mut DesktopState) {
@@ -306,9 +367,9 @@ fn cleaning(ui: &mut egui::Ui, state: &mut DesktopState, jobs: &mut JobRunner) {
             if draft.column!=original.column {draft.rules=Vec::new();draft.replacement=false;draft.from=String::new();draft.to=String::new();}
             ui.checkbox(&mut draft.replacement,"Edit an exact replacement");
             if draft.replacement {
-                ui.horizontal_wrapped(|ui|{ui.label("From");ui.add(egui::TextEdit::singleline(&mut draft.from).char_limit(1024));});
+                ui.horizontal_wrapped(|ui|{let label=ui.label("From");ui.add(egui::TextEdit::singleline(&mut draft.from).char_limit(1024)).labelled_by(label.id);});
                 ui.checkbox(&mut draft.missing,"Treat this response as missing");
-                if !draft.missing{ui.horizontal_wrapped(|ui|{ui.label("To");ui.add(egui::TextEdit::singleline(&mut draft.to).char_limit(1024));});}
+                if !draft.missing{ui.horizontal_wrapped(|ui|{let label=ui.label("To");ui.add(egui::TextEdit::singleline(&mut draft.to).char_limit(1024)).labelled_by(label.id);});}
             }
         });
         if draft!=original {

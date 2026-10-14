@@ -28,10 +28,10 @@ impl JobTask {
 
             JobOperation::RetireCheckpoint { store } => store
                 .discard_owned_with_budget(control, &datasets, extra)
-                .map(|()| JobOutput::RecoveryRetired),
+                .map(JobOutput::RecoveryRetired),
             JobOperation::DiscardRecovery { store, entry } => store
                 .discard_entry(entry, control, &datasets, extra)
-                .map(|()| JobOutput::RecoveryDiscarded),
+                .map(JobOutput::RecoveryDiscarded),
             JobOperation::Prepare { project, step } => preparation::prepare_with_budget(
                 project,
                 step,

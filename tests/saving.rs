@@ -33,13 +33,14 @@ fn project() -> Project {
     Project::new("Saving test", common::sample_dataset()).unwrap()
 }
 #[test]
-fn save_reopen_and_recover_displaced_version() {
+fn save_reopen_and_cleanup_durable_displaced_version() {
     let temp = Temp::new();
     let path = temp.0.join("project.tessera");
     let p = project();
     let control = JobControl::default();
     let first = save_project(&path, &p, None, &control).unwrap();
     assert_eq!(first.publication, Publication::Committed);
+    #[cfg(windows)]
     let prior = fs::read(&path).unwrap();
     let (opened, expected) = read_project(&path, &control).unwrap();
     assert_eq!(opened.title(), p.title());
@@ -51,6 +52,14 @@ fn save_reopen_and_recover_displaced_version() {
     let saved = save_project(&path, &next, Some(&expected), &control).unwrap();
     assert_eq!(saved.publication, Publication::Committed);
     assert_eq!(saved.committed_stamp, Some(stamp(&path).unwrap()));
+    #[cfg(unix)]
+    {
+        assert!(saved.recovery.is_none());
+        assert!(fs::read_dir(&temp.0)
+            .unwrap()
+            .all(|entry| !entry.unwrap().path().is_dir()));
+    }
+    #[cfg(windows)]
     assert_eq!(
         fs::read(saved.recovery.unwrap().displaced.unwrap()).unwrap(),
         prior

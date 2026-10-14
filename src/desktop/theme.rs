@@ -249,10 +249,11 @@ pub(crate) fn primary<'a>(ui: &egui::Ui, label: &'a str) -> egui::Button<'a> {
     egui::Button::new(egui::RichText::new(label).color(ink).strong())
         .fill(fill)
         .stroke(egui::Stroke::new(1., fill))
+        .wrap_mode(egui::TextWrapMode::Extend)
 }
 
 pub(crate) fn secondary<'a>(_ui: &egui::Ui, label: &'a str) -> egui::Button<'a> {
-    egui::Button::new(egui::RichText::new(label))
+    egui::Button::new(egui::RichText::new(label)).wrap_mode(egui::TextWrapMode::Extend)
 }
 /// Borderless until hover; for toggles and trailing utilities that should not
 /// compete with the task's next action.
@@ -261,6 +262,7 @@ pub(crate) fn quiet<'a>(_ui: &egui::Ui, label: &'a str) -> egui::Button<'a> {
         .fill(Color32::TRANSPARENT)
         .stroke(egui::Stroke::NONE)
         .frame_when_inactive(false)
+        .wrap_mode(egui::TextWrapMode::Extend)
 }
 /// Selectable buttons keep border geometry constant in idle, hover and focus states.
 pub(crate) fn selectable_label<'a>(

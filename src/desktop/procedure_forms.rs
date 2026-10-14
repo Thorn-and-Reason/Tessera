@@ -211,30 +211,31 @@ pub(super) fn scalar(
                 data.columns().iter().filter(|c| {
                     (!numeric || c.kind() == ColumnKind::Number)
                         && Some(c.id()) != other
-                        && query.matches(c.name())
+                        && analyses::variable_matches(c, &query)
                 })
             };
             super::paged_rows::show_rows(
                 ui,
                 ("scalar-columns", label),
                 &format!("{label} variables"),
-                28.,
+                40.,
                 candidates().count(),
                 (168., 56.),
                 |ui, range| {
                     for c in candidates().skip(range.start).take(range.len()) {
                         let response = ui
                             .push_id(c.id(), |ui| {
-                                theme::selectable_value(
+                                theme::list_row(
                                     ui,
-                                    role,
-                                    Some(c.id()),
-                                    theme::caption_limit(c.name(), 128),
+                                    *role == Some(c.id()),
+                                    &theme::caption_limit(c.name(), 128),
+                                    Some(&analyses::variable_context(c)),
                                 )
                             })
                             .inner;
                         record(state, &format!("{label}: {}", c.id().0), &response);
                         if response.clicked() {
+                            *role = Some(c.id());
                             ui.close();
                         }
                     }
@@ -245,6 +246,14 @@ pub(super) fn scalar(
         .response;
     response.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::ComboBox, true, label));
     record(state, label, &response);
+    if let Some(id) = *role {
+        if let Ok(column) = data.column(id) {
+            ui.small(analyses::variable_context(column));
+            if numeric {
+                analyses::quantity_advice(ui, data, &[id]);
+            }
+        }
+    }
     if role.is_none()
         && label != "Grouping variable (optional)"
         && label != "Add frequency variable"
@@ -366,14 +375,16 @@ fn pearson_roles(
                 label,
                 data.columns()
                     .iter()
-                    .filter(|c| c.kind() == ColumnKind::Number && query.matches(c.name()))
+                    .filter(|c| {
+                        c.kind() == ColumnKind::Number && analyses::variable_matches(c, &query)
+                    })
                     .map(|c| c.id()),
             );
             let candidates = || {
                 data.columns().iter().filter(|c| {
                     c.kind() == ColumnKind::Number
                         && !request.columns.contains(&c.id())
-                        && query.matches(c.name())
+                        && analyses::variable_matches(c, &query)
                 })
             };
             let mut selected = None;
@@ -381,7 +392,7 @@ fn pearson_roles(
                 ui,
                 "pearson-picker",
                 "correlation candidates",
-                28.,
+                40.,
                 candidates().count(),
                 (168., 56.),
                 |ui, range| {
@@ -392,7 +403,7 @@ fn pearson_roles(
                                     ui,
                                     false,
                                     &theme::caption_limit(c.name(), 128),
-                                    None,
+                                    Some(&analyses::variable_context(c)),
                                 )
                             })
                             .inner;
@@ -416,6 +427,7 @@ fn pearson_roles(
             }
         }
     }
+    analyses::quantity_advice(ui, data, &request.columns);
 }
 fn pearson_options(ui: &mut egui::Ui, request: &mut PearsonRequest) {
     ui.label("Missing values");

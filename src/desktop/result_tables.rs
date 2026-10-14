@@ -113,8 +113,13 @@ pub(super) fn show(ui: &mut egui::Ui, state: &mut DesktopState, run: &AnalysisRu
                 );
                 return;
             }
+            ui.label(super::results::saved_result_label(
+                run,
+                a,
+                state.project().dataset().revision(),
+            ));
             ui.heading(format!(
-                "Saved result: {} · run {}",
+                "Recorded result: {} · run {}",
                 crate::export::report_analyses::method(a),
                 run.id.0
             ));

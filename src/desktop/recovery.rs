@@ -271,10 +271,30 @@ impl RecoveryManager {
     ) {
         if self.cleanup_decision {
             egui::Modal::new(egui::Id::new("recovery-cleanup")).show(ctx, |ui| {
-                ui.heading("Checkpoint could not be removed");
-                if let Some(message) = state.error() {
-                    ui.label(message);
-                }
+                ui.set_width((ctx.content_rect().width() - 64.0).clamp(260.0, 440.0));
+                ui.heading("Recovery files could not be removed");
+                egui::ScrollArea::vertical()
+                    .id_salt("recovery-cleanup-details")
+                    .max_height((ctx.content_rect().height() - 140.0).max(80.0))
+                    .show(ui, |ui| {
+                        if let Some(message) = state.error() {
+                            ui.label(message);
+                        }
+                        if let Some(recovery) = state.recovery_receipt().and_then(|outcome| outcome.recovery.as_ref()) {
+                            ui.label("Copy the recovery folder path to review the retained files before continuing.");
+                            super::dialogs::path_detail(ui, "Recovery", &recovery.directory);
+                            for (label, path) in [
+                                ("Previous version", &recovery.displaced),
+                                ("Saved revision", &recovery.frozen_revision),
+                                ("Prepared file", &recovery.prepared),
+                            ] {
+                                if let Some(path) = path {
+                                    super::dialogs::path_detail(ui, label, path);
+                                }
+                            }
+                        }
+                        ui.label("Keeping recovery files lets you continue without removing them. Retained copies may need manual recovery.");
+                    });
                 if ui
                     .add_enabled(!state.active, egui::Button::new("Retry"))
                     .clicked()
@@ -282,13 +302,12 @@ impl RecoveryManager {
                     self.failed = false;
                     self.cleanup_decision = false;
                 }
-                if state.pending_ready
-                    && ui
-                        .add_enabled(
-                            !state.active,
-                            egui::Button::new("Keep checkpoint and continue"),
-                        )
-                        .clicked()
+                if ui
+                    .add_enabled(
+                        !state.active,
+                        egui::Button::new("Keep recovery files and continue"),
+                    )
+                    .clicked()
                 {
                     self.keep_and_continue(state);
                 }
@@ -387,6 +406,7 @@ impl RecoveryManager {
 // Published recovery checkpoints require verified directory durability (Unix only).
 #[cfg(all(test, unix))]
 mod tests {
+    mod lifecycle;
     use super::*;
     use crate::{data::Dataset, operation::JobControl};
     use std::{

@@ -9,8 +9,10 @@ mod experience;
 mod exploration_forms;
 mod exploration_results;
 pub(super) mod guidance;
+mod help;
 pub use experience::AnalysisMode;
 mod figure_editor;
+mod import_review;
 #[cfg(any(target_os = "macos", test))]
 mod macos;
 mod output_style;
@@ -252,6 +254,7 @@ fn render_with_recovery(
     state.controls.clear();
     state.control_ids.clear();
     state.poll(jobs);
+    let restore_focus = state.dialog.is_none() && !state.active && !state.modal_file_dialog;
     if !blocked {
         shortcuts(ui.ctx(), state, jobs);
     }
@@ -276,6 +279,18 @@ fn render_with_recovery(
         dialogs::import(state);
     }
     dialogs::show(ui.ctx(), state, jobs);
+    if restore_focus && state.dialog.is_none() && !state.active && !state.modal_file_dialog {
+        if let Some(opener) = state.return_focus.take() {
+            let destination = if state.control_ids.values().any(|id| *id == opener) {
+                Some(opener)
+            } else {
+                state.control_id(state.workspace().label())
+            };
+            if let Some(destination) = destination {
+                ui.memory_mut(|memory| memory.request_focus(destination));
+            }
+        }
+    }
     if let Some(save_as) = state.take_property_save_requested() {
         dialogs::save(state, jobs, save_as);
     }
@@ -313,6 +328,20 @@ fn button_styled(
     kind: theme::Kind,
 ) -> egui::Response {
     let displayed = theme::caption(label);
+    let text = egui::RichText::new(&displayed);
+    let text = if kind == theme::Kind::Primary {
+        text.strong()
+    } else {
+        text
+    };
+    let galley = egui::WidgetText::from(text).into_galley(
+        ui,
+        Some(egui::TextWrapMode::Extend),
+        f32::INFINITY,
+        egui::TextStyle::Button,
+    );
+    let mut size = galley.size() + 2. * ui.spacing().button_padding;
+    size.y = size.y.max(ui.spacing().interact_size.y);
     let shortcut = match label {
         "New project" => Some(egui::KeyboardShortcut::new(Modifiers::COMMAND, Key::N)),
         "Open" | "Open…" => Some(egui::KeyboardShortcut::new(Modifiers::COMMAND, Key::O)),
@@ -320,14 +349,18 @@ fn button_styled(
         _ => None,
     };
     let response = ui
-        .push_id(egui::Id::new(label), |ui| {
-            let command = kind.build(ui, &displayed);
-            let response = ui.add(command);
-            if let Some(shortcut) = shortcut {
-                response.on_hover_text(ui.ctx().format_shortcut(&shortcut))
-            } else {
-                response
-            }
+        // Reserve the whole control before a wrapped row chooses its position.
+        .allocate_ui(size, |ui| {
+            ui.push_id(egui::Id::new(label), |ui| {
+                let command = kind.build(ui, &displayed);
+                let response = ui.add(command);
+                if let Some(shortcut) = shortcut {
+                    response.on_hover_text(ui.ctx().format_shortcut(&shortcut))
+                } else {
+                    response
+                }
+            })
+            .inner
         })
         .inner;
     state.controls.insert(displayed.clone(), response.rect);
